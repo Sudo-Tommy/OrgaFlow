@@ -1,0 +1,102 @@
+/* 1. Tailwind v4 Haupt-Import */
+@import "tailwindcss";
+
+/* 2. Globale Theme-Einstellungen (optional, für konsistente Schrift) */
+@theme {
+    --font-sans: "Inter", system-ui, sans-serif;
+}
+
+/* 3. Basis-HTML/Body Setup für perfekte Lesbarkeit auf allen Geräten */
+@layer base {
+    html, body {
+        /* Dunkler Hintergrund für den App-Rahmen, scharfe Schrift (antialiased) */
+        @apply antialiased text-neutral-100 bg-neutral-950 min-h-screen;
+        
+        /* Verhindert, dass iOS beim Drehen des Handys die Schriftgröße zerschießt */
+        -webkit-text-size-adjust: 100%;
+        
+        /* Schicke Markierungsfarbe (wenn man Text mit der Maus markiert) */
+        @apply selection:bg-indigo-500 selection:text-white;
+    }
+
+    /* Standard-Scrollbar global (elegant und schmal) */
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+        @apply bg-transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        @apply bg-neutral-700 rounded-full hover:bg-neutral-500 transition-colors;
+    }
+}
+
+/* 4. Deine wiederverwendbaren OrgaFlow-Komponenten */
+@layer components {
+
+    /* --- KARTEN & MODALE --- */
+    .orga-card-white {
+        /* Responsiv: Auf Mobile etwas weniger Radius, auf Desktop starke Abrundung */
+        @apply bg-white text-black rounded-2xl md:rounded-3xl shadow-2xl border-none overflow-hidden;
+    }
+
+    .orga-card-dark {
+        @apply bg-neutral-900 border border-neutral-800 rounded-2xl md:rounded-3xl shadow-xl overflow-hidden;
+    }
+
+    /* --- EINGABEFELDER --- */
+    /* Das helle "Clear Field" Design (Für Formulare) */
+    .orga-input-clear {
+        /* py-3 sorgt für eine Mindesthöhe, die perfekt für Daumen-Klicks auf Touchscreens ist */
+        @apply bg-white text-black border-2 border-neutral-200 rounded-xl md:rounded-2xl 
+               px-4 py-3 w-full transition-all font-medium shadow-inner
+               focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 
+               placeholder:text-neutral-400 disabled:opacity-50 disabled:bg-neutral-50;
+    }
+
+    /* Das dunkle Design (Für Suchfelder im Header z.B.) */
+    .orga-input-dark {
+        @apply bg-neutral-800 text-white border border-neutral-700 rounded-xl 
+               px-4 py-2.5 w-full transition-all placeholder:text-neutral-500
+               focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500;
+    }
+
+    /* --- BUTTONS --- */
+    /* Primärer Aktions-Button */
+    .orga-button-primary {
+        @apply flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold 
+               py-3 px-6 md:px-8 rounded-xl md:rounded-2xl transition-all shadow-lg shadow-indigo-900/20
+               active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+    }
+
+    /* Sekundärer Button (Abbrechen etc.) */
+    .orga-button-ghost {
+        @apply flex justify-center items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 
+               font-bold py-3 px-6 rounded-xl md:rounded-2xl transition-all active:scale-95;
+    }
+
+    /* Zerstörerischer Button (Löschen) */
+    .orga-button-danger {
+        @apply flex justify-center items-center gap-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white 
+               font-bold py-3 px-6 rounded-xl md:rounded-2xl transition-colors active:scale-95;
+    }
+
+    /* --- UTILITIES --- */
+    /* Spezifische Klasse für seitlich scrollbare Bereiche (wie deine Tab-Menüs) */
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: #525252 transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #525252;
+        border-radius: 20px;
+    }
+}

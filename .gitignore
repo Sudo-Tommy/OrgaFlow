@@ -1,0 +1,15 @@
+# --- OrgaFlow Root ---
+backup/
+installer.bat
+
+# --- PocketBase Backend ---
+backend/pb_data/
+backend/pb_migrations/
+
+# --- SvelteKit Frontend ---
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/build/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
