@@ -1,6 +1,7 @@
 <script lang="ts">
-    let { title = $bindable(), saveMessage, isSaving, onSave, onAdd } = $props<{
+    let { title = $bindable(), type = $bindable(), saveMessage, isSaving, onSave, onAdd } = $props<{
         title: string;
+        type: string;
         saveMessage: string;
         isSaving: boolean;
         onSave: () => void;
@@ -14,11 +15,18 @@
             <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
         </a>
         <div class="flex flex-col">
-            <input 
-                type="text" 
-                bind:value={title} 
-                class="text-[18px] font-medium text-neutral-800 bg-transparent border border-transparent hover:border-neutral-300 focus:border-indigo-500 focus:outline-none rounded px-2 py-0.5 w-48 md:w-64 transition-colors" 
-            />
+            <div class="flex items-center gap-2">
+                <input 
+                    type="text" 
+                    bind:value={title} 
+                    class="text-[18px] font-medium text-neutral-800 bg-transparent border border-transparent hover:border-neutral-300 focus:border-indigo-500 focus:outline-none rounded px-2 py-0.5 w-48 md:w-64 transition-colors" 
+                />
+                <select bind:value={type} class="bg-neutral-100 border border-neutral-200 text-neutral-600 text-xs font-bold rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+                    <option value="rechnung">Rechnung</option>
+                    <option value="arbeitszeitnachweis">Arbeitszeitnachweis</option>
+                    <option value="allgemein">Brief / Allgemein</option>
+                </select>
+            </div>
             <div class="flex gap-1 px-2 mt-0.5 text-[12px] font-bold text-neutral-500">
                 <button onclick={() => onAdd('text')} class="hover:bg-neutral-100 hover:text-indigo-600 px-2 py-0.5 rounded transition-colors">+ Textbox</button>
                 <button onclick={() => onAdd('logo')} class="hover:bg-neutral-100 hover:text-indigo-600 px-2 py-0.5 rounded transition-colors">+ Logo</button>

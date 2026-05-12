@@ -133,6 +133,15 @@
                     </div>
 
                     <div class="pt-2 border-t border-neutral-100">
+                        <span class="block text-xs font-semibold text-neutral-600 mb-2">Tabellen-Fußzeile (Summen)</span>
+                        <div class="space-y-1.5 bg-neutral-50 p-3 rounded-xl border border-neutral-200">
+                            <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeTotalNetto} class="text-indigo-600 rounded border-neutral-300"> Netto-Summe anzeigen</label>
+                            <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeTotalTax} class="text-indigo-600 rounded border-neutral-300"> MwSt-Betrag anzeigen</label>
+                            <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeTotalBrutto} class="text-indigo-600 rounded border-neutral-300"> Gesamt-Brutto anzeigen</label>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 border-t border-neutral-100">
                         <span class="block text-xs font-semibold text-neutral-600 mb-2">Spalten benennen</span>
                         <div class="grid grid-cols-2 gap-2 bg-neutral-50 p-3 rounded-xl border border-neutral-200">
                             {#each activeField.tableConfig.columns as col}

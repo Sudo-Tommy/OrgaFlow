@@ -4,6 +4,17 @@
     
     let { client } = $props<{ client: any }>();
     let linkInsuranceModal: ReturnType<typeof ClientLinkInsuranceModal> | undefined = $state();
+
+    // Robuste Formatierung, um "Invalid Date" komplett zu verhindern
+    function safeFormatDate(val: string) {
+        if (!val) return '';
+        const clean = val.trim().replace(' ', 'T');
+        const d = new Date(clean);
+        if (!isNaN(d.getTime())) return d.toLocaleDateString('de-DE', { timeZone: 'UTC' });
+        const match = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (match) return `${match[3]}.${match[2]}.${match[1]}`;
+        return val.split(' ')[0]; // Fallback
+    }
 </script>
 
 <div class="orga-card-white relative overflow-hidden group">
@@ -27,7 +38,7 @@
                 <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-500 flex items-center justify-center shrink-0 shadow-sm"><span class="text-lg">🎂</span></div>
                 <div>
                     <p class="text-xs text-neutral-500 font-semibold uppercase tracking-wider mb-1">Geburtsdatum</p>
-                    <p class="text-neutral-900 font-bold">{new Date(client.birthdate.replace(' ', 'T')).toLocaleDateString('de-DE', { timeZone: 'UTC' })}</p>
+                    <p class="text-neutral-900 font-bold">{safeFormatDate(client.birthdate)}</p>
                 </div>
             </div>
             {/if}
@@ -88,7 +99,7 @@
             <div class="grid grid-cols-3 gap-4 bg-neutral-50 p-4 rounded-xl border border-neutral-100">
                 <div><p class="text-[10px] text-neutral-500 uppercase tracking-wider mb-0.5">Stundensatz</p><p class="text-sm font-bold text-neutral-900">{client.hourly_wage ?? 40} €</p></div>
                 <div><p class="text-[10px] text-neutral-500 uppercase tracking-wider mb-0.5">Fahrtkosten</p><p class="text-sm font-bold text-neutral-900">{client.km_rate ?? 0.3} €/km</p></div>
-                <div><p class="text-[10px] text-neutral-500 uppercase tracking-wider mb-0.5">Steuersatz</p><p class="text-sm font-bold text-neutral-900">{client.tax_rate || '0'} %</p></div>
+                <div><p class="text-[10px] text-neutral-500 uppercase tracking-wider mb-0.5">Steuersatz</p><p class="text-sm font-bold text-neutral-900">{client.tax_rate != null ? client.tax_rate : '0'} %</p></div>
             </div>
         </div>
         
@@ -96,7 +107,7 @@
             <div class="pt-6 mt-6 border-t border-neutral-100">
                 <p class="text-xs text-neutral-500 font-semibold uppercase tracking-wider mb-3">Unterschrift</p>
                 <div class="bg-white rounded-xl border border-neutral-100 p-4 flex justify-center shadow-sm">
-                    <img src={pb.files.getUrl(client, client.sign)} alt="Unterschrift von {client.name_first}" class="max-h-24 object-contain mix-blend-multiply" />
+                    <img src={pb.files.getURL(client, client.sign)} alt="Unterschrift von {client.name_first}" class="max-h-24 object-contain mix-blend-multiply" />
                 </div>
             </div>
         {/if}

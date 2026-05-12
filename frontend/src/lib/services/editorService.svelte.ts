@@ -24,6 +24,7 @@ export interface CanvasField {
 export function useEditor(initialDocId: string | null) {
     let docId = $state(initialDocId);
     let title = $state("Unbenannte Vorlage");
+    let type = $state("rechnung");
     
     // Das gesamte Canvas-Dokument-Objekt
     let fields = $state<CanvasField[]>([]);
@@ -39,6 +40,7 @@ export function useEditor(initialDocId: string | null) {
             try {
                 const record = await pb.collection('document_templates').getOne(docId);
                 title = record.title || "Unbenannte Vorlage";
+                type = record.type || "rechnung";
                 
                 const data = record.content_html;
                 if (data && typeof data === 'object' && Array.isArray(data.fields)) {
@@ -76,7 +78,10 @@ export function useEditor(initialDocId: string | null) {
                 includeTimeRecords: true,
                 includeDriveKm: true,
                 includeDriveLumpSum: true,
-                includeExpenditures: true
+                includeExpenditures: true,
+                includeTotalNetto: true,
+                includeTotalTax: true,
+                includeTotalBrutto: true
             };
         }
         
@@ -99,7 +104,7 @@ export function useEditor(initialDocId: string | null) {
                 version: 2
             };
             
-            const data = { title, content_html: documentPayload };
+            const data = { title, type, content_html: documentPayload };
             if (docId) {
                 await pb.collection('document_templates').update(docId, data);
             } else {
@@ -111,7 +116,12 @@ export function useEditor(initialDocId: string | null) {
             setTimeout(() => saveMessage = "", 2000);
         } catch (err) {
             console.error(err);
-            saveMessage = "Fehler beim Speichern!";
+            saveMessage = "Fehler!";
+            if (err.response?.data) {
+                const details = Object.entries(err.response.data).map(([k, v]: any) => `${k}: ${v.message}`).join(", ");
+                if (details) saveMessage = `Fehler: ${details}`;
+            }
+            setTimeout(() => saveMessage = "", 6000);
         } finally {
             isSaving = false;
         }
@@ -120,6 +130,8 @@ export function useEditor(initialDocId: string | null) {
     return {
         get title() { return title; },
         set title(v) { title = v; },
+        get type() { return type; },
+        set type(v) { type = v; },
         get fields() { return fields; },
         get selectedFieldId() { return selectedFieldId; },
         set selectedFieldId(v) { selectedFieldId = v; },

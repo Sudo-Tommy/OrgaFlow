@@ -37,6 +37,18 @@
     let existingSignatureUrl = $state("");
     let deleteExistingSignature = $state(false);
 
+    // Helper um das Datum für das HTML <input type="date"> kompatibel zu machen
+    function toYMD(val: string) {
+        if (!val) return "";
+        const match = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+        if (val.includes('.')) {
+            const parts = val.split(/[. ]/);
+            if (parts.length >= 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+        return val.substring(0, 10);
+    }
+
     export function open() {
         if (client) {
             formData = {
@@ -50,16 +62,16 @@
                 housenr: client.housenr || "",
                 zip: client.zip || "",
                 city: client.city || "",
-                birthdate: client.birthdate ? client.birthdate.substring(0, 10) : "",
+                birthdate: toYMD(client.birthdate),
                 insurance_nr: client.insurance_nr || "",
                 hourly_wage: client.hourly_wage ?? 40,
                 km_rate: client.km_rate ?? 0.3,
-                tax_rate: client.tax_rate || "0",
+                tax_rate: client.tax_rate != null ? client.tax_rate.toString() : "0",
                 default_template: client.default_template || ""
             };
             
             if (client.sign) {
-                existingSignatureUrl = pb.files.getUrl(client, client.sign);
+                existingSignatureUrl = pb.files.getURL(client, client.sign);
             } else {
                 existingSignatureUrl = "";
             }
@@ -162,8 +174,8 @@
                 if (key === 'tax_rate') {
                     pbFormData.append(key, value === "0" ? "" : value.toString());
                 } else if (key === 'birthdate') {
-                    // Speichere das Datum fix auf 12 Uhr Mittags UTC, um Zeitzonenverschiebungen zu verhindern
-                    pbFormData.append(key, value ? `${value} 12:00:00.000Z` : "");
+                    const cleanVal = (value as string).trim();
+                    pbFormData.append(key, cleanVal ? `${cleanVal} 12:00:00.000Z` : "");
                 } else {
                     pbFormData.append(key, (value ?? '').toString());
                 }

@@ -3,6 +3,7 @@
     import { orgaStore } from "$lib/stores/orgaStore.svelte";
     import { useInvoiceFilter } from "$lib/services/invoiceFilterService.svelte";
     import DocumentGeneratorModal from "$lib/components/DocumentGeneratorModal.svelte";
+    import { onMount } from "svelte";
 
     const invoicesStore = orgaStore.invoices;
     const filterService = useInvoiceFilter(() => invoicesStore?.data || []);
@@ -47,15 +48,44 @@
     // Hilfsfunktion: Holt die korrekte URL für die PDF-Datei
     function getPdfUrl(record: any, index: number = 0) {
         if (!record.pdf || record.pdf.length === 0) return null;
+        
         if (Array.isArray(record.pdf)) {
             if (index < record.pdf.length) {
-                return pb.files.getUrl(record, record.pdf[index]);
+                return pb.files.getURL(record, record.pdf[index]);
             }
             return null;
         }
-        return index === 0 ? pb.files.getUrl(record, record.pdf) : null;
+        return index === 0 ? pb.files.getURL(record, record.pdf) : null;
     }
     
+    // PWA-Sicherer Download: Verhindert, dass iOS die App mit der PDF überschreibt
+    async function downloadPdf(record: any, index: number, prefix: string) {
+        const url = getPdfUrl(record, index);
+        if (!url) return;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("Netzwerkantwort war nicht ok");
+            
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = blobUrl;
+            const safeNr = (record.invoice_nr || 'Unbekannt').replace(/\//g, '-');
+            a.download = `${prefix}_${safeNr}.pdf`;
+            
+            document.body.appendChild(a);
+            a.click();
+            
+            setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(blobUrl); }, 100);
+        } catch (error) {
+            console.error("Download fehlgeschlagen:", error);
+            alert("Das Dokument konnte nicht geladen werden.");
+        }
+    }
+
     function getClient(record: any) {
         return Array.isArray(record.expand?.client) ? record.expand.client[0] : record.expand?.client;
     }
@@ -153,13 +183,13 @@
                     <div class="flex flex-col mt-auto border-t border-neutral-100">
                         <div class="flex">
                             {#if getPdfUrl(inv, 0)}
-                                <a href={getPdfUrl(inv, 0)} target="_blank" rel="noopener noreferrer" class="flex-1 block text-center py-3.5 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-sm transition-colors border-r border-neutral-700" title="Rechnung ansehen">Rechnung</a>
+                                <button type="button" onclick={() => downloadPdf(inv, 0, 'Rechnung')} class="flex-1 block text-center py-3.5 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-sm transition-colors border-r border-neutral-700 cursor-pointer" title="Rechnung herunterladen">Rechnung</button>
                             {:else}
                                 <div class="flex-1 text-center py-3.5 bg-neutral-100 text-neutral-400 font-bold text-sm italic border-r border-neutral-200">Keine Rechnung</div>
                             {/if}
                             
                             {#if getPdfUrl(inv, 1)}
-                                <a href={getPdfUrl(inv, 1)} target="_blank" rel="noopener noreferrer" class="flex-1 block text-center py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm transition-colors" title="Zeitnachweis ansehen">Zeitnachweis</a>
+                                <button type="button" onclick={() => downloadPdf(inv, 1, 'Zeitnachweis')} class="flex-1 block text-center py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm transition-colors cursor-pointer" title="Zeitnachweis herunterladen">Zeitnachweis</button>
                             {/if}
                             
                             <button onclick={() => deleteInvoice(inv.id)} class="w-14 shrink-0 flex items-center justify-center bg-red-50 hover:bg-red-500 text-red-500 hover:text-white transition-colors" title="Rechnung löschen">

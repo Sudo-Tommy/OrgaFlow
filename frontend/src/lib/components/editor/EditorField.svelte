@@ -129,7 +129,7 @@
         {:else if field.type === 'logo'}
             {#if orgaStore.company?.data?.[0]?.logo}
                 <div class="w-full h-full flex items-center justify-center bg-transparent">
-                    <img src={pb.files.getUrl(orgaStore.company.data[0], orgaStore.company.data[0].logo)} class="max-w-full max-h-full object-contain" alt="Logo" crossorigin="anonymous" />
+                    <img src={pb.files.getURL(orgaStore.company.data[0], orgaStore.company.data[0].logo)} class="max-w-full max-h-full object-contain" alt="Logo" crossorigin="anonymous" />
                 </div>
             {:else}
                 <div class="w-full h-full border-2 border-dashed border-neutral-300 flex items-center justify-center bg-neutral-50/50 text-neutral-400 font-bold tracking-widest uppercase text-sm">
@@ -172,6 +172,22 @@
                         </div>
                     {/if}
                 </div>
+                <!-- Dummy Footer -->
+                {#if field.tableConfig?.includeTotalNetto !== false || field.tableConfig?.includeTotalTax !== false || field.tableConfig?.includeTotalBrutto !== false}
+                    <div class="p-2 border-t-2 flex flex-col items-end text-xs" style="border-top-color: {field.tableConfig?.headerBackgroundColor || '#ccc'};">
+                        <div class="w-48">
+                            {#if field.tableConfig?.includeTotalNetto !== false}
+                                <div class="flex justify-between mb-1"><span>Netto:</span> <span>104,00 €</span></div>
+                            {/if}
+                            {#if field.tableConfig?.includeTotalTax !== false}
+                                <div class="flex justify-between mb-1"><span>MwSt (0%):</span> <span>0,00 €</span></div>
+                            {/if}
+                            {#if field.tableConfig?.includeTotalBrutto !== false}
+                                <div class="flex justify-between font-bold text-[13px]"><span>Gesamt:</span> <span>104,00 €</span></div>
+                            {/if}
+                        </div>
+                    </div>
+                {/if}
             </div>
         {/if}
     </div>

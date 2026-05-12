@@ -23,6 +23,7 @@
 <div class="fixed inset-0 z-50 bg-[#F8F9FA] flex flex-col font-sans">
     <EditorTopBar 
         bind:title={editor.title} 
+        bind:type={editor.type}
         saveMessage={editor.saveMessage} 
         isSaving={editor.isSaving} 
         onSave={editor.save} 

@@ -117,7 +117,8 @@
                 if (key === 'tax_rate') {
                     pbFormData.append(key, value === "0" ? "" : value.toString());
                 } else if (key === 'birthdate') {
-                    pbFormData.append(key, value ? new Date(value as string).toISOString() : "");
+                    const cleanVal = (value as string).trim();
+                    pbFormData.append(key, cleanVal ? `${cleanVal} 12:00:00.000Z` : "");
                 } else {
                     pbFormData.append(key, (value ?? '').toString());
                 }

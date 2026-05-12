@@ -77,8 +77,23 @@
                 jsPDF: { unit: 'px', format: [794, 1123], orientation: service.template?.content_html?.orientation || 'portrait' }
             };
 
-            // PDF als File/Blob aus dem DOM-Element generieren
+            // WICHTIG: html2pdf verschluckt sich, wenn man zwei PDFs gleichzeitig (Promise.all) rendern will.
+            // Wir müssen sie strikt nacheinander generieren!
             const pdfBlob = await html2pdf().set(opt).from(pdfContainerRef).output('blob');
+
+            let tsFilename = "";
+            let tsBlob = null;
+            if (service.isInvoice && service.timesheetTemplate && timesheetPdfContainerRef) {
+                tsFilename = `Zeitnachweis_${filename}`;
+                const optTs = {
+                    margin: 0,
+                    filename: tsFilename,
+                    image: { type: 'jpeg' as const, quality: 1.0 },
+                    html2canvas: { scale: 4, useCORS: true, letterRendering: true },
+                    jsPDF: { unit: 'px', format: [794, 1123], orientation: service.timesheetTemplate.content_html?.orientation || 'portrait' }
+                };
+                tsBlob = await html2pdf().set(optTs).from(timesheetPdfContainerRef).output('blob');
+            }
 
             // Wenn es eine Rechnung ist, speichern wir sie als echten Datensatz im System
             if (service.isInvoice && service.invoiceData) {
@@ -104,17 +119,8 @@
 
                 pbFormData.append('pdf', pdfBlob, filename);
 
-                // Wenn der Arbeitszeitnachweis aktiv ist, als zweites PDF separat anheften
-                if (service.timesheetTemplate && timesheetPdfContainerRef) {
-                    const tsFilename = `Zeitnachweis_${filename}`;
-                    const optTs = {
-                        margin: 0,
-                        filename: tsFilename,
-                        image: { type: 'jpeg' as const, quality: 1.0 },
-                        html2canvas: { scale: 4, useCORS: true, letterRendering: true },
-                        jsPDF: { unit: 'px', format: [794, 1123], orientation: service.timesheetTemplate.content_html?.orientation || 'portrait' }
-                    };
-                    const tsBlob = await html2pdf().set(optTs).from(timesheetPdfContainerRef).output('blob');
+                // Wenn der Arbeitszeitnachweis existiert, als zweites PDF anheften
+                if (tsBlob) {
                     pbFormData.append('pdf', tsBlob, tsFilename);
                 }
 
@@ -218,8 +224,17 @@
     <div style="position: fixed; left: -9999px; top: 0; z-index: -100; color: #000000; background-color: #ffffff;">
         <div bind:this={pdfContainerRef} class="pdf-export-container orga-canvas-a4" style="background-color: #ffffff; width: 794px; min-height: 1123px; position: relative;">
             {#each service.template.content_html?.fields || [] as field}
-                <div style="position: absolute; left: {field.x}px; top: {field.y}px; width: {field.w}px; height: {field.h}px; font-size: {field.style.fontSize}px; color: {field.style.color}; font-weight: {field.style.fontWeight}; text-align: {field.style.textAlign}; padding: {field.style.padding}px;">{#if field.type === 'text'}{@html service.replacePlaceholders(field.content)}{:else if field.type === 'logo'}{#if service.company?.logo}<img src={pb.files.getUrl(service.company, service.company.logo)} style="max-width: 100%; max-height: 100%; object-fit: contain;" alt="Logo" crossorigin="anonymous" />{/if}{:else if field.type === 'table'}{@html service.getItemsHtml(field.tableConfig)}{/if}</div>
+                    <div style="position: absolute; left: {field.x}px; top: {field.y}px; width: {field.w}px; height: {field.h}px; font-size: {field.style.fontSize}px; color: {field.style.color}; font-weight: {field.style.fontWeight}; text-align: {field.style.textAlign}; padding: {field.style.padding}px;">{#if field.type === 'text'}{@html service.replacePlaceholders(field.content, false)}{:else if field.type === 'logo'}{#if service.company?.logo}<img src={pb.files.getURL(service.company, service.company.logo)} style="max-width: 100%; max-height: 100%; object-fit: contain;" alt="Logo" crossorigin="anonymous" />{/if}{:else if field.type === 'table'}{@html service.getItemsHtml(field.tableConfig, false)}{/if}</div>
             {/each}
         </div>
     </div>
+    {#if service.isInvoice && service.timesheetTemplate}
+        <div style="position: fixed; left: -9999px; top: 0; z-index: -100; color: #000000; background-color: #ffffff;">
+            <div bind:this={timesheetPdfContainerRef} class="pdf-export-container orga-canvas-a4" style="background-color: #ffffff; width: 794px; min-height: 1123px; position: relative;">
+                {#each service.timesheetTemplate.content_html?.fields || [] as field}
+                    <div style="position: absolute; left: {field.x}px; top: {field.y}px; width: {field.w}px; height: {field.h}px; font-size: {field.style.fontSize}px; color: {field.style.color}; font-weight: {field.style.fontWeight}; text-align: {field.style.textAlign}; padding: {field.style.padding}px;">{#if field.type === 'text'}{@html service.replacePlaceholders(field.content, true)}{:else if field.type === 'logo'}{#if service.company?.logo}<img src={pb.files.getURL(service.company, service.company.logo)} style="max-width: 100%; max-height: 100%; object-fit: contain;" alt="Logo" crossorigin="anonymous" />{/if}{:else if field.type === 'table'}{@html service.getItemsHtml(field.tableConfig, true)}{/if}</div>
+                {/each}
+            </div>
+        </div>
+    {/if}
 {/if}

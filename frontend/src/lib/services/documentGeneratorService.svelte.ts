@@ -47,14 +47,14 @@ export function useDocumentGenerator() {
             if (c) {
                 hourlyWage = c.hourly_wage ?? 40;
                 kmRate = c.km_rate ?? 0.3;
-                taxRate = c.tax_rate || "0";
+                taxRate = c.tax_rate != null ? c.tax_rate.toString() : "0";
             }
         }
     });
 
     // Vorlagen filtern und den Timesheet-Template heraussuchen
-    let availableTemplates = $derived((orgaStore.document_templates?.data || []).filter(t => t.type?.toLowerCase() !== 'arbeitszeitnachweis'));
-    let timesheetTemplate = $derived(orgaStore.document_templates?.data.find(t => t.type?.toLowerCase() === 'arbeitszeitnachweis'));
+    let availableTemplates = $derived((orgaStore.document_templates?.data || []).filter(t => (t.type || '').toLowerCase() !== 'arbeitszeitnachweis'));
+    let timesheetTemplate = $derived(orgaStore.document_templates?.data.find(t => (t.type || '').toLowerCase() === 'arbeitszeitnachweis'));
 
     let availableAppointments = $derived.by(() => {
         if (!selectedClientId || !orgaStore.appointments) return [];
@@ -70,8 +70,8 @@ export function useDocumentGenerator() {
         }).sort((a: any, b: any) => new Date(b.appointment).getTime() - new Date(a.appointment).getTime());
     });
 
-    let isInvoice = $derived(template?.type?.toLowerCase() === 'rechnung');
-    let requiresAppointments = $derived(template?.type?.toLowerCase() === 'rechnung' || template?.type?.toLowerCase() === 'arbeitszeitnachweis');
+    let isInvoice = $derived((template?.type || '').toLowerCase() === 'rechnung');
+    let requiresAppointments = $derived((template?.type || '').toLowerCase() === 'rechnung' || (template?.type || '').toLowerCase() === 'arbeitszeitnachweis');
 
     let invoiceData = $derived.by(() => {
         if (!requiresAppointments || selectedAppointmentIds.length === 0) return null;
@@ -157,8 +157,50 @@ export function useDocumentGenerator() {
         return { invoice_nr, netto, tax_sum: taxSum, brutto, positions, service_period, issue_date: manualIssueDate };
     });
 
-    function getItemsHtml(fieldConf: any) {
-        if (!invoiceData) return "";
+    // NEU: Eigene Datenberechnung für den Zeitnachweis, damit dieser unabhängig von der Rechnungskonfiguration IMMER die Zeiten enthält
+    let timesheetData = $derived.by(() => {
+        if (!requiresAppointments || selectedAppointmentIds.length === 0) return null;
+        const apps = availableAppointments.filter((a:any) => selectedAppointmentIds.includes(a.id));
+        
+        let positions: any[] = [];
+        let netto = 0;
+        let posCounter = 1;
+
+        for (const app of apps) {
+            let appTimeMins = 0;
+            if (app.expand?.time_record) {
+                for (const tr of app.expand.time_record) {
+                    if (tr.start && tr.end) {
+                        const diffMs = new Date(tr.end).getTime() - new Date(tr.start).getTime();
+                        if (diffMs > 0) appTimeMins += Math.round(diffMs / 60000);
+                    }
+                }
+            }
+            if (appTimeMins > 0) {
+                const hours = appTimeMins / 60;
+                const total = hours * hourlyWage;
+                netto += total;
+                let titleDesc = app.description || 'Alltagshilfe';
+                if (app.expand?.tasks && app.expand.tasks.length > 0) {
+                    titleDesc = app.expand.tasks.map((t:any) => t.title).join(', ');
+                }
+                positions.push({ pos: posCounter++, date: new Date(app.appointment).toLocaleDateString('de-DE'), duration: `${hours.toFixed(2)} h`, title: `${titleDesc}`, price: `${hourlyWage.toFixed(2)} €`, total });
+            }
+        }
+
+        const taxRateNum = parseFloat(taxRate) || 0;
+        const taxSum = netto * (taxRateNum / 100);
+        const brutto = netto + taxSum;
+        const invoice_nr = manualInvoiceNr || getNextInvoiceNumber();
+        const service_period = invoiceData ? invoiceData.service_period : "";
+
+        return { invoice_nr, netto, tax_sum: taxSum, brutto, positions, service_period, issue_date: manualIssueDate };
+    });
+
+    function getItemsHtml(fieldConf: any, isTimesheet: boolean = false) {
+        const dataToUse = isTimesheet ? timesheetData : invoiceData;
+        if (!dataToUse) return "";
+        
         let tableHtml = `<table style="width: 100%; border-collapse: collapse; font-size: ${fieldConf?.fontSize || 12}px;">`;
         if (fieldConf?.showHeaders) {
             tableHtml += `<thead><tr style="background-color: ${fieldConf.headerBackgroundColor}; color: ${fieldConf.headerTextColor}; border-bottom: 2px solid #cbd5e1;">`;
@@ -168,7 +210,7 @@ export function useDocumentGenerator() {
             tableHtml += `</tr></thead>`;
         }
         tableHtml += `<tbody>`;
-        for (const pos of invoiceData.positions) {
+        for (const pos of dataToUse.positions) {
             tableHtml += `<tr style="border-bottom: 1px solid #f1f5f9;">`;
             for (const col of fieldConf?.columns || []) {
                 let val = "";
@@ -177,7 +219,7 @@ export function useDocumentGenerator() {
                 else if (col.type === 'duration') val = pos.duration;
                 else if (col.type === 'title') {
                     if (fieldConf.staticDescription) {
-                        val = replacePlaceholders(fieldConf.staticDescription);
+                        val = replacePlaceholders(fieldConf.staticDescription, isTimesheet);
                     } else {
                         val = pos.title;
                     }
@@ -191,11 +233,21 @@ export function useDocumentGenerator() {
         tableHtml += `</tbody></table>`;
         
         // Summierung unten anfügen
-        tableHtml += `<div style="margin-top: 15px; border-top: 2px solid ${fieldConf?.headerBackgroundColor || '#ccc'}; padding-top: 10px; width: 250px; margin-left: auto;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Netto:</span> <span>${invoiceData.netto.toFixed(2).replace('.',',')} €</span></div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>MwSt (${taxRate}%):</span> <span>${invoiceData.tax_sum.toFixed(2).replace('.',',')} €</span></div>
-            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 14px;"><span>Gesamt:</span> <span>${invoiceData.brutto.toFixed(2).replace('.',',')} €</span></div>
-        </div>`;
+        if (fieldConf?.includeTotalNetto !== false || fieldConf?.includeTotalTax !== false || fieldConf?.includeTotalBrutto !== false) {
+            tableHtml += `<div style="margin-top: 15px; border-top: 2px solid ${fieldConf?.headerBackgroundColor || '#ccc'}; padding-top: 10px; width: 250px; margin-left: auto;">`;
+            
+            if (fieldConf?.includeTotalNetto !== false) {
+                tableHtml += `<div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Netto:</span> <span>${dataToUse.netto.toFixed(2).replace('.',',')} €</span></div>`;
+            }
+            if (fieldConf?.includeTotalTax !== false) {
+                tableHtml += `<div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>MwSt (${taxRate}%):</span> <span>${dataToUse.tax_sum.toFixed(2).replace('.',',')} €</span></div>`;
+            }
+            if (fieldConf?.includeTotalBrutto !== false) {
+                tableHtml += `<div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 14px;"><span>Gesamt:</span> <span>${dataToUse.brutto.toFixed(2).replace('.',',')} €</span></div>`;
+            }
+            
+            tableHtml += `</div>`;
+        }
         
         return tableHtml;
     }
@@ -209,16 +261,28 @@ export function useDocumentGenerator() {
         return client;
     }
 
-    function replacePlaceholders(text: string) {
+    function replacePlaceholders(text: string, isTimesheet: boolean = false) {
         if (!text) return "";
+        
+        function safeFormatDate(val: string) {
+            if (!val) return '';
+            const clean = val.trim().replace(' ', 'T');
+            const d = new Date(clean);
+            if (!isNaN(d.getTime())) return d.toLocaleDateString('de-DE', { timeZone: 'UTC' });
+            const match = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (match) return `${match[3]}.${match[2]}.${match[1]}`;
+            return val.split(' ')[0];
+        }
+
         let res = text.replace(/\n/g, '<br/>');
         const rec = getRecipientData() || {};
         const comp = company || {};
         const usr = pb.authStore.record || {};
         const ins = client?.expand?.insurance || {};
+        const dataToUse = isTimesheet ? timesheetData : invoiceData;
         
-        const clientSignUrl = rec.sign ? pb.files.getUrl(rec, rec.sign) : '';
-        const userSignUrl = usr.sign ? pb.files.getUrl(usr, usr.sign) : '';
+        const clientSignUrl = rec.sign ? pb.files.getURL(rec, rec.sign) : '';
+        const userSignUrl = usr.sign ? pb.files.getURL(usr, usr.sign) : '';
 
         const map: Record<string, string> = {
             '{{client.salutation}}': rec.salutation || '',
@@ -231,7 +295,7 @@ export function useDocumentGenerator() {
             '{{client.phone}}': rec.phone || '',
             '{{client.handy}}': rec.handy || '',
             '{{client.insurance_nr}}': rec.insurance_nr || '',
-            '{{client.birthdate}}': rec.birthdate ? new Date(rec.birthdate.replace(' ', 'T')).toLocaleDateString('de-DE', { timeZone: 'UTC' }) : '',
+            '{{client.birthdate}}': safeFormatDate(rec.birthdate),
             '{{client.level_of_care}}': rec.level_of_care || '',
             '{{client.hourly_wage}}': client?.hourly_wage || '',
             '{{client.km_rate}}': client?.km_rate || '',
@@ -296,16 +360,16 @@ export function useDocumentGenerator() {
             '{{user_handy}}': usr.handy || ''
         };
 
-        if (invoiceData) {
-            map['{{invoice.number}}'] = invoiceData.invoice_nr || '';
-            map['{{invoice.total}}'] = `${invoiceData.brutto.toFixed(2).replace('.', ',')} €`;
-            map['{{rechnungs_nr}}'] = invoiceData.invoice_nr || '';
-            map['{{invoice.issue_date}}'] = new Date(invoiceData.issue_date).toLocaleDateString('de-DE', { timeZone: 'UTC' });
-            map['{{rechnungsdatum}}'] = new Date(invoiceData.issue_date).toLocaleDateString('de-DE', { timeZone: 'UTC' });
-            const due = new Date(new Date(invoiceData.issue_date).getTime() + 14 * 24 * 60 * 60 * 1000);
+        if (dataToUse) {
+            map['{{invoice.number}}'] = dataToUse.invoice_nr || '';
+            map['{{invoice.total}}'] = `${dataToUse.brutto.toFixed(2).replace('.', ',')} €`;
+            map['{{rechnungs_nr}}'] = dataToUse.invoice_nr || '';
+            map['{{invoice.issue_date}}'] = new Date(dataToUse.issue_date).toLocaleDateString('de-DE', { timeZone: 'UTC' });
+            map['{{rechnungsdatum}}'] = new Date(dataToUse.issue_date).toLocaleDateString('de-DE', { timeZone: 'UTC' });
+            const due = new Date(new Date(dataToUse.issue_date).getTime() + 14 * 24 * 60 * 60 * 1000);
             map['{{invoice.due_date}}'] = due.toLocaleDateString('de-DE', { timeZone: 'UTC' });
-            map['{{invoice.service_period}}'] = invoiceData.service_period || '';
-            map['{{leistungszeitraum}}'] = invoiceData.service_period || '';
+            map['{{invoice.service_period}}'] = dataToUse.service_period || '';
+            map['{{leistungszeitraum}}'] = dataToUse.service_period || '';
         }
 
         for (const [key, val] of Object.entries(map)) {

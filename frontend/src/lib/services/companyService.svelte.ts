@@ -49,7 +49,7 @@ export function useCompanyService() {
                 vatcode: companyRecord.vatcode || ""
             };
             if (companyRecord.logo) {
-                existingLogoUrl = pb.files.getUrl(companyRecord, companyRecord.logo);
+                existingLogoUrl = pb.files.getURL(companyRecord, companyRecord.logo);
             } else {
                 existingLogoUrl = "";
             }

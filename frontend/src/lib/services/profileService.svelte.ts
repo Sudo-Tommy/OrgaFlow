@@ -47,12 +47,12 @@ export function useProfileService() {
                 phone: record.phone || ""
             };
             if (record.avatar) {
-                existingAvatarUrl = pb.files.getUrl(record, record.avatar);
+                existingAvatarUrl = pb.files.getURL(record, record.avatar);
             } else {
                 existingAvatarUrl = "";
             }
         if (record.sign) {
-            existingSignUrl = pb.files.getUrl(record, record.sign);
+                existingSignUrl = pb.files.getURL(record, record.sign);
         } else {
             existingSignUrl = "";
         }
@@ -99,11 +99,11 @@ export function useProfileService() {
             await pb.collection(collection).update(id, pbFormData);
             
             // Refresh UI Daten nach Speichern
-            existingAvatarUrl = pb.authStore.record?.avatar ? pb.files.getUrl(pb.authStore.record, pb.authStore.record.avatar) : "";
+            existingAvatarUrl = pb.authStore.record?.avatar ? pb.files.getURL(pb.authStore.record, pb.authStore.record.avatar) : "";
             avatarFile = null;
             deleteAvatar = false;
         
-        existingSignUrl = pb.authStore.record?.sign ? pb.files.getUrl(pb.authStore.record, pb.authStore.record.sign) : "";
+            existingSignUrl = pb.authStore.record?.sign ? pb.files.getURL(pb.authStore.record, pb.authStore.record.sign) : "";
         signFile = null;
         deleteSign = false;
 
