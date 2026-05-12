@@ -5,10 +5,15 @@
 
     // Dynamisches Filtern der geladenen Collections auf den aktuellen Klienten
     // Sollten die Tabellen noch keine Daten haben, wird durch `|| []` ein Fehler vermieden.
+<<<<<<< HEAD
     
     let clientData = $derived(orgaStore.clients?.getById(clientId));
     let appointments = $derived((orgaStore.appointments?.data || []).filter((a: any) => Array.isArray(a.client) ? a.client.includes(clientId) : a.client === clientId));
     let contacts = $derived(clientData?.expand?.contacts || []);
+=======
+    let appointments = $derived((orgaStore.appointments?.data || []).filter((a: any) => Array.isArray(a.client) ? a.client.includes(clientId) : a.client === clientId));
+    let contacts = $derived((orgaStore.contacts?.data || []).filter((c: any) => c.client === clientId));
+>>>>>>> 33acf6306a3259fe6f3bb48639b6c1a209c4f25d
     let documents = $derived((orgaStore.document_templates?.data || []).filter((d: any) => d.client === clientId));
 
     // Helper um live zu prüfen, ob dieser Termin bereits in einer Rechnung auftaucht
@@ -115,6 +120,7 @@
                     {#each contacts as contact}
                         <li class="flex items-center gap-3 p-3 rounded-xl hover:bg-neutral-50 transition-colors border border-neutral-100 cursor-pointer">
                             <div class="w-10 h-10 rounded-full bg-neutral-200 flex items-center justify-center text-neutral-600 font-bold text-sm shrink-0 shadow-inner">
+<<<<<<< HEAD
                                 {(contact.name_first?.charAt(0) || contact.company_name?.charAt(0) || '?').toUpperCase()}
                             </div>
                             <div class="flex-1 min-w-0">
@@ -124,6 +130,13 @@
                                 {#if contact.company_name && (contact.name_first || contact.name_last)}
                                     <p class="text-xs text-neutral-500 mt-0.5 truncate">{contact.company_name}</p>
                                 {/if}
+=======
+                                {(contact.name?.charAt(0) || '?')}
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-neutral-900">{contact.name || 'Unbekannt'}</p>
+                                <p class="text-xs text-neutral-500 mt-0.5">{contact.relation || 'Angehörige/r'}</p>
+>>>>>>> 33acf6306a3259fe6f3bb48639b6c1a209c4f25d
                             </div>
                         </li>
                     {/each}

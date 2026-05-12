@@ -72,7 +72,11 @@
             close();
         } catch (err: any) {
             console.error(err);
-            errorMsg = err.message || "Fehler beim Speichern der Fahrt.";
+            errorMsg = err.message || "Fehler beim Speichern.";
+            if (err.response?.data) {
+                const details = Object.entries(err.response.data).map(([k, v]: any) => `${k}: ${v.message}`).join(", ");
+                if (details) errorMsg += ` (${details})`;
+            }
         } finally {
             isLoading = false;
         }

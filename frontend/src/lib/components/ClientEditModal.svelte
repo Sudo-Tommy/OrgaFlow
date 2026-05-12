@@ -16,6 +16,7 @@
         status: "",
         level_of_care: "",
         street: "",
+        housenr: "",
         zip: "",
         city: ""
     });
@@ -39,6 +40,7 @@
                 status: client.status || "Aktiv",
                 level_of_care: client.level_of_care || "",
                 street: client.street || "",
+                housenr: client.housenr || "",
                 zip: client.zip || "",
                 city: client.city || ""
             };
@@ -163,7 +165,11 @@
             close();
         } catch (err: any) {
             console.error(err);
-            errorMsg = err.message || "Fehler beim Speichern der Daten.";
+            errorMsg = err.message || "Fehler beim Speichern.";
+            if (err.response?.data) {
+                const details = Object.entries(err.response.data).map(([k, v]: any) => `${k}: ${v.message}`).join(", ");
+                if (details) errorMsg += ` (${details})`;
+            }
         } finally {
             isLoading = false;
         }
@@ -192,10 +198,11 @@
                 <div><label for="edit-carelevel" class="block text-sm font-semibold text-neutral-700 mb-1.5">Pflegegrad</label><select id="edit-carelevel" bind:value={formData.level_of_care} class="orga-input-clear" disabled={isLoading}><option value="">Keiner</option><option value="0">Grad 0</option><option value="1">Grad 1</option><option value="2">Grad 2</option><option value="3">Grad 3</option><option value="4">Grad 4</option><option value="5">Grad 5</option></select></div>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="md:col-span-2"><label for="edit-street" class="block text-sm font-semibold text-neutral-700 mb-1.5">Straße & Hausnr.</label><input id="edit-street" type="text" bind:value={formData.street} class="orga-input-clear" disabled={isLoading} /></div>
+                <div><label for="edit-housenr" class="block text-sm font-semibold text-neutral-700 mb-1.5">Hausnr.</label><input id="edit-housenr" type="text" bind:value={formData.housenr} class="orga-input-clear" disabled={isLoading} /></div>
                 <div><label for="edit-zip" class="block text-sm font-semibold text-neutral-700 mb-1.5">PLZ</label><input id="edit-zip" type="text" bind:value={formData.zip} class="orga-input-clear" disabled={isLoading} /></div>
-                <div class="md:col-span-3"><label for="edit-city" class="block text-sm font-semibold text-neutral-700 mb-1.5">Stadt</label><input id="edit-city" type="text" bind:value={formData.city} class="orga-input-clear" disabled={isLoading} /></div>
+                <div class="md:col-span-4"><label for="edit-city" class="block text-sm font-semibold text-neutral-700 mb-1.5">Stadt</label><input id="edit-city" type="text" bind:value={formData.city} class="orga-input-clear" disabled={isLoading} /></div>
             </div>
 
             <!-- Signatur Bereich -->
