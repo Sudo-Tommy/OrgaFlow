@@ -4,6 +4,19 @@
 /* 2. Globale Theme-Einstellungen (optional, für konsistente Schrift) */
 @theme {
     --font-sans: "Inter", system-ui, sans-serif;
+
+    /* Landing Page Brand Colors - Warmes Terracotta / Sand */
+    --color-brand-50: #fdf8f6;
+    --color-brand-100: #f8ebe6;
+    --color-brand-200: #f0d4c9;
+    --color-brand-300: #e5b4a3;
+    --color-brand-400: #d68e76;
+    --color-brand-500: #c66a4d;
+    --color-brand-600: #b35134;
+    --color-brand-700: #954028;
+    --color-brand-800: #7b3623; /* Warme, vertrauensvolle Hauptfarbe */
+    --color-brand-900: #652e1f;
+    --color-brand-950: #36150e;
 }
 
 /* 3. Basis-HTML/Body Setup für perfekte Lesbarkeit auf allen Geräten */
@@ -20,7 +33,7 @@
         -webkit-text-size-adjust: 100%;
         
         /* Schicke Markierungsfarbe (wenn man Text mit der Maus markiert) */
-        @apply selection:bg-indigo-500 selection:text-white;
+        @apply selection:bg-brand-500 selection:text-white;
     }
 
     /* Standard-Scrollbar global (elegant und schmal) */
@@ -78,7 +91,7 @@
         /* py-3 sorgt für eine Mindesthöhe, die perfekt für Daumen-Klicks auf Touchscreens ist */
         @apply bg-white text-black border-2 border-neutral-200 rounded-xl md:rounded-2xl 
                px-4 py-3 w-full transition-all font-medium shadow-inner
-               focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 
+               focus:outline-none focus:border-brand-600 focus:ring-4 focus:ring-brand-600/20 
                placeholder:text-neutral-400 disabled:opacity-50 disabled:bg-neutral-50;
     }
 
@@ -86,20 +99,20 @@
     .orga-input-dark {
         @apply bg-neutral-800 text-white border border-neutral-700 rounded-xl 
                px-4 py-2.5 w-full transition-all placeholder:text-neutral-500
-               focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500;
+               focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500;
     }
 
     /* --- BUTTONS --- */
     /* Primärer Aktions-Button */
     .orga-button-primary {
-        @apply flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold 
-               py-3 px-6 md:px-8 rounded-xl md:rounded-2xl transition-all duration-300 shadow-lg shadow-indigo-600/30
-               hover:shadow-indigo-600/50 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+        @apply flex justify-center items-center gap-2 bg-brand-800 hover:bg-brand-700 text-white font-bold 
+               py-3 px-6 md:px-8 rounded-xl md:rounded-2xl transition-all duration-300 shadow-lg shadow-brand-800/30
+               hover:shadow-brand-800/50 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
     }
 
     /* Sekundärer Button (Abbrechen etc.) */
     .orga-button-ghost {
-        @apply flex justify-center items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 hover:text-neutral-900
+        @apply flex justify-center items-center gap-2 bg-brand-50 hover:bg-brand-100 text-brand-900 border border-brand-200/50
                font-bold py-3 px-6 rounded-xl md:rounded-2xl transition-all duration-300 active:scale-95;
     }
 
@@ -130,7 +143,7 @@
     /* --- LAYOUT --- */
     /* Globaler Haupt-Wrapper für das Seitenlayout */
     .orga-layout-wrapper {
-        @apply min-h-screen bg-neutral-50 text-neutral-900 font-sans antialiased selection:bg-indigo-500/30 flex flex-col relative;
+        @apply min-h-screen bg-brand-50 text-neutral-900 font-sans antialiased selection:bg-brand-500/30 flex flex-col relative;
     }
 
     /* Content-Bereich neben dem Menü */
@@ -190,7 +203,7 @@
     /* --- KLIENTEN --- */
     .orga-client-card {
         /* Nutzt jetzt die Basis-Hover-Effekte von orga-card-white, ergänzt durch einen feinen Border-Glow */
-        @apply p-6 block hover:border-indigo-200 relative;
+        @apply p-6 block hover:border-brand-200 relative;
     }
 
     /* --- KALENDER --- */
@@ -211,7 +224,7 @@
     }
 
     .orga-calendar-day {
-        @apply bg-white min-h-17.5 sm:min-h-[100px] p-1 sm:p-2 cursor-pointer transition-colors hover:bg-indigo-50/50 flex flex-col relative;
+        @apply bg-white min-h-17.5 sm:min-h-[100px] p-1 sm:p-2 cursor-pointer transition-colors hover:bg-brand-50 flex flex-col relative;
     }
 
     /* --- EDITOR --- */
@@ -241,7 +254,7 @@
         background-image: 
             linear-gradient(to right, rgba(0,0,0,0.03) 1px, transparent 1px), 
             linear-gradient(to bottom, rgba(0,0,0,0.03) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(79, 70, 229, 0.3) 2px, transparent 2px);
+            linear-gradient(to bottom, rgba(198, 106, 77, 0.3) 2px, transparent 2px);
         background-size: 20px 20px, 20px 20px, 100% 1123px;
         position: relative;
     }

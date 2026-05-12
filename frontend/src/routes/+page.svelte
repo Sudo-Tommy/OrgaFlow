@@ -11,7 +11,7 @@
 	import LandingFooter from "$lib/components/LandingFooter.svelte";
 </script>
 
-<div class="orga-layout-wrapper bg-neutral-50 text-neutral-900">
+<div class="orga-layout-wrapper text-neutral-900">
 	<LandingTopBar />
 	<LandingHeader />
 	

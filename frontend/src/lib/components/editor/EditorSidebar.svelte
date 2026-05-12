@@ -43,16 +43,16 @@
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-xs font-semibold text-neutral-600 mb-1">X Pos (px)</label><input type="number" bind:value={activeField.x} class="orga-input-clear py-1.5 text-sm" /></div>
-                    <div><label class="block text-xs font-semibold text-neutral-600 mb-1">Y Pos (px)</label><input type="number" bind:value={activeField.y} class="orga-input-clear py-1.5 text-sm" /></div>
-                    <div><label class="block text-xs font-semibold text-neutral-600 mb-1">Breite (px)</label><input type="number" bind:value={activeField.w} class="orga-input-clear py-1.5 text-sm" /></div>
-                    <div><label class="block text-xs font-semibold text-neutral-600 mb-1">Höhe (px)</label><input type="number" bind:value={activeField.h} class="orga-input-clear py-1.5 text-sm" /></div>
+                    <div><label for="prop-x" class="block text-xs font-semibold text-neutral-600 mb-1">X Pos (px)</label><input id="prop-x" type="number" bind:value={activeField.x} class="orga-input-clear py-1.5 text-sm" /></div>
+                    <div><label for="prop-y" class="block text-xs font-semibold text-neutral-600 mb-1">Y Pos (px)</label><input id="prop-y" type="number" bind:value={activeField.y} class="orga-input-clear py-1.5 text-sm" /></div>
+                    <div><label for="prop-w" class="block text-xs font-semibold text-neutral-600 mb-1">Breite (px)</label><input id="prop-w" type="number" bind:value={activeField.w} class="orga-input-clear py-1.5 text-sm" /></div>
+                    <div><label for="prop-h" class="block text-xs font-semibold text-neutral-600 mb-1">Höhe (px)</label><input id="prop-h" type="number" bind:value={activeField.h} class="orga-input-clear py-1.5 text-sm" /></div>
                 </div>
 
                 {#if activeField.type === 'text'}
                     <div class="pt-2 border-t border-neutral-100">
-                        <label class="block text-xs font-semibold text-neutral-600 mb-1">Text-Inhalt</label>
-                        <textarea bind:this={textareaRef} bind:value={activeField.content} rows="5" class="orga-input-clear py-2 text-sm resize-none custom-scrollbar font-mono"></textarea>
+                        <label for="prop-text" class="block text-xs font-semibold text-neutral-600 mb-1">Text-Inhalt</label>
+                        <textarea id="prop-text" bind:this={textareaRef} bind:value={activeField.content} rows="5" class="orga-input-clear py-2 text-sm resize-none custom-scrollbar font-mono"></textarea>
                         
                         <div class="mt-2">
                             <select onchange={(e) => { insertPlaceholder(e.currentTarget.value); e.currentTarget.value = ''; }} class="w-full bg-neutral-100 border border-neutral-200 hover:border-indigo-300 px-2 py-1.5 rounded text-xs font-bold text-indigo-700 outline-none cursor-pointer">
@@ -123,7 +123,7 @@
                 
                 {#if activeField.type === 'table'}
                     <div class="pt-2 border-t border-neutral-100">
-                        <label class="block text-xs font-semibold text-neutral-600 mb-2">Anzuzeigende Positionen</label>
+                        <span class="block text-xs font-semibold text-neutral-600 mb-2">Anzuzeigende Positionen</span>
                         <div class="space-y-1.5 bg-neutral-50 p-3 rounded-xl border border-neutral-200">
                             <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeTimeRecords} class="text-indigo-600 rounded border-neutral-300"> Zeiterfassungen (Stunden)</label>
                             <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeDriveKm} class="text-indigo-600 rounded border-neutral-300"> Fahrtkosten (Kilometer)</label>
@@ -133,31 +133,29 @@
                     </div>
 
                     <div class="pt-2 border-t border-neutral-100">
-                        <label class="block text-xs font-semibold text-neutral-600 mb-2">Spalten benennen</label>
+                        <span class="block text-xs font-semibold text-neutral-600 mb-2">Spalten benennen</span>
                         <div class="grid grid-cols-2 gap-2 bg-neutral-50 p-3 rounded-xl border border-neutral-200">
                             {#each activeField.tableConfig.columns as col}
-                                <div><span class="text-[10px] text-neutral-500 uppercase tracking-wider block mb-0.5">{col.type}</span><input type="text" bind:value={col.name} class="orga-input-clear py-1 text-xs px-2" /></div>
+                                <div><label for="prop-col-{col.id}" class="text-[10px] text-neutral-500 uppercase tracking-wider block mb-0.5">{col.type}</label><input id="prop-col-{col.id}" type="text" bind:value={col.name} class="orga-input-clear py-1 text-xs px-2" /></div>
                             {/each}
                         </div>
                     </div>
 
                     <div class="pt-2 border-t border-neutral-100">
-                        <label class="block text-xs font-semibold text-neutral-600 mb-1">Feste Beschreibung für alle Posten (Optional)</label>
-                        <textarea bind:value={activeField.tableConfig.staticDescription} rows="3" placeholder="z.B. Monatliche Betreuung nach § 45b SGB XI" class="orga-input-clear py-2 text-sm resize-none custom-scrollbar font-mono"></textarea>
+                        <label for="prop-static-desc" class="block text-xs font-semibold text-neutral-600 mb-1">Feste Beschreibung für alle Posten (Optional)</label>
+                        <textarea id="prop-static-desc" bind:value={activeField.tableConfig.staticDescription} rows="3" placeholder="z.B. Monatliche Betreuung nach § 45b SGB XI" class="orga-input-clear py-2 text-sm resize-none custom-scrollbar font-mono"></textarea>
                     </div>
                     <div class="pt-2 border-t border-neutral-100 grid grid-cols-2 gap-3">
-                        <div><label class="block text-xs font-semibold text-neutral-600 mb-1">Kopf-Hintergrund</label><input type="color" bind:value={activeField.tableConfig.headerBackgroundColor} class="w-full h-8 rounded cursor-pointer border border-neutral-200" /></div>
-                        <div><label class="block text-xs font-semibold text-neutral-600 mb-1">Kopf-Textfarbe</label><input type="color" bind:value={activeField.tableConfig.headerTextColor} class="w-full h-8 rounded cursor-pointer border border-neutral-200" /></div>
+                        <div><label for="prop-head-bg" class="block text-xs font-semibold text-neutral-600 mb-1">Kopf-Hintergrund</label><input id="prop-head-bg" type="color" bind:value={activeField.tableConfig.headerBackgroundColor} class="w-full h-8 rounded cursor-pointer border border-neutral-200" /></div>
+                        <div><label for="prop-head-color" class="block text-xs font-semibold text-neutral-600 mb-1">Kopf-Textfarbe</label><input id="prop-head-color" type="color" bind:value={activeField.tableConfig.headerTextColor} class="w-full h-8 rounded cursor-pointer border border-neutral-200" /></div>
                     </div>
                 {/if}
 
                 <div class="pt-2 border-t border-neutral-100 grid grid-cols-2 gap-3">
-                    <!-- svelte-ignore a11y_label_has_associated_control -->
-                    <div><label class="block text-xs font-semibold text-neutral-600 mb-1">Schriftgröße</label><input type="number" bind:value={activeField.style.fontSize} class="orga-input-clear py-1.5 text-sm" /></div>
-                    <!-- svelte-ignore a11y_label_has_associated_control -->
-                    <div><label class="block text-xs font-semibold text-neutral-600 mb-1">Ausrichtung</label><select bind:value={activeField.style.textAlign} class="orga-input-clear py-1.5 text-sm px-2"><option value="left">Links</option><option value="center">Zentriert</option><option value="right">Rechts</option></select></div>
-                    <div><label class="block text-xs font-semibold text-neutral-600 mb-1">Dicke</label><select bind:value={activeField.style.fontWeight} class="orga-input-clear py-1.5 text-sm px-2"><option value="normal">Normal</option><option value="bold">Fett</option></select></div>
-                    <div><label class="block text-xs font-semibold text-neutral-600 mb-1">Farbe</label><input type="color" bind:value={activeField.style.color} class="w-full h-8 rounded cursor-pointer border border-neutral-200" /></div>
+                    <div><label for="prop-font-size" class="block text-xs font-semibold text-neutral-600 mb-1">Schriftgröße</label><input id="prop-font-size" type="number" bind:value={activeField.style.fontSize} class="orga-input-clear py-1.5 text-sm" /></div>
+                    <div><label for="prop-align" class="block text-xs font-semibold text-neutral-600 mb-1">Ausrichtung</label><select id="prop-align" bind:value={activeField.style.textAlign} class="orga-input-clear py-1.5 text-sm px-2"><option value="left">Links</option><option value="center">Zentriert</option><option value="right">Rechts</option></select></div>
+                    <div><label for="prop-weight" class="block text-xs font-semibold text-neutral-600 mb-1">Dicke</label><select id="prop-weight" bind:value={activeField.style.fontWeight} class="orga-input-clear py-1.5 text-sm px-2"><option value="normal">Normal</option><option value="bold">Fett</option></select></div>
+                    <div><label for="prop-color" class="block text-xs font-semibold text-neutral-600 mb-1">Farbe</label><input id="prop-color" type="color" bind:value={activeField.style.color} class="w-full h-8 rounded cursor-pointer border border-neutral-200" /></div>
                 </div>
             </div>
         {/if}

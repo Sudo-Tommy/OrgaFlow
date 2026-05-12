@@ -6,6 +6,7 @@
     let dialog: HTMLDialogElement;
     const service = useDocumentGenerator();
     let pdfContainerRef: HTMLDivElement | null = null;
+    let timesheetPdfContainerRef: HTMLDivElement | null = null;
 
     export function open(preselectedTemplateId?: string, startStep: number = 1) {
         service.reset();
@@ -102,6 +103,20 @@
                 if (service.company?.id) pbFormData.append('company', service.company.id);
 
                 pbFormData.append('pdf', pdfBlob, filename);
+
+                // Wenn der Arbeitszeitnachweis aktiv ist, als zweites PDF separat anheften
+                if (service.timesheetTemplate && timesheetPdfContainerRef) {
+                    const tsFilename = `Zeitnachweis_${filename}`;
+                    const optTs = {
+                        margin: 0,
+                        filename: tsFilename,
+                        image: { type: 'jpeg' as const, quality: 1.0 },
+                        html2canvas: { scale: 4, useCORS: true, letterRendering: true },
+                        jsPDF: { unit: 'px', format: [794, 1123], orientation: service.timesheetTemplate.content_html?.orientation || 'portrait' }
+                    };
+                    const tsBlob = await html2pdf().set(optTs).from(timesheetPdfContainerRef).output('blob');
+                    pbFormData.append('pdf', tsBlob, tsFilename);
+                }
 
                 await pb.collection('invoices').create(pbFormData);
                 service.successMsg = "Rechnung erfolgreich generiert und in der Datenbank gespeichert!";

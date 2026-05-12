@@ -14,6 +14,11 @@ export function getServices() {
             iconPath: "M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1",
             title: "Absprachen & Vermittlung",
             description: "Es gibt oft viel abzustimmen: Mit der Krankenkasse, dem Pflegedienst, der Wohnungsgesellschaft oder rechtlichen Betreuern. Wir übernehmen diese Telefonate für Sie und erklären Ihnen alles in einfachen Worten."
+        },
+        {
+            iconPath: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+            title: "Pflegegrad & Beratung",
+            description: "Wir beraten Sie ausführlich zu Pflegegraden und helfen bei der Beantragung von Leistungen der Pflegekasse, damit Sie die finanzielle Unterstützung erhalten, die Ihnen zusteht."
         }
     ];
 }
@@ -104,6 +109,13 @@ export function getFaqs() {
             ]
         },
         {
+            question: "Kommen Sie auch zu mir nach Hause?",
+            answerLines: [
+                "<strong>Ja, selbstverständlich!</strong> Unsere Dienstleistung findet genau dort statt, wo Sie uns brauchen.",
+                "Wir besuchen Sie zu Hause, begleiten Sie zum Arzt, gehen mit Ihnen einkaufen oder unterstützen Sie direkt bei Behördengängen vor Ort."
+            ]
+        },
+        {
             question: "Haftung & Schutz",
             answerLines: [
                 "Zu Ihrer absoluten Sicherheit verfügen wir über eine umfassende Betriebshaftpflichtversicherung. Einen entsprechenden Nachweis legen wir Ihnen beim Kennenlernen gerne vor."
@@ -117,7 +129,7 @@ export function getLegalContent() {
         impressum: `
             <h3>Impressum</h3>
             <p><strong>Angaben gemäß § 5 TMG:</strong></p>
-            <p>Seniorenassistenz Jenzsch<br>
+            <p>Ihre Seniorenassistenz<br>
             Dreyhauptstraße 2<br>
             06108 Halle (Saale)</p>
             

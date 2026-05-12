@@ -19,6 +19,18 @@
         }
     }
 
+    // Funktion zum Löschen einer Rechnung
+    async function deleteInvoice(id: string) {
+        if (confirm("Möchten Sie diese Rechnung wirklich unwiderruflich löschen?")) {
+            try {
+                await pb.collection('invoices').delete(id);
+            } catch (err) {
+                console.error("Fehler beim Löschen:", err);
+                alert("Die Rechnung konnte nicht gelöscht werden.");
+            }
+        }
+    }
+
     // Hilfsfunktion: Gibt eine schöne CSS-Klasse basierend auf dem Status zurück
     function getStatusClass(status: string) {
         switch (status) {
@@ -33,11 +45,15 @@
     }
 
     // Hilfsfunktion: Holt die korrekte URL für die PDF-Datei
-    function getPdfUrl(record: any) {
+    function getPdfUrl(record: any, index: number = 0) {
         if (!record.pdf || record.pdf.length === 0) return null;
-        // Wenn es ein Array ist (maxSelect: 10), nehmen wir das erste Element
-        const filename = Array.isArray(record.pdf) ? record.pdf[0] : record.pdf;
-        return pb.files.getUrl(record, filename);
+        if (Array.isArray(record.pdf)) {
+            if (index < record.pdf.length) {
+                return pb.files.getUrl(record, record.pdf[index]);
+            }
+            return null;
+        }
+        return index === 0 ? pb.files.getUrl(record, record.pdf) : null;
     }
     
     function getClient(record: any) {
@@ -134,11 +150,23 @@
                     </div>
 
                     <!-- Fussbereich (Aktionen) -->
-                    {#if getPdfUrl(inv)}
-                        <a href={getPdfUrl(inv)} target="_blank" rel="noopener noreferrer" class="block w-full text-center py-3.5 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-sm transition-colors group-hover:shadow-md">PDF Ansehen & Herunterladen &rarr;</a>
-                    {:else}
-                        <div class="w-full text-center py-3.5 bg-neutral-100 text-neutral-400 font-bold text-sm italic">Keine PDF generiert</div>
-                    {/if}
+                    <div class="flex flex-col mt-auto border-t border-neutral-100">
+                        <div class="flex">
+                            {#if getPdfUrl(inv, 0)}
+                                <a href={getPdfUrl(inv, 0)} target="_blank" rel="noopener noreferrer" class="flex-1 block text-center py-3.5 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-sm transition-colors border-r border-neutral-700" title="Rechnung ansehen">Rechnung</a>
+                            {:else}
+                                <div class="flex-1 text-center py-3.5 bg-neutral-100 text-neutral-400 font-bold text-sm italic border-r border-neutral-200">Keine Rechnung</div>
+                            {/if}
+                            
+                            {#if getPdfUrl(inv, 1)}
+                                <a href={getPdfUrl(inv, 1)} target="_blank" rel="noopener noreferrer" class="flex-1 block text-center py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm transition-colors" title="Zeitnachweis ansehen">Zeitnachweis</a>
+                            {/if}
+                            
+                            <button onclick={() => deleteInvoice(inv.id)} class="w-14 shrink-0 flex items-center justify-center bg-red-50 hover:bg-red-500 text-red-500 hover:text-white transition-colors" title="Rechnung löschen">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             {/each}
         </div>

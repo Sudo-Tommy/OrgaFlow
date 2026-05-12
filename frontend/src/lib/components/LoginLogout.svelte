@@ -3,6 +3,8 @@
 	import Login from '$lib/components/Login.svelte';
 	import { loginUser } from '$lib/services/login';
 
+	let { subtle = false } = $props<{ subtle?: boolean }>();
+
 	let loginDialog: HTMLDialogElement;
 	let logoutDialog: HTMLDialogElement;
 
@@ -76,16 +78,15 @@
 </script>
 
 {#if isLoggedIn}
-	<div class="flex items-center gap-4">
-		<!-- Auf Mobile ausblenden, um Platz für das Hamburger-Menü und Logo zu sparen -->
-		<span class="text-sm text-neutral-700 hidden md:inline">Eingeloggt als: {userName}</span>
-		<button onclick={openLogoutModal} class="orga-button-ghost py-2.5 px-4 text-sm font-semibold">
+	<div class="flex items-center {subtle ? 'gap-2' : 'gap-4'}">
+		<span class="text-sm {subtle ? 'text-neutral-500' : 'text-neutral-700 hidden md:inline'}">Eingeloggt als: {userName}</span>
+		<button onclick={openLogoutModal} class="{subtle ? 'text-sm font-semibold hover:text-white transition-colors' : 'orga-button-ghost py-2.5 px-4 text-sm font-semibold'}">
 			Abmelden
 		</button>
 	</div>
 {:else}
-	<button onclick={openLoginModal} class="orga-button-primary">
-		Anmelden
+	<button onclick={openLoginModal} class="{subtle ? 'text-sm font-medium text-neutral-500 hover:text-white transition-colors' : 'orga-button-primary'}">
+		{subtle ? 'Mitarbeiter-Login' : 'Anmelden'}
 	</button>
 {/if}
 

@@ -2,6 +2,7 @@
 	import { orgaStore } from "$lib/stores/orgaStore.svelte";
 	import Calendar from "$lib/components/Calendar.svelte";
 	import AppointmentModal from "$lib/components/AppointmentModal.svelte";
+	import Greetings from "$lib/components/Greetings.svelte";
 
 	let appointmentModal: ReturnType<typeof AppointmentModal> | undefined = $state();
 
@@ -29,7 +30,7 @@
 
 <div class="orga-dashboard-header animate-enter">
 	<h1 class="orga-dashboard-title">Dashboard</h1>
-	<p class="orga-dashboard-subtitle">Willkommen zurück! Hier ist Ihre aktuelle Übersicht für heute.</p>
+	<Greetings />
 </div>
 
 <div class="orga-dashboard-grid mb-10">
@@ -44,7 +45,7 @@
 						<div class="flex justify-between items-start mb-1">
 							<span class="text-xs font-bold {app.is_private ? 'text-rose-600' : 'text-indigo-600'}">{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</span>
 							{#if app.expand?.client?.[0]}
-								<span class="text-[10px] font-bold text-neutral-600 bg-neutral-200 px-1.5 py-0.5 rounded truncate max-w-[100px]">{app.expand.client[0].name_first} {app.expand.client[0].name_last}</span>
+								<span class="text-[10px] font-bold text-neutral-600 bg-neutral-200 px-1.5 py-0.5 rounded truncate max-w-100px">{app.expand.client[0].name_first} {app.expand.client[0].name_last}</span>
 							{/if}
 						</div>
 						<p class="text-sm font-semibold text-neutral-900 truncate">{app.description || 'Termin ohne Beschreibung'}</p>
@@ -79,7 +80,7 @@
 				<span class="text-xl font-black text-blue-700">{(orgaStore.appointments?.data || []).length}</span>
 			</div>
 		</div>
-		<a href="/clients" class="mt-auto block text-center text-sm font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 py-2.5 rounded-xl transition-colors mt-4">Klienten verwalten &rarr;</a>
+		<a href="/clients" class="block text-center text-sm font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 py-2.5 rounded-xl transition-colors mt-4">Klienten verwalten &rarr;</a>
 	</div>
 </div>
 

@@ -1,7 +1,9 @@
 import PocketBase from 'pocketbase';
 import { env } from '$env/dynamic/public';
 
-const pbUrl = env.PUBLIC_POCKETBASE_URL || 'http://127.0.0.1:8090';
+// Im Entwicklungsmodus (npm run dev) greift SvelteKit auf Port 8090 zu.
+// Im Live-Betrieb (Build in pb_public) läuft SvelteKit über PocketBase selbst, daher reicht ein relativer Pfad ("/").
+const pbUrl = import.meta.env.DEV ? (env.PUBLIC_POCKETBASE_URL || 'http://127.0.0.1:8090') : '/';
 
 export const pb = new PocketBase(pbUrl);
 

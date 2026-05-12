@@ -11,7 +11,8 @@ echo 2) Nur Backend starten (PocketBase)
 echo 3) Nur Frontend starten (SvelteKit)
 echo 4) Update (Pocketbase)
 echo 5) Update (Svelte)
-echo 6) Beenden
+echo 6) Frontend Builden und ins Backend kopieren (pb_public)
+echo 7) Beenden
 echo ==========================================
 set /p choice="Waehle eine Option: "
 
@@ -20,21 +21,22 @@ if "%choice%"=="2" goto backend
 if "%choice%"=="3" goto frontend
 if "%choice%"=="4" goto updateback
 if "%choice%"=="5" goto updatefront
-if "%choice%"=="6" exit
+if "%choice%"=="6" goto build
+if "%choice%"=="7" exit
 
 :all
 echo Starte Backend...
-start "PocketBase Backend" cmd /k "cd backend && pocketbase.exe serve"
+start "PocketBase Backend" cmd /k "cd backend && pocketbase.exe serve ihre-seniorenassistenz.com"
 echo Starte Frontend...
-start "SvelteKit Frontend" cmd /k "cd frontend && npm run dev -- --open"
+start "SvelteKit Frontend" cmd /k "cd frontend && npm run dev -- --host --open"
 goto menu
 
 :backend
-start "PocketBase Backend" cmd /k "cd backend && pocketbase.exe serve"
+start "PocketBase Backend" cmd /k "cd backend && pocketbase.exe serve ihre-seniorenassistenz.com"
 goto menu
 
 :frontend
-start "SvelteKit Frontend" cmd /k "cd frontend && npm run dev -- --open"
+start "SvelteKit Frontend" cmd /k "cd frontend && npm run dev -- --host --open"
 goto menu
 
 :updateback
@@ -43,4 +45,27 @@ goto menu
 
 :updatefront
 start "Svelte Update" cmd /k "cd frontend && npm update && cd ..\ && exit"
+goto menu
+
+:build
+echo ==========================================
+echo Erstelle Frontend-Build...
+cd frontend
+call npm run build
+cd ..
+echo.
+echo Kopiere Build-Dateien in das Backend (pb_public)...
+if exist "backend\pb_public" rmdir /s /q "backend\pb_public"
+mkdir "backend\pb_public"
+
+if exist "frontend\pb_public" (
+    xcopy "frontend\pb_public\*" "backend\pb_public\" /E /I /Y /H /C
+) else if exist "frontend\build" (
+    xcopy "frontend\build\*" "backend\pb_public\" /E /I /Y /H /C
+) else (
+    echo [FEHLER] Konnte keinen Build-Ordner (build oder pb_public) im Frontend finden!
+)
+echo.
+echo Build und Kopiervorgang erfolgreich abgeschlossen!
+pause
 goto menu

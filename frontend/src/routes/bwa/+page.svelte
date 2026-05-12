@@ -58,7 +58,7 @@
     <!-- Datentabelle -->
     <div class="orga-card-white overflow-hidden animate-enter delay-200">
         <div class="overflow-x-auto custom-scrollbar">
-            <table class="w-full text-left border-collapse min-w-[700px]">
+            <table class="w-full text-left border-collapse min-w-175">
                 <thead class="bg-neutral-50/80 border-b border-neutral-100">
                     <tr>
                         <th class="p-4 font-bold text-neutral-800">Monat</th>
