@@ -8,6 +8,7 @@
     let pdfContainerRef: HTMLDivElement | null = null;
 
     export function open(preselectedTemplateId?: string, startStep: number = 1) {
+        service.reset();
         service.step = startStep;
         service.selectedTemplateId = preselectedTemplateId || "";
         service.selectedClientId = "";
@@ -20,21 +21,38 @@
     }
 
     function next() {
-        if (service.step === 1 && !service.selectedTemplateId) { service.errorMsg = "Bitte eine Vorlage wählen!"; return; }
-        if (service.step === 2 && !service.selectedClientId) { service.errorMsg = "Bitte einen Klienten wählen!"; return; }
         service.errorMsg = "";
-        
-        if (service.step === 2 && service.requiresAppointments) { service.step = 3; return; }
-        if (service.step === 2 && !service.requiresAppointments) { service.step = 4; return; }
-        if (service.step === 3 && service.selectedAppointmentIds.length === 0) { service.errorMsg = "Bitte Termine wählen!"; return; }
-        if (service.step === 3) { service.step = 4; return; }
-        if (service.step === 1) { service.step = 2; return; }
+        if (service.step === 1) {
+            if (!service.selectedClientId) { service.errorMsg = "Bitte einen Klienten wählen!"; return; }
+            // Smart Skip: Wenn der Klient eine Standard-Vorlage hat, weisen wir sie zu und überspringen Schritt 2
+            if (service.client?.default_template) {
+                const exists = service.availableTemplates.find((t: any) => t.id === service.client?.default_template);
+                if (exists) {
+                    service.selectedTemplateId = exists.id;
+                    service.step = (exists.type?.toLowerCase() === 'rechnung' || exists.type?.toLowerCase() === 'arbeitszeitnachweis') ? 3 : 4;
+                    return;
+                }
+            }
+            service.step = 2;
+            return;
+        }
+        if (service.step === 2) {
+            if (!service.selectedTemplateId) { service.errorMsg = "Bitte eine Vorlage wählen!"; return; }
+            if (service.requiresAppointments) { service.step = 3; return; }
+            service.step = 4; return;
+        }
+        if (service.step === 3) {
+            if (service.selectedAppointmentIds.length === 0) { service.errorMsg = "Bitte Termine wählen!"; return; }
+            service.step = 4; return;
+        }
     }
 
     function prev() {
         service.errorMsg = "";
-        if (service.step === 4 && service.requiresAppointments) { service.step = 3; return; }
-        if (service.step === 4 && !service.requiresAppointments) { service.step = 2; return; }
+        if (service.step === 4) {
+            if (service.requiresAppointments) { service.step = 3; return; }
+            service.step = 2; return;
+        }
         if (service.step === 3) { service.step = 2; return; }
         if (service.step === 2) { service.step = 1; return; }
     }
@@ -121,14 +139,7 @@
 
         <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 mb-4">
             {#if service.step === 1}
-                <h3 class="text-lg font-bold text-neutral-800 mb-4">1. Vorlage wählen</h3>
-                <div class="grid grid-cols-1 gap-3">
-                    {#each orgaStore.document_templates?.data || [] as t}
-                        <label class="flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-colors {service.selectedTemplateId === t.id ? 'border-indigo-500 bg-indigo-50/50' : 'border-neutral-200 hover:border-indigo-300'}"><input type="radio" bind:group={service.selectedTemplateId} value={t.id} class="w-4 h-4 text-indigo-600" /><div><p class="font-bold text-neutral-900">{t.title || 'Unbenannt'}</p><p class="text-xs text-neutral-500 uppercase mt-0.5 tracking-wider font-semibold">{t.type}</p></div></label>
-                    {/each}
-                </div>
-            {:else if service.step === 2}
-                <h3 class="text-lg font-bold text-neutral-800 mb-4">2. Klient & Empfänger</h3>
+                <h3 class="text-lg font-bold text-neutral-800 mb-4">1. Klient & Empfänger</h3>
                 <label for="generator-client" class="block text-sm font-semibold text-neutral-700 mb-1.5">Basis-Klient</label><select id="generator-client" bind:value={service.selectedClientId} class="orga-input-clear mb-6"><option value="">Klienten wählen...</option>{#each orgaStore.clients?.data || [] as c}<option value={c.id}>{c.name_first} {c.name_last}</option>{/each}</select>
                 {#if service.client}
                     <span class="block text-sm font-semibold text-neutral-700 mb-1.5">Adressat / Empfänger auf dem Dokument</span>
@@ -139,6 +150,13 @@
                         {#each service.client.expand?.retirement_homes || [] as home}<label class="flex items-center gap-2 p-3 border border-neutral-200 rounded-lg cursor-pointer hover:bg-neutral-50"><input type="radio" bind:group={service.recipientType} value="home" onchange={() => service.recipientId = home.id} class="text-indigo-600" /> <span class="text-sm font-medium">Pflegeheim: {home.name}</span></label>{/each}
                     </div>
                 {/if}
+            {:else if service.step === 2}
+                <h3 class="text-lg font-bold text-neutral-800 mb-4">2. Vorlage wählen</h3>
+                <div class="grid grid-cols-1 gap-3">
+                    {#each service.availableTemplates as t}
+                        <label class="flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-colors {service.selectedTemplateId === t.id ? 'border-indigo-500 bg-indigo-50/50' : 'border-neutral-200 hover:border-indigo-300'}"><input type="radio" bind:group={service.selectedTemplateId} value={t.id} class="w-4 h-4 text-indigo-600" /><div><p class="font-bold text-neutral-900">{t.title || 'Unbenannt'}</p><p class="text-xs text-neutral-500 uppercase mt-0.5 tracking-wider font-semibold">{t.type}</p></div></label>
+                    {/each}
+                </div>
             {:else if service.step === 3 && service.requiresAppointments}
                 <h3 class="text-lg font-bold text-neutral-800 mb-4">3. Termine & Abrechnungsdaten</h3>
                 {#if service.isInvoice}

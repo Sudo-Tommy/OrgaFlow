@@ -123,6 +123,25 @@
                 
                 {#if activeField.type === 'table'}
                     <div class="pt-2 border-t border-neutral-100">
+                        <label class="block text-xs font-semibold text-neutral-600 mb-2">Anzuzeigende Positionen</label>
+                        <div class="space-y-1.5 bg-neutral-50 p-3 rounded-xl border border-neutral-200">
+                            <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeTimeRecords} class="text-indigo-600 rounded border-neutral-300"> Zeiterfassungen (Stunden)</label>
+                            <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeDriveKm} class="text-indigo-600 rounded border-neutral-300"> Fahrtkosten (Kilometer)</label>
+                            <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeDriveLumpSum} class="text-indigo-600 rounded border-neutral-300"> Anfahrtskosten (Pauschalen)</label>
+                            <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeExpenditures} class="text-indigo-600 rounded border-neutral-300"> Sonderausgaben / Spesen</label>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 border-t border-neutral-100">
+                        <label class="block text-xs font-semibold text-neutral-600 mb-2">Spalten benennen</label>
+                        <div class="grid grid-cols-2 gap-2 bg-neutral-50 p-3 rounded-xl border border-neutral-200">
+                            {#each activeField.tableConfig.columns as col}
+                                <div><span class="text-[10px] text-neutral-500 uppercase tracking-wider block mb-0.5">{col.type}</span><input type="text" bind:value={col.name} class="orga-input-clear py-1 text-xs px-2" /></div>
+                            {/each}
+                        </div>
+                    </div>
+
+                    <div class="pt-2 border-t border-neutral-100">
                         <label class="block text-xs font-semibold text-neutral-600 mb-1">Feste Beschreibung für alle Posten (Optional)</label>
                         <textarea bind:value={activeField.tableConfig.staticDescription} rows="3" placeholder="z.B. Monatliche Betreuung nach § 45b SGB XI" class="orga-input-clear py-2 text-sm resize-none custom-scrollbar font-mono"></textarea>
                     </div>

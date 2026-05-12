@@ -46,7 +46,7 @@
 
     function openGenerator() {
         const invoiceTemplate = orgaStore.document_templates?.data.find((t: any) => (t.type || '').toLowerCase() === 'rechnung');
-        generatorModal?.open(invoiceTemplate?.id, invoiceTemplate ? 2 : 1);
+        generatorModal?.open(invoiceTemplate?.id, 1);
     }
 </script>
 

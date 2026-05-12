@@ -72,7 +72,11 @@ export function useEditor(initialDocId: string | null) {
                     { id: "6", name: "GP", type: "total", width: 13, align: "right" }
                 ],
                 fontSize: 10, showHeaders: true, headerBackgroundColor: "#d2e6f0", headerTextColor: "#000000",
-                staticDescription: ""
+                staticDescription: "",
+                includeTimeRecords: true,
+                includeDriveKm: true,
+                includeDriveLumpSum: true,
+                includeExpenditures: true
             };
         }
         

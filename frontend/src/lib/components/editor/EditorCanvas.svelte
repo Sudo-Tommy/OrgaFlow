@@ -14,7 +14,7 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="orga-canvas-a4 relative bg-white shadow-xl shadow-black/10 shrink-0" onclick={(e) => e.stopPropagation()}>
         {#each fields as _, i (fields[i].id)}
-            <EditorField bind:field={fields[i]} isSelected={selectedFieldId === fields[i].id} onSelect={() => selectedFieldId = fields[i].id} />
+            <EditorField bind:field={fields[i]} allFields={fields} isSelected={selectedFieldId === fields[i].id} onSelect={() => selectedFieldId = fields[i].id} />
         {/each}
     </div>
 </div>

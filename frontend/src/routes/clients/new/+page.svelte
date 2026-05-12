@@ -22,7 +22,8 @@
         insurance_nr: "",
         hourly_wage: 40,
         km_rate: 0.3,
-        tax_rate: "0"
+        tax_rate: "0",
+        default_template: ""
     });
 
     // Signatur-Status
@@ -116,8 +117,7 @@
                 if (key === 'tax_rate') {
                     pbFormData.append(key, value === "0" ? "" : value.toString());
                 } else if (key === 'birthdate') {
-                    // Speichere das Datum fix auf 12 Uhr Mittags UTC, um Zeitzonenverschiebungen zu verhindern
-                    pbFormData.append(key, value ? `${value} 12:00:00.000Z` : "");
+                    pbFormData.append(key, value ? new Date(value as string).toISOString() : "");
                 } else {
                     pbFormData.append(key, (value ?? '').toString());
                 }
@@ -168,7 +168,6 @@
 
     <form onsubmit={onSubmit} class="space-y-8">
         
-<<<<<<< HEAD
         <!-- Stammdaten -->
         <div>
             <h3 class="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">Persönliche Daten</h3>
@@ -205,19 +204,13 @@
 
         <!-- Abrechnungskonditionen -->
         <div class="pt-6 border-t border-neutral-100">
-            <h3 class="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">Abrechnungskonditionen</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <h3 class="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">Abrechnungskonditionen & Vorlage</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label for="new-wage" class="block text-sm font-semibold text-neutral-700 mb-1.5">Stundensatz (€)</label><input id="new-wage" type="number" step="0.01" bind:value={formData.hourly_wage} class="orga-input-clear" disabled={isLoading} /></div>
                 <div><label for="new-km" class="block text-sm font-semibold text-neutral-700 mb-1.5">Fahrtkosten (€/km)</label><input id="new-km" type="number" step="0.01" bind:value={formData.km_rate} class="orga-input-clear" disabled={isLoading} /></div>
                 <div><label for="new-tax" class="block text-sm font-semibold text-neutral-700 mb-1.5">Steuersatz (%)</label><select id="new-tax" bind:value={formData.tax_rate} class="orga-input-clear" disabled={isLoading}><option value="0">0%</option><option value="7">7%</option><option value="19">19%</option></select></div>
+                <div><label for="new-template" class="block text-sm font-semibold text-neutral-700 mb-1.5">Standard-Vorlage</label><select id="new-template" bind:value={formData.default_template} class="orga-input-clear" disabled={isLoading}><option value="">Keine Standard-Vorlage</option>{#each orgaStore.document_templates?.data || [] as t}<option value={t.id}>{t.title}</option>{/each}</select></div>
             </div>
-=======
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div class="md:col-span-2"><label for="new-street" class="block text-sm font-semibold text-neutral-700 mb-1.5">Straße & Hausnr.</label><input id="new-street" type="text" bind:value={formData.street} class="orga-input-clear" disabled={isLoading} /></div>
-            <div><label for="new-housenr" class="block text-sm font-semibold text-neutral-700 mb-1.5">Hausnr.</label><input id="new-housenr" type="text" bind:value={formData.housenr} class="orga-input-clear" disabled={isLoading} /></div>
-            <div><label for="new-zip" class="block text-sm font-semibold text-neutral-700 mb-1.5">PLZ</label><input id="new-zip" type="text" bind:value={formData.zip} class="orga-input-clear" disabled={isLoading} /></div>
-            <div class="md:col-span-4"><label for="new-city" class="block text-sm font-semibold text-neutral-700 mb-1.5">Stadt</label><input id="new-city" type="text" bind:value={formData.city} class="orga-input-clear" disabled={isLoading} /></div>
->>>>>>> 040e0d1e50cbe83a1f4436ed8c76cdc8af821e4d
         </div>
 
         <!-- Signatur Bereich -->

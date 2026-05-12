@@ -20,6 +20,20 @@ export function useDocumentGenerator() {
     let manualInvoiceNr = $state("");
     let manualIssueDate = $state(new Date().toISOString().split('T')[0]); // YYYY-MM-DD
 
+    function getNextInvoiceNumber() {
+        const year = new Date().getFullYear();
+        const invoices = orgaStore.invoices?.data || [];
+        let maxNr = 0;
+        for (const inv of invoices) {
+            const match = (inv.invoice_nr || '').match(/^(\d+)\/(\d{4})$/);
+            if (match && parseInt(match[2]) === year) {
+                const nr = parseInt(match[1]);
+                if (nr > maxNr) maxNr = nr;
+            }
+        }
+        return `${(maxNr + 1).toString().padStart(2, '0')}/${year}`;
+    }
+
     let template = $derived(orgaStore.document_templates?.data.find(t => t.id === selectedTemplateId));
     let client = $derived(orgaStore.clients?.data.find(c => c.id === selectedClientId));
     let company = $derived(orgaStore.company?.data[0]);
@@ -37,6 +51,10 @@ export function useDocumentGenerator() {
             }
         }
     });
+
+    // Vorlagen filtern und den Timesheet-Template heraussuchen
+    let availableTemplates = $derived((orgaStore.document_templates?.data || []).filter(t => t.type?.toLowerCase() !== 'arbeitszeitnachweis'));
+    let timesheetTemplate = $derived(orgaStore.document_templates?.data.find(t => t.type?.toLowerCase() === 'arbeitszeitnachweis'));
 
     let availableAppointments = $derived.by(() => {
         if (!selectedClientId || !orgaStore.appointments) return [];
@@ -58,50 +76,59 @@ export function useDocumentGenerator() {
     let invoiceData = $derived.by(() => {
         if (!requiresAppointments || selectedAppointmentIds.length === 0) return null;
         const apps = availableAppointments.filter((a:any) => selectedAppointmentIds.includes(a.id));
+        
+        // Die Konfiguration aus dem Tabellen-Element der gewählten Vorlage holen
+        let tableConf = template?.content_html?.fields?.find((f: any) => f.type === 'table')?.tableConfig || {};
+        const includeTime = tableConf.includeTimeRecords !== false;
+        const includeDriveKm = tableConf.includeDriveKm !== false;
+        const includeDriveLumpSum = tableConf.includeDriveLumpSum !== false;
+        const includeExp = tableConf.includeExpenditures !== false;
+
         let positions: any[] = [];
         let netto = 0;
         let posCounter = 1;
 
         for (const app of apps) {
             // Zeiterfassung berechnen
-            let appTimeMins = 0;
-            if (app.expand?.time_record) {
-                for (const tr of app.expand.time_record) {
-                    if (tr.start && tr.end) {
-                        const diffMs = new Date(tr.end).getTime() - new Date(tr.start).getTime();
-                        if (diffMs > 0) appTimeMins += Math.round(diffMs / 60000);
+            if (includeTime) {
+                let appTimeMins = 0;
+                if (app.expand?.time_record) {
+                    for (const tr of app.expand.time_record) {
+                        if (tr.start && tr.end) {
+                            const diffMs = new Date(tr.end).getTime() - new Date(tr.start).getTime();
+                            if (diffMs > 0) appTimeMins += Math.round(diffMs / 60000);
+                        }
                     }
                 }
-            }
-            if (appTimeMins > 0) {
-                const hours = appTimeMins / 60;
-                const total = hours * hourlyWage;
-                netto += total;
-                
-                // Die Tasks auslesen, um eine schöne Beschreibung zu bauen
-                let titleDesc = app.description || 'Alltagshilfe';
-                if (app.expand?.tasks && app.expand.tasks.length > 0) {
-                    titleDesc = app.expand.tasks.map((t:any) => t.title).join(', ');
+                if (appTimeMins > 0) {
+                    const hours = appTimeMins / 60;
+                    const total = hours * hourlyWage;
+                    netto += total;
+                    let titleDesc = app.description || 'Alltagshilfe';
+                    if (app.expand?.tasks && app.expand.tasks.length > 0) {
+                        titleDesc = app.expand.tasks.map((t:any) => t.title).join(', ');
+                    }
+                    positions.push({ pos: posCounter++, date: new Date(app.appointment).toLocaleDateString('de-DE'), duration: `${hours.toFixed(2)} h`, title: `${titleDesc}`, price: `${hourlyWage.toFixed(2)} €`, total });
                 }
-                
-                positions.push({ pos: posCounter++, date: new Date(app.appointment).toLocaleDateString('de-DE'), duration: `${hours.toFixed(2)} h`, title: `${titleDesc}`, price: `${hourlyWage.toFixed(2)} €`, total });
             }
 
             // Fahrten berechnen
             if (app.expand?.drive_record) {
                 for (const dr of app.expand.drive_record) {
-                    let total = 0; let desc = ""; let amount = "";
-                    if (dr.lump_sum > 0) { total = dr.lump_sum; desc = `Fahrtpauschale`; amount = "1"; }
-                    else if (dr.km > 0) { total = dr.km * kmRate; desc = `Fahrtkosten (${dr.km} km)`; amount = `${dr.km} km`; }
-                    if (total > 0) {
+                    if (dr.lump_sum > 0 && includeDriveLumpSum) { 
+                        netto += dr.lump_sum;
+                        positions.push({ pos: posCounter++, date: new Date(app.appointment).toLocaleDateString('de-DE'), duration: "1", title: `Anfahrt`, price: `${dr.lump_sum.toFixed(2)} €`, total: dr.lump_sum });
+                    }
+                    if (dr.km > 0 && includeDriveKm) { 
+                        let total = dr.km * kmRate;
                         netto += total;
-                        positions.push({ pos: posCounter++, date: new Date(app.appointment).toLocaleDateString('de-DE'), duration: amount, title: desc, price: dr.lump_sum > 0 ? `${dr.lump_sum.toFixed(2)} €` : `${kmRate.toFixed(2)} €`, total });
+                        positions.push({ pos: posCounter++, date: new Date(app.appointment).toLocaleDateString('de-DE'), duration: `${dr.km} km`, title: `Fahrtkosten (${dr.km} km)`, price: `${kmRate.toFixed(2)} €`, total: total });
                     }
                 }
             }
 
             // Sonderausgaben berechnen
-            if (app.expand?.expenditures) {
+            if (includeExp && app.expand?.expenditures) {
                 for (const exp of app.expand.expenditures) {
                     if (exp.sum > 0) {
                         netto += exp.sum;
@@ -114,7 +141,7 @@ export function useDocumentGenerator() {
         const taxRateNum = parseFloat(taxRate) || 0;
         const taxSum = netto * (taxRateNum / 100);
         const brutto = netto + taxSum;
-        const invoice_nr = manualInvoiceNr || `RE-${new Date().getFullYear()}-${Math.floor(Math.random()*10000).toString().padStart(4, '0')}`;
+        const invoice_nr = manualInvoiceNr || getNextInvoiceNumber();
 
         let service_period = "";
         if (apps.length > 0) {
@@ -204,7 +231,7 @@ export function useDocumentGenerator() {
             '{{client.phone}}': rec.phone || '',
             '{{client.handy}}': rec.handy || '',
             '{{client.insurance_nr}}': rec.insurance_nr || '',
-            '{{client.birthdate}}': rec.birthdate ? new Date(rec.birthdate).toLocaleDateString('de-DE', { timeZone: 'UTC' }) : '',
+            '{{client.birthdate}}': rec.birthdate ? new Date(rec.birthdate.replace(' ', 'T')).toLocaleDateString('de-DE', { timeZone: 'UTC' }) : '',
             '{{client.level_of_care}}': rec.level_of_care || '',
             '{{client.hourly_wage}}': client?.hourly_wage || '',
             '{{client.km_rate}}': client?.km_rate || '',
@@ -297,7 +324,7 @@ export function useDocumentGenerator() {
         hourlyWage = 40;
         kmRate = 0.3;
         taxRate = "0";
-        manualInvoiceNr = "";
+        manualInvoiceNr = getNextInvoiceNumber();
         manualIssueDate = new Date().toISOString().split('T')[0];
     }
 
@@ -314,6 +341,8 @@ export function useDocumentGenerator() {
         get manualInvoiceNr() { return manualInvoiceNr; }, set manualInvoiceNr(v) { manualInvoiceNr = v; },
         get manualIssueDate() { return manualIssueDate; }, set manualIssueDate(v) { manualIssueDate = v; },
         get template() { return template; },
+        get availableTemplates() { return availableTemplates; },
+        get timesheetTemplate() { return timesheetTemplate; },
         get client() { return client; },
         get company() { return company; },
         get availableAppointments() { return availableAppointments; },

@@ -7,22 +7,11 @@
 
     // Dynamisches Filtern der geladenen Collections auf den aktuellen Klienten
     // Sollten die Tabellen noch keine Daten haben, wird durch `|| []` ein Fehler vermieden.
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> 040e0d1e50cbe83a1f4436ed8c76cdc8af821e4d
     
     let clientData = $derived(orgaStore.clients?.getById(clientId));
     let appointments = $derived((orgaStore.appointments?.data || []).filter((a: any) => Array.isArray(a.client) ? a.client.includes(clientId) : a.client === clientId));
     let contacts = $derived(clientData?.expand?.contacts || []);
-<<<<<<< HEAD
     let retirementHomes = $derived(clientData?.expand?.retirement_homes || []);
-=======
-=======
-    let appointments = $derived((orgaStore.appointments?.data || []).filter((a: any) => Array.isArray(a.client) ? a.client.includes(clientId) : a.client === clientId));
-    let contacts = $derived((orgaStore.contacts?.data || []).filter((c: any) => c.client === clientId));
->>>>>>> 33acf6306a3259fe6f3bb48639b6c1a209c4f25d
->>>>>>> 040e0d1e50cbe83a1f4436ed8c76cdc8af821e4d
     let documents = $derived((orgaStore.document_templates?.data || []).filter((d: any) => d.client === clientId));
 
     let linkContactModal: ReturnType<typeof ClientLinkContactModal> | undefined = $state();
@@ -132,10 +121,6 @@
                     {#each contacts as contact}
                         <li class="flex items-center gap-3 p-3 rounded-xl hover:bg-neutral-50 transition-colors border border-neutral-100 cursor-pointer">
                             <div class="w-10 h-10 rounded-full bg-neutral-200 flex items-center justify-center text-neutral-600 font-bold text-sm shrink-0 shadow-inner">
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> 040e0d1e50cbe83a1f4436ed8c76cdc8af821e4d
                                 {(contact.name_first?.charAt(0) || contact.company_name?.charAt(0) || '?').toUpperCase()}
                             </div>
                             <div class="flex-1 min-w-0">
@@ -145,7 +130,6 @@
                                 {#if contact.company_name && (contact.name_first || contact.name_last)}
                                     <p class="text-xs text-neutral-500 mt-0.5 truncate">{contact.company_name}</p>
                                 {/if}
-<<<<<<< HEAD
                             </div>
                         </li>
                     {/each}
@@ -178,15 +162,6 @@
                             <div class="flex-1 min-w-0">
                                 <p class="text-sm font-bold text-neutral-900 truncate">{home.name}</p>
                                 <p class="text-xs text-neutral-500 mt-0.5 truncate">{home.city}</p>
-=======
-=======
-                                {(contact.name?.charAt(0) || '?')}
-                            </div>
-                            <div>
-                                <p class="text-sm font-bold text-neutral-900">{contact.name || 'Unbekannt'}</p>
-                                <p class="text-xs text-neutral-500 mt-0.5">{contact.relation || 'Angehörige/r'}</p>
->>>>>>> 33acf6306a3259fe6f3bb48639b6c1a209c4f25d
->>>>>>> 040e0d1e50cbe83a1f4436ed8c76cdc8af821e4d
                             </div>
                         </li>
                     {/each}
