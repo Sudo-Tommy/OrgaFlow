@@ -32,13 +32,36 @@
     }
 }
 
-/* 4. Deine wiederverwendbaren OrgaFlow-Komponenten */
+/* 4. Custom Utilities für softe Animationen */
+@layer utilities {
+    .animate-enter {
+        animation: slideFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    .delay-100 { animation-delay: 100ms; }
+    .delay-200 { animation-delay: 200ms; }
+    .delay-300 { animation-delay: 300ms; }
+
+    @keyframes slideFadeUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+}
+
+/* 5. Deine wiederverwendbaren OrgaFlow-Komponenten */
 @layer components {
 
     /* --- KARTEN & MODALE --- */
-    .orga-card-white {
+    .orga-card-white,
+    .orga-filter-bar,
+    .orga-dashboard-card,
+    .orga-client-card,
+    .orga-calendar-wrapper {
         /* Responsiv: Auf Mobile etwas weniger Radius, auf Desktop starke Abrundung */
-        @apply bg-white text-black rounded-2xl md:rounded-3xl shadow-2xl border-none overflow-hidden;
+        @apply bg-white text-neutral-900 rounded-2xl md:rounded-3xl shadow-xl shadow-neutral-200/40 border border-neutral-100 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-neutral-200/60 hover:-translate-y-1;
     }
 
     .orga-card-dark {
@@ -65,15 +88,15 @@
     /* --- BUTTONS --- */
     /* Primärer Aktions-Button */
     .orga-button-primary {
-        @apply flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold 
-               py-3 px-6 md:px-8 rounded-xl md:rounded-2xl transition-all shadow-lg shadow-indigo-900/20
-               active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+        @apply flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold 
+               py-3 px-6 md:px-8 rounded-xl md:rounded-2xl transition-all duration-300 shadow-lg shadow-indigo-600/30
+               hover:shadow-indigo-600/50 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
     }
 
     /* Sekundärer Button (Abbrechen etc.) */
     .orga-button-ghost {
-        @apply flex justify-center items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 
-               font-bold py-3 px-6 rounded-xl md:rounded-2xl transition-all active:scale-95;
+        @apply flex justify-center items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 hover:text-neutral-900
+               font-bold py-3 px-6 rounded-xl md:rounded-2xl transition-all duration-300 active:scale-95;
     }
 
     /* Zerstörerischer Button (Löschen) */
@@ -109,5 +132,82 @@
     /* Content-Bereich neben dem Menü */
     .orga-layout-content {
         @apply relative w-full h-full flex-1 flex flex-col;
+    }
+
+    /* --- GENERISCHE SEITEN-LAYOUTS --- */
+    .orga-page-header {
+        @apply mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6;
+    }
+
+    .orga-page-title {
+        @apply text-3xl font-bold text-neutral-900 tracking-tight;
+    }
+
+    .orga-page-subtitle {
+        @apply text-neutral-500 mt-2.5;
+    }
+
+    .orga-filter-bar {
+        @apply p-5 md:p-8 mb-10 flex flex-col md:flex-row gap-6;
+    }
+
+    .orga-grid {
+        @apply grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 xl:gap-8;
+    }
+
+    /* --- DASHBOARD --- */
+    .orga-dashboard-header {
+        @apply mb-10;
+    }
+
+    .orga-dashboard-title {
+        @apply text-3xl font-bold text-neutral-900;
+    }
+
+    .orga-dashboard-subtitle {
+        @apply text-neutral-500 mt-2;
+    }
+
+    .orga-dashboard-grid {
+        @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+    }
+
+    .orga-dashboard-card {
+        @apply p-6;
+    }
+
+    .orga-dashboard-card-title {
+        @apply text-lg font-bold text-neutral-800 mb-4 flex items-center gap-2;
+    }
+
+    .orga-dashboard-card-text {
+        @apply text-neutral-500 text-sm;
+    }
+
+    /* --- KLIENTEN --- */
+    .orga-client-card {
+        /* Nutzt jetzt die Basis-Hover-Effekte von orga-card-white, ergänzt durch einen feinen Border-Glow */
+        @apply p-6 block hover:border-indigo-200 relative;
+    }
+
+    /* --- KALENDER --- */
+    .orga-calendar-wrapper {
+        @apply flex flex-col;
+    }
+
+    .orga-calendar-toolbar {
+        @apply p-4 md:p-6 border-b border-neutral-100 flex flex-col lg:flex-row justify-between gap-4 lg:items-center bg-neutral-50/30;
+    }
+
+    .orga-calendar-header {
+        @apply grid grid-cols-7 border-b border-neutral-100 bg-neutral-50/80;
+    }
+
+    .orga-calendar-grid {
+        @apply grid grid-cols-7 auto-rows-fr bg-neutral-200 gap-px;
+    }
+
+    .orga-calendar-day {
+        @apply bg-white min-h-[70px] sm:min-h-[100px] p-1 sm:p-2 cursor-pointer transition-colors hover:bg-indigo-50/50 flex flex-col relative;
     }
 }

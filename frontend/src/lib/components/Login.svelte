@@ -16,8 +16,9 @@
 	}
 </script>
 
-<div class="orga-card-white max-w-md w-full p-6 md:p-8 shadow-xl">
-	<h2 class="text-2xl font-bold text-center mb-6">Willkommen zurück</h2>
+<!-- Wrapper entfernt sein eigenes Styling, da die Komponente in ein <dialog> injiziert wird -->
+<div class="w-full">
+	<h2 class="text-2xl font-bold text-neutral-900 text-center mb-6">Willkommen zurück</h2>
 
 	{#if errorMsg}
 		<div class="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-sm font-medium border border-red-100">
@@ -34,6 +35,7 @@
 				bind:value={email}
 				placeholder="mail@beispiel.de"
 				class="orga-input-clear"
+				autocomplete="username"
 				required
 				disabled={isLoading}
 			/>
@@ -41,7 +43,16 @@
 
 		<div>
 			<label for="password" class="block text-sm font-semibold text-neutral-700 mb-1.5">Passwort</label>
-			<input id="password" type="password" bind:value={password} placeholder="••••••••" class="orga-input-clear" required disabled={isLoading} />
+			<input 
+				id="password" 
+				type="password" 
+				bind:value={password} 
+				placeholder="••••••••" 
+				class="orga-input-clear" 
+				autocomplete="current-password"
+				required 
+				disabled={isLoading} 
+			/>
 		</div>
 
 		<button type="submit" class="orga-button-primary mt-2" disabled={isLoading}>

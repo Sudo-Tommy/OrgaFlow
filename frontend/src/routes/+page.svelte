@@ -1,33 +1,29 @@
 <script lang="ts">
-	import Login from "$lib/components/Login.svelte";
-	import { loginUser } from "$lib/services/login";
-	import { goto } from "$app/navigation";
-
-	let isLoading = $state(false);
-	let errorMsg = $state("");
-
-	async function onLogin(email: string, pass: string) {
-		isLoading = true;
-		errorMsg = "";
-
-		const result = await loginUser(email, pass);
-
-		if (result.success) {
-			// Bei erfolgreichem Login aufs Dashboard weiterleiten
-			goto("/dashboard");
-		} else {
-			errorMsg = result.error || "Ein unbekannter Fehler ist aufgetreten.";
-		}
-
-		isLoading = false;
-	}
+	import LandingTopBar from "$lib/components/LandingTopBar.svelte";
+	import LandingHeader from "$lib/components/LandingHeader.svelte";
+	import LandingHero from "$lib/components/LandingHero.svelte";
+	import LandingServices from "$lib/components/LandingServices.svelte";
+	import LandingProcess from "$lib/components/LandingProcess.svelte";
+	import LandingQuality from "$lib/components/LandingQuality.svelte";
+	import LandingCooperation from "$lib/components/LandingCooperation.svelte";
+	import LandingTeam from "$lib/components/LandingTeam.svelte";
+	import LandingFaq from "$lib/components/LandingFaq.svelte";
+	import LandingFooter from "$lib/components/LandingFooter.svelte";
 </script>
 
-<svelte:head>
-	<title>Anmelden - OrgaFlow</title>
-</svelte:head>
+<div class="orga-layout-wrapper bg-neutral-50 text-neutral-900">
+	<LandingTopBar />
+	<LandingHeader />
+	
+	<main class="flex-1 flex flex-col items-center w-full">
+		<LandingHero />
+		<LandingServices />
+		<LandingProcess />
+		<LandingQuality />
+		<LandingCooperation />
+		<LandingTeam />
+		<LandingFaq />
+	</main>
 
-<!-- Die Flex-Container-Klassen zentrieren die Login-Card vertikal und horizontal auf der restlichen leeren Fläche -->
-<div class="flex-1 flex items-center justify-center p-4">
-	<Login handleLogin={onLogin} {isLoading} {errorMsg} />
+	<LandingFooter />
 </div>
