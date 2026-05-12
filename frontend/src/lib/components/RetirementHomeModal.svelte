@@ -1,0 +1,113 @@
+<script lang="ts">
+    import { pb } from "$lib/services/pocketbase";
+    import { orgaStore } from "$lib/stores/orgaStore.svelte";
+
+    let dialog: HTMLDialogElement;
+    let isLoading = $state(false);
+    let errorMsg = $state("");
+
+    let editId = $state<string | null>(null);
+    let name = $state("");
+    let street = $state("");
+    let zip = $state("");
+    let city = $state("");
+    let contacts = $state<string[]>([]);
+
+    export function open(record?: any) {
+        if (record) {
+            editId = record.id;
+            name = record.name || "";
+            street = record.street || "";
+            zip = record.zip || "";
+            city = record.city || "";
+            contacts = Array.isArray(record.contacts) ? record.contacts : (record.contacts ? [record.contacts] : []);
+        } else {
+            editId = null;
+            name = "";
+            street = "";
+            zip = "";
+            city = "";
+            contacts = [];
+        }
+        errorMsg = "";
+        dialog?.showModal();
+    }
+
+    export function close() {
+        dialog?.close();
+    }
+
+    function toggleContact(id: string) {
+        if (contacts.includes(id)) {
+            contacts = contacts.filter(cId => cId !== id);
+        } else {
+            contacts = [...contacts, id];
+        }
+    }
+
+    async function onSubmit(e: Event) {
+        e.preventDefault();
+        isLoading = true;
+        errorMsg = "";
+
+        try {
+            const data = { name, street, zip, city, contacts };
+            if (editId) {
+                await pb.collection('retirement_homes').update(editId, data);
+            } else {
+                await pb.collection('retirement_homes').create(data);
+            }
+            close();
+        } catch (err: any) {
+            console.error(err);
+            errorMsg = err.message || "Fehler beim Speichern der Einrichtung.";
+        } finally {
+            isLoading = false;
+        }
+    }
+    
+    async function onDelete() {
+        if (!editId || !confirm("Möchten Sie dieses Pflegeheim wirklich löschen?")) return;
+        isLoading = true;
+        try {
+            await pb.collection('retirement_homes').delete(editId);
+            close();
+        } catch (err: any) {
+            console.error(err);
+            errorMsg = err.message || "Fehler beim Löschen.";
+        } finally {
+            isLoading = false;
+        }
+    }
+</script>
+
+<dialog bind:this={dialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-lg mx-auto my-auto rounded-3xl">
+    <div class="bg-white rounded-3xl p-6 md:p-8 w-full max-h-[90vh] overflow-y-auto custom-scrollbar relative">
+        <button aria-label="Schließen" title="Schließen" onclick={close} class="absolute top-5 right-5 w-10 h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-full flex items-center justify-center transition-colors">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+        <h2 class="text-2xl font-bold text-neutral-900 mb-6">{editId ? 'Pflegeheim bearbeiten' : 'Neues Pflegeheim anlegen'}</h2>
+        {#if errorMsg}<div class="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-sm font-medium border border-red-100">{errorMsg}</div>{/if}
+        
+        <form onsubmit={onSubmit} class="space-y-4">
+            <div><label for="home-name" class="block text-sm font-semibold text-neutral-700 mb-1.5">Name der Einrichtung</label><input id="home-name" type="text" bind:value={name} class="orga-input-clear" required disabled={isLoading} /></div>
+            <div><label for="home-street" class="block text-sm font-semibold text-neutral-700 mb-1.5">Straße & Hausnr.</label><input id="home-street" type="text" bind:value={street} class="orga-input-clear" disabled={isLoading} /></div>
+            <div class="grid grid-cols-3 gap-4">
+                <div class="col-span-1"><label for="home-zip" class="block text-sm font-semibold text-neutral-700 mb-1.5">PLZ</label><input id="home-zip" type="text" bind:value={zip} class="orga-input-clear" disabled={isLoading} /></div>
+                <div class="col-span-2"><label for="home-city" class="block text-sm font-semibold text-neutral-700 mb-1.5">Stadt</label><input id="home-city" type="text" bind:value={city} class="orga-input-clear" disabled={isLoading} /></div>
+            </div>
+            
+            <div class="pt-2">
+                <span class="block text-sm font-semibold text-neutral-700 mb-2">Ansprechpartner vor Ort</span>
+                <div class="border border-neutral-200 rounded-xl max-h-48 overflow-y-auto custom-scrollbar p-1">
+                    {#each orgaStore.contacts?.data || [] as c}
+                        <label class="flex items-center gap-3 p-2 hover:bg-neutral-50 rounded-lg cursor-pointer transition-colors"><input type="checkbox" checked={contacts.includes(c.id)} onchange={() => toggleContact(c.id)} class="w-4 h-4 text-indigo-600 border-neutral-300 rounded focus:ring-indigo-500" /><div><p class="text-sm font-bold text-neutral-900">{c.name_first} {c.name_last}</p>{#if c.company_name}<p class="text-xs text-neutral-500">{c.company_name}</p>{/if}</div></label>
+                    {/each}
+                    {#if (orgaStore.contacts?.data || []).length === 0}<p class="text-sm text-neutral-500 p-3 italic">Keine Kontakte im System vorhanden.</p>{/if}
+                </div>
+            </div>
+            
+            <div class="pt-4 flex justify-between items-center border-t border-neutral-100 mt-6">{#if editId}<button type="button" onclick={onDelete} class="text-sm font-bold text-red-500 hover:text-red-700 transition-colors" disabled={isLoading}>Löschen</button>{:else}<div></div>{/if}<div class="flex gap-3"><button type="button" onclick={close} class="orga-button-ghost" disabled={isLoading}>Abbrechen</button><button type="submit" class="orga-button-primary" disabled={isLoading}>{isLoading ? "Speichert..." : "Speichern"}</button></div></div>
+        </form>
+    </div>
+</dialog>
