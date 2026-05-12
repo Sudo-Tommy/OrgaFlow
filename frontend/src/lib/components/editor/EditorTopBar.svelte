@@ -1,9 +1,10 @@
 <script lang="ts">
-    let { title = $bindable(), saveMessage, isSaving, onSave } = $props<{
+    let { title = $bindable(), saveMessage, isSaving, onSave, onAdd } = $props<{
         title: string;
         saveMessage: string;
         isSaving: boolean;
         onSave: () => void;
+        onAdd: (type: 'text' | 'logo' | 'table') => void;
     }>();
 </script>
 
@@ -16,12 +17,12 @@
             <input 
                 type="text" 
                 bind:value={title} 
-                class="text-[18px] font-medium text-neutral-800 bg-transparent border border-transparent hover:border-neutral-300 focus:border-indigo-500 focus:outline-none rounded px-2 py-0.5 w-64 md:w-96 transition-colors" 
+                class="text-[18px] font-medium text-neutral-800 bg-transparent border border-transparent hover:border-neutral-300 focus:border-indigo-500 focus:outline-none rounded px-2 py-0.5 w-48 md:w-64 transition-colors" 
             />
-            <div class="flex gap-4 px-2 mt-0.5 text-[13px] text-neutral-500">
-                <button class="hover:bg-neutral-100 px-1.5 rounded transition-colors">Datei</button>
-                <button class="hover:bg-neutral-100 px-1.5 rounded transition-colors">Bearbeiten</button>
-                <button class="hover:bg-neutral-100 px-1.5 rounded transition-colors">Einfügen</button>
+            <div class="flex gap-1 px-2 mt-0.5 text-[12px] font-bold text-neutral-500">
+                <button onclick={() => onAdd('text')} class="hover:bg-neutral-100 hover:text-indigo-600 px-2 py-0.5 rounded transition-colors">+ Textbox</button>
+                <button onclick={() => onAdd('logo')} class="hover:bg-neutral-100 hover:text-indigo-600 px-2 py-0.5 rounded transition-colors">+ Logo</button>
+                <button onclick={() => onAdd('table')} class="hover:bg-neutral-100 hover:text-indigo-600 px-2 py-0.5 rounded transition-colors">+ Tabelle</button>
             </div>
         </div>
     </div>

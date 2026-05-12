@@ -1,25 +1,20 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import type { CanvasField } from "$lib/services/editorService.svelte";
+    import EditorField from "./EditorField.svelte";
 
-    let { onInput, setRef } = $props<{
-        onInput: () => void;
-        setRef: (ref: HTMLDivElement) => void;
+    let { fields, selectedFieldId = $bindable() } = $props<{
+        fields: CanvasField[];
+        selectedFieldId: string | null;
     }>();
-
-    let divRef: HTMLDivElement;
-
-    onMount(() => {
-        setRef(divRef);
-    });
 </script>
 
-<main class="flex-1 overflow-y-auto custom-scrollbar flex justify-center p-4 sm:p-8 bg-[#F8F9FA]">
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="flex-1 overflow-auto custom-scrollbar bg-[#EDF0F2] flex justify-center py-10" onclick={() => selectedFieldId = null}>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div 
-        bind:this={divRef}
-        class="orga-editor-page"
-        contenteditable="true"
-        oninput={onInput}
-        onblur={onInput}
-    ></div>
-</main>
+    <div class="orga-canvas-a4 relative bg-white shadow-xl shadow-black/10 shrink-0" onclick={(e) => e.stopPropagation()}>
+        {#each fields as _, i (fields[i].id)}
+            <EditorField bind:field={fields[i]} isSelected={selectedFieldId === fields[i].id} onSelect={() => selectedFieldId = fields[i].id} />
+        {/each}
+    </div>
+</div>

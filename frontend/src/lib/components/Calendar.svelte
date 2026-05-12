@@ -9,7 +9,7 @@
     // Filtert die Termine basierend auf dem gewählten Klienten
     let filteredAppointments = $derived.by(() => {
         if (selectedClientId === "all") return appointments;
-        return appointments.filter(app => {
+        return appointments.filter((app: any) => {
             if (!app.client) return false;
             if (Array.isArray(app.client)) return app.client.includes(selectedClientId);
             return app.client === selectedClientId;
@@ -22,11 +22,11 @@
                d1.getFullYear() === d2.getFullYear();
     }
 
-    function getAppsForDate(date: Date) {
-        return filteredAppointments.filter(app => {
+    function getAppsForDate(date: Date): any[] {
+        return filteredAppointments.filter((app: any) => {
             if (!app.appointment) return false;
             return isSameDay(new Date(app.appointment), date);
-        }).sort((a, b) => new Date(a.appointment).getTime() - new Date(b.appointment).getTime());
+        }).sort((a: any, b: any) => new Date(a.appointment).getTime() - new Date(b.appointment).getTime());
     }
 
     // Berechnet das Raster (Grid) für den Kalender
@@ -121,8 +121,10 @@
         <div class="flex items-center gap-2">
             <button onclick={today} class="px-3 py-1.5 text-sm font-bold text-neutral-600 bg-white border border-neutral-200 hover:bg-neutral-100 rounded-lg shadow-sm transition-colors">Heute</button>
             <div class="flex items-center bg-white border border-neutral-200 rounded-lg p-0.5 shadow-sm">
+                <!-- svelte-ignore a11y_consider_explicit_label -->
                 <button onclick={prev} class="p-1.5 text-neutral-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg></button>
                 <span class="w-28 text-center font-bold text-neutral-800 text-sm">{monthName} {year}</span>
+                <!-- svelte-ignore a11y_consider_explicit_label -->
                 <button onclick={next} class="p-1.5 text-neutral-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg></button>
             </div>
         </div>
@@ -155,7 +157,7 @@
             {#each calendarDays as day}
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div onclick={() => selectDay(day.date)} class="orga-calendar-day group md:min-h-[120px] lg:min-h-[140px] {selectedDate && isSameDay(day.date, selectedDate) ? 'ring-2 ring-inset ring-indigo-500 z-10' : ''} {!day.isCurrentMonth ? 'opacity-50' : ''}">
+                <div onclick={() => selectDay(day.date)} class="orga-calendar-day group md:min-h-30 lg:min-h-35 {selectedDate && isSameDay(day.date, selectedDate) ? 'ring-2 ring-inset ring-indigo-500 z-10' : ''} {!day.isCurrentMonth ? 'opacity-50' : ''}">
                     <div class="flex justify-between items-start w-full">
                         <button onclick={(e) => { e.stopPropagation(); onNewAppointment?.(day.date); }} class="hidden md:flex w-6 h-6 mt-0.5 ml-0.5 items-center justify-center text-neutral-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors opacity-0 group-hover:opacity-100" title="Neuer Termin">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
@@ -205,13 +207,13 @@
             </div>
         </div>
         
-        <div class="flex overflow-y-auto custom-scrollbar relative h-[500px] md:h-[600px] bg-white">
+        <div class="flex overflow-y-auto custom-scrollbar relative h-125 md:h-150 bg-white">
             <div class="w-12 sm:w-16 flex-none border-r border-neutral-100 bg-neutral-50 sticky left-0 z-20">
                 {#each Array(24) as _, hour}
                     <div class="h-16 border-b border-neutral-100 text-right pr-1 sm:pr-2 pt-1 text-[10px] sm:text-xs text-neutral-400 font-medium">{hour}:00</div>
                 {/each}
             </div>
-            <div class="flex-1 relative h-[1536px]">
+            <div class="flex-1 relative h-384">
                 <div class="absolute inset-0 flex flex-col pointer-events-none z-0">
                     {#each Array(24) as _, hour}
                         <div class="h-16 border-b border-neutral-100 w-full shrink-0"></div>
@@ -256,7 +258,7 @@
                             <div class="flex justify-between items-start mb-2">
                                 <span class="text-sm font-bold {app.is_private ? 'text-rose-600' : 'text-indigo-600'}">{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</span>
                                 {#if app.expand?.client?.[0]}
-                                    <span class="text-xs font-bold text-neutral-600 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md truncate max-w-[150px]">{app.expand.client[0].name_first} {app.expand.client[0].name_last}</span>
+                                    <span class="text-xs font-bold text-neutral-600 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md truncate max-w-37.5">{app.expand.client[0].name_first} {app.expand.client[0].name_last}</span>
                                 {/if}
                             </div>
                             <p class="text-sm text-neutral-800 font-medium line-clamp-2">{app.description || 'Keine Beschreibung'}</p>

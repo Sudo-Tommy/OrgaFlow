@@ -9,27 +9,39 @@
     let errorMsg = $state("");
 
     let editId = $state<string | null>(null);
-    let start = $state("");
-    let end = $state("");
+    let startTime = $state("");
+    let endTime = $state("");
 
-    // Hilfsfunktion: Konvertiert ISO-Datum zu "YYYY-MM-DDThh:mm" für datetime-local Input
-    function toLocalISOString(dateString?: string) {
+    // Hilfsfunktion: Extrahiert "hh:mm" aus einem ISO-Datum für das time Input
+    function extractTime(dateString?: string) {
         if (!dateString) return "";
         const d = new Date(dateString);
         if (isNaN(d.getTime())) return "";
         const pad = (n: number) => n.toString().padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    // Hilfsfunktion: Kombiniert das Datum des Termins mit der eingegebenen Uhrzeit
+    function combineDateAndTime(timeString: string) {
+        if (!timeString || !appointment?.appointment) return null;
+        const baseDate = new Date(appointment.appointment);
+        if (isNaN(baseDate.getTime())) return null;
+
+        const [hours, minutes] = timeString.split(':').map(Number);
+        const d = new Date(baseDate);
+        d.setHours(hours, minutes, 0, 0);
+        return d.toISOString();
     }
 
     export function open(record?: any) {
         if (record) {
             editId = record.id;
-            start = toLocalISOString(record.start);
-            end = toLocalISOString(record.end);
+            startTime = extractTime(record.start);
+            endTime = extractTime(record.end);
         } else {
             editId = null;
-            start = "";
-            end = "";
+            startTime = "";
+            endTime = "";
         }
         errorMsg = "";
         dialog?.showModal();
@@ -45,18 +57,17 @@
         errorMsg = "";
 
         try {
+            const payload = {
+                start: combineDateAndTime(startTime),
+                end: combineDateAndTime(endTime)
+            };
+
             if (editId) {
                 // Bestehenden Datensatz aktualisieren
-                await pb.collection('time_records').update(editId, {
-                    start: start ? new Date(start).toISOString() : null,
-                    end: end ? new Date(end).toISOString() : null,
-                });
+                await pb.collection('time_records').update(editId, payload);
             } else {
                 // 1. Neuen Zeiteintrag in der Collection anlegen
-                const newRecord = await pb.collection('time_records').create({
-                    start: start ? new Date(start).toISOString() : null,
-                    end: end ? new Date(end).toISOString() : null,
-                });
+                const newRecord = await pb.collection('time_records').create(payload);
     
                 // 2. Den neuen Eintrag mit dem Termin verknüpfen
                 const existing = appointment.time_record || [];
@@ -68,7 +79,7 @@
             // Realtime Update im Store erzwingen, um Relationen in der Ansicht live zu aktualisieren
             const updatedApp = await pb.collection('appointments').getOne(appointment.id, { 
                 expand: 'user,client,drive_record,time_record,tasks,expenditures' 
-            });
+            }) as any;
             const index = orgaStore.appointments?.data.findIndex(a => a.id === appointment.id) ?? -1;
             if (index !== -1 && orgaStore.appointments) {
                 orgaStore.appointments.data[index] = updatedApp;
@@ -77,7 +88,11 @@
             close();
         } catch (err: any) {
             console.error(err);
-            errorMsg = err.message || "Fehler beim Speichern der Zeiterfassung.";
+            errorMsg = err.message || "Fehler beim Speichern.";
+            if (err.response?.data) {
+                const details = Object.entries(err.response.data).map(([k, v]: any) => `${k}: ${v.message}`).join(", ");
+                if (details) errorMsg += ` (${details})`;
+            }
         } finally {
             isLoading = false;
         }
@@ -92,8 +107,10 @@
         <h2 class="text-2xl font-bold text-neutral-900 mb-6">{editId ? 'Zeit bearbeiten' : 'Zeit erfassen'}</h2>
         {#if errorMsg}<div class="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-sm font-medium border border-red-100">{errorMsg}</div>{/if}
         <form onsubmit={onSubmit} class="space-y-4">
-            <div><label for="time-start" class="block text-sm font-semibold text-neutral-700 mb-1.5">Startzeit</label><input id="time-start" type="datetime-local" bind:value={start} class="orga-input-clear" required disabled={isLoading} /></div>
-            <div><label for="time-end" class="block text-sm font-semibold text-neutral-700 mb-1.5">Endzeit (optional)</label><input id="time-end" type="datetime-local" bind:value={end} class="orga-input-clear" disabled={isLoading} /></div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><label for="time-start" class="block text-sm font-semibold text-neutral-700 mb-1.5">Startzeit</label><input id="time-start" type="time" bind:value={startTime} class="orga-input-clear" required disabled={isLoading} /></div>
+                <div><label for="time-end" class="block text-sm font-semibold text-neutral-700 mb-1.5">Endzeit (optional)</label><input id="time-end" type="time" bind:value={endTime} class="orga-input-clear" disabled={isLoading} /></div>
+            </div>
             <div class="pt-4 flex justify-end gap-3 border-t border-neutral-100">
                 <button type="button" onclick={close} class="orga-button-ghost" disabled={isLoading}>Abbrechen</button>
                 <button type="submit" class="orga-button-primary" disabled={isLoading}>{isLoading ? "Speichert..." : (editId ? "Änderungen speichern" : "Eintragen")}</button>

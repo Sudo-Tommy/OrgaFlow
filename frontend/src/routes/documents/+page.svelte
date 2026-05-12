@@ -1,8 +1,10 @@
 <script lang="ts">
     import { orgaStore } from "$lib/stores/orgaStore.svelte";
     import { pb } from "$lib/services/pocketbase";
+    import DocumentGeneratorModal from "$lib/components/DocumentGeneratorModal.svelte";
 
     let searchQuery = $state("");
+    let generatorModal: ReturnType<typeof DocumentGeneratorModal> | undefined = $state();
     
     let documents = $derived.by(() => {
         const allDocs = orgaStore.document_templates?.data || [];
@@ -24,10 +26,14 @@
         <h1 class="orga-page-title">Vorlagenverwaltung</h1>
         <p class="orga-page-subtitle">Erstellen und verwalten Sie hier Master-Vorlagen für Rechnungen, Formulare und Briefe.</p>
     </div>
-    <a href="/documents/new" class="orga-button-primary inline-flex">
-        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-        Neue Vorlage
-    </a>
+    <div class="flex gap-3 items-center">
+        <button onclick={() => generatorModal?.open()} class="orga-button-primary bg-neutral-900 hover:bg-neutral-800 shadow-neutral-900/20 inline-flex">
+            Dokument generieren
+        </button>
+        <a href="/documents/new" class="orga-button-ghost inline-flex">
+            + Neue Vorlage
+        </a>
+    </div>
 </div>
 
 <div class="orga-filter-bar animate-enter delay-100">
@@ -57,3 +63,5 @@
         </div>
     {/each}
 </div>
+
+<DocumentGeneratorModal bind:this={generatorModal} />

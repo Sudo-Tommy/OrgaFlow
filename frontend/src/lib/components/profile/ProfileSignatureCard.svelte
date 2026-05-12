@@ -1,0 +1,101 @@
+<script lang="ts">
+    let { signFile = $bindable(), deleteSign = $bindable(), existingSignUrl, isLoading, onSave } = $props<{
+        signFile: File | null;
+        deleteSign: boolean;
+        existingSignUrl: string;
+        isLoading: boolean;
+        onSave: () => void;
+    }>();
+
+    let signatureMode = $state<"draw" | "upload">("draw");
+    let canvas = $state<HTMLCanvasElement | null>(null);
+    let isDrawing = false;
+    let hasDrawnSignature = $state(false);
+
+    function getPointerPos(e: MouseEvent | TouchEvent) {
+        if (!canvas) return { x: 0, y: 0 };
+        const rect = canvas.getBoundingClientRect();
+        let clientX, clientY;
+        if (window.TouchEvent && e instanceof TouchEvent) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = (e as MouseEvent).clientX;
+            clientY = (e as MouseEvent).clientY;
+        }
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    }
+
+    function startDrawing(e: MouseEvent | TouchEvent) {
+        if (!canvas) return;
+        e.preventDefault();
+        isDrawing = true;
+        hasDrawnSignature = true;
+        const pos = getPointerPos(e);
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+            ctx.lineWidth = 4;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.strokeStyle = "#4f46e5";
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+        }
+    }
+
+    function draw(e: MouseEvent | TouchEvent) {
+        if (!isDrawing || !canvas) return;
+        e.preventDefault();
+        const pos = getPointerPos(e);
+        const ctx = canvas.getContext("2d");
+        if (ctx) { ctx.lineTo(pos.x, pos.y); ctx.stroke(); }
+    }
+
+    function stopDrawing() { isDrawing = false; }
+
+    function clearSignature() {
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        if (ctx) { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+        hasDrawnSignature = false;
+        signFile = null;
+    }
+
+    function handleFileChange(e: Event) {
+        const target = e.target as HTMLInputElement;
+        if (target.files && target.files.length > 0) signFile = target.files[0];
+        else signFile = null;
+    }
+
+    async function handleSave() {
+        if (signatureMode === 'draw' && hasDrawnSignature && canvas) {
+            const blob = await new Promise<Blob | null>(resolve => canvas!.toBlob(resolve, "image/png"));
+            if (blob) signFile = new File([blob], "signature.png", { type: "image/png" });
+        } else if (deleteSign) {
+            signFile = null;
+        }
+        onSave();
+    }
+</script>
+
+<div class="orga-card-white p-6 md:p-8">
+    <h2 class="text-lg font-bold text-neutral-900 mb-6 flex items-center gap-2 border-b border-neutral-100 pb-4"><span class="w-8 h-8 flex items-center justify-center bg-indigo-100 text-indigo-600 rounded-lg shadow-inner text-sm">✍️</span> Meine Unterschrift</h2>
+    
+    <form onsubmit={(e) => { e.preventDefault(); handleSave(); }} class="space-y-4">
+        <div class="flex items-center justify-between mb-4"><span class="block text-sm font-semibold text-neutral-900">Unterschrift hinterlegen</span>{#if !existingSignUrl || deleteSign}<div class="flex bg-neutral-200/60 p-1 rounded-lg"><button type="button" onclick={() => signatureMode = 'draw'} class="px-3 py-1 text-xs font-bold rounded-md transition-colors {signatureMode === 'draw' ? 'bg-white shadow-sm text-indigo-600' : 'text-neutral-500 hover:text-neutral-700'}">Zeichnen</button><button type="button" onclick={() => signatureMode = 'upload'} class="px-3 py-1 text-xs font-bold rounded-md transition-colors {signatureMode === 'upload' ? 'bg-white shadow-sm text-indigo-600' : 'text-neutral-500 hover:text-neutral-700'}">Hochladen</button></div>{/if}</div>
+
+        {#if existingSignUrl && !deleteSign}
+            <div class="bg-white border border-neutral-200 rounded-xl p-6 text-center shadow-sm"><img src={existingSignUrl} alt="Hinterlegte Unterschrift" class="max-h-24 object-contain mx-auto mix-blend-multiply mb-4" /><button type="button" onclick={() => { deleteSign = true; signFile = null; }} class="bg-red-50 text-red-600 hover:bg-red-500 hover:text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Entfernen & Neu anlegen</button></div>
+        {:else if signatureMode === 'draw'}
+            <div class="relative bg-white border-2 border-dashed border-neutral-200 rounded-xl overflow-hidden touch-none"><canvas bind:this={canvas} width="600" height="200" class="w-full h-40 cursor-crosshair" onmousedown={startDrawing} onmousemove={draw} onmouseup={stopDrawing} onmouseleave={stopDrawing} ontouchstart={startDrawing} ontouchmove={draw} ontouchend={stopDrawing}></canvas><button type="button" onclick={clearSignature} class="absolute top-2 right-2 px-2 py-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 text-xs font-semibold rounded-md transition-colors">Leeren</button>{#if !hasDrawnSignature}<div class="absolute inset-0 pointer-events-none flex items-center justify-center text-neutral-300 font-medium text-sm">Hier unterschreiben</div>{/if}</div>
+        {:else}
+            <div class="bg-white border-2 border-dashed border-neutral-200 rounded-xl p-6 text-center"><input type="file" accept="image/png, image/jpeg" class="w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors" onchange={handleFileChange} /></div>
+        {/if}
+
+        <div class="pt-4 flex justify-end">
+            <button type="submit" disabled={isLoading} class="orga-button-primary w-full sm:w-auto shadow-indigo-600/20">{isLoading ? 'Speichert...' : 'Unterschrift speichern'}</button>
+        </div>
+    </form>
+</div>

@@ -1,5 +1,7 @@
 <script lang="ts">
     import { orgaStore } from "$lib/stores/orgaStore.svelte";
+    import ClientLinkContactModal from "./ClientLinkContactModal.svelte";
+    import ClientLinkHomeModal from "./ClientLinkHomeModal.svelte";
 
     let { clientId } = $props<{ clientId: string }>();
 
@@ -9,7 +11,11 @@
     let clientData = $derived(orgaStore.clients?.getById(clientId));
     let appointments = $derived((orgaStore.appointments?.data || []).filter((a: any) => Array.isArray(a.client) ? a.client.includes(clientId) : a.client === clientId));
     let contacts = $derived(clientData?.expand?.contacts || []);
+    let retirementHomes = $derived(clientData?.expand?.retirement_homes || []);
     let documents = $derived((orgaStore.document_templates?.data || []).filter((d: any) => d.client === clientId));
+
+    let linkContactModal: ReturnType<typeof ClientLinkContactModal> | undefined = $state();
+    let linkHomeModal: ReturnType<typeof ClientLinkHomeModal> | undefined = $state();
 
     // Helper um live zu prüfen, ob dieser Termin bereits in einer Rechnung auftaucht
     function isAppointmentBilled(appId: string) {
@@ -100,7 +106,7 @@
             <h3 class="text-base font-bold text-neutral-900 flex items-center gap-2">
                 <span class="w-8 h-8 flex items-center justify-center bg-emerald-100 text-emerald-600 rounded-lg shadow-inner text-sm">👥</span> Bezugspersonen
             </h3>
-            <button aria-label="Kontakt hinzufügen" title="Neuer Kontakt" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-neutral-200 text-neutral-600 hover:text-emerald-600 hover:border-emerald-200 transition-colors shadow-sm">
+            <button onclick={() => linkContactModal?.open()} aria-label="Kontakt verknüpfen" title="Kontakt verknüpfen" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-neutral-200 text-neutral-600 hover:text-emerald-600 hover:border-emerald-200 transition-colors shadow-sm">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
             </button>
         </div>
@@ -108,7 +114,7 @@
             {#if contacts.length === 0}
                 <div class="text-center py-6">
                     <p class="text-neutral-400 text-sm mb-3">Keine Kontakte hinterlegt.</p>
-                    <button class="text-emerald-600 hover:text-emerald-800 text-sm font-bold transition-colors">Kontakt hinzufügen &rarr;</button>
+                    <button onclick={() => linkContactModal?.open()} class="text-emerald-600 hover:text-emerald-800 text-sm font-bold transition-colors">Jetzt verknüpfen &rarr;</button>
                 </div>
             {:else}
                 <ul class="space-y-4">
@@ -132,8 +138,40 @@
         </div>
     </div>
 
+    <!-- Pflegeheime Section -->
+    <div class="orga-card-white flex flex-col p-0!">
+        <div class="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+            <h3 class="text-base font-bold text-neutral-900 flex items-center gap-2">
+                <span class="w-8 h-8 flex items-center justify-center bg-teal-100 text-teal-600 rounded-lg shadow-inner text-sm">🏥</span> Pflegeheime
+            </h3>
+            <button onclick={() => linkHomeModal?.open()} aria-label="Pflegeheim verknüpfen" title="Pflegeheim verknüpfen" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-neutral-200 text-neutral-600 hover:text-teal-600 hover:border-teal-200 transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+            </button>
+        </div>
+        <div class="p-6 flex-1 max-h-80 overflow-y-auto custom-scrollbar">
+            {#if retirementHomes.length === 0}
+                <div class="text-center py-6">
+                    <p class="text-neutral-400 text-sm mb-3">Keine Pflegeheime verknüpft.</p>
+                    <button onclick={() => linkHomeModal?.open()} class="text-teal-600 hover:text-teal-800 text-sm font-bold transition-colors">Jetzt verknüpfen &rarr;</button>
+                </div>
+            {:else}
+                <ul class="space-y-4">
+                    {#each retirementHomes as home}
+                        <li class="flex items-center gap-3 p-3 rounded-xl hover:bg-neutral-50 transition-colors border border-neutral-100">
+                            <div class="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-teal-600 font-bold text-lg shrink-0 shadow-inner">🏥</div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-bold text-neutral-900 truncate">{home.name}</p>
+                                <p class="text-xs text-neutral-500 mt-0.5 truncate">{home.city}</p>
+                            </div>
+                        </li>
+                    {/each}
+                </ul>
+            {/if}
+        </div>
+    </div>
+
     <!-- Dokumente Section -->
-    <div class="orga-card-white flex flex-col p-0! md:col-span-2">
+    <div class="orga-card-white flex flex-col p-0!">
         <div class="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
             <h3 class="text-base font-bold text-neutral-900 flex items-center gap-2">
                 <span class="w-8 h-8 flex items-center justify-center bg-amber-100 text-amber-600 rounded-lg shadow-inner text-sm">📄</span> Vorlagen
@@ -150,7 +188,7 @@
                     <p class="text-neutral-400 text-xs">Hinterlegen Sie hier klientenspezifische Vorlagen oder Verträge.</p>
                 </div>
             {:else}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div class="grid grid-cols-1 gap-3">
                     {#each documents as doc}
                         <!-- Sauberes Routing: Link direkt zur Dokument-Ansicht -->
                         <a href="/documents/{doc.id}" class="group flex items-start gap-3 p-4 rounded-xl border border-neutral-100 hover:border-amber-200 hover:bg-amber-50/30 transition-all cursor-pointer shadow-sm hover:shadow-md">
@@ -166,3 +204,6 @@
         </div>
     </div>
 </div>
+
+<ClientLinkContactModal bind:this={linkContactModal} client={clientData} />
+<ClientLinkHomeModal bind:this={linkHomeModal} client={clientData} />

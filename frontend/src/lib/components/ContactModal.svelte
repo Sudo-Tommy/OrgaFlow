@@ -31,7 +31,11 @@
             housenr = record.housenr || "";
             zip = record.zip || "";
             city = record.city || "";
-            notes = record.notes ? (typeof record.notes === 'string' ? record.notes : JSON.stringify(record.notes)) : "";
+            let n = record.notes;
+            if (typeof n === 'string') {
+                try { n = JSON.parse(n); } catch {}
+            }
+            notes = n || "";
         } else {
             editId = null;
             salutation = "Keine Angabe";
@@ -60,16 +64,10 @@
         errorMsg = "";
 
         try {
-            // Notes als reinen String speichern (PocketBase JSON-Felder akzeptieren Strings, falls valid)
-            let parsedNotes = null;
-            if (notes) {
-                try { parsedNotes = JSON.parse(notes); } 
-                catch { parsedNotes = notes; } // Falls es normaler Text ist
-            }
-
             const data = { 
                 salutation, company_name, name_first, name_last, 
-                email, phone, street, housenr, zip, city, notes: parsedNotes
+                email, phone, street, housenr, zip, city, 
+                notes: notes ? JSON.stringify(notes) : null
             };
             
             if (editId) {
@@ -80,7 +78,11 @@
             close();
         } catch (err: any) {
             console.error(err);
-            errorMsg = err.message || "Fehler beim Speichern des Kontakts.";
+            errorMsg = err.message || "Fehler beim Speichern.";
+            if (err.response?.data) {
+                const details = Object.entries(err.response.data).map(([k, v]: any) => `${k}: ${v.message}`).join(", ");
+                if (details) errorMsg += ` (${details})`;
+            }
         } finally {
             isLoading = false;
         }

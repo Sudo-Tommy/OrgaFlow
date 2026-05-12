@@ -1,0 +1,326 @@
+import { pb } from "$lib/services/pocketbase";
+import { orgaStore } from "$lib/stores/orgaStore.svelte";
+
+export function useDocumentGenerator() {
+    let isLoading = $state(false);
+    let errorMsg = $state("");
+    let successMsg = $state("");
+
+    let step = $state(1);
+    let selectedTemplateId = $state("");
+    let selectedClientId = $state("");
+    let recipientType = $state("client"); 
+    let recipientId = $state("");
+    let selectedAppointmentIds = $state<string[]>([]);
+
+    let hourlyWage = $state(40);
+    let kmRate = $state(0.3);
+    let taxRate = $state("0");
+
+    let manualInvoiceNr = $state("");
+    let manualIssueDate = $state(new Date().toISOString().split('T')[0]); // YYYY-MM-DD
+
+    let template = $derived(orgaStore.document_templates?.data.find(t => t.id === selectedTemplateId));
+    let client = $derived(orgaStore.clients?.data.find(c => c.id === selectedClientId));
+    let company = $derived(orgaStore.company?.data[0]);
+
+    // --- AUTO-FILL LOGIK FÜR KLIENTEN-KONDITIONEN ---
+    let lastClient = "";
+    $effect(() => {
+        if (selectedClientId !== lastClient) {
+            lastClient = selectedClientId;
+            const c = orgaStore.clients?.data.find(cl => cl.id === selectedClientId);
+            if (c) {
+                hourlyWage = c.hourly_wage ?? 40;
+                kmRate = c.km_rate ?? 0.3;
+                taxRate = c.tax_rate || "0";
+            }
+        }
+    });
+
+    let availableAppointments = $derived.by(() => {
+        if (!selectedClientId || !orgaStore.appointments) return [];
+        return orgaStore.appointments.data.filter((a: any) => {
+            const isClient = Array.isArray(a.client) ? a.client.includes(selectedClientId) : a.client === selectedClientId;
+            if (!isClient) return false;
+            
+            // "Termine Ohne Zeitnachweis in den tabellen ausblenden"
+            const hasTime = a.expand?.time_record && a.expand.time_record.length > 0;
+            if (!hasTime) return false;
+            
+            return true;
+        }).sort((a: any, b: any) => new Date(b.appointment).getTime() - new Date(a.appointment).getTime());
+    });
+
+    let isInvoice = $derived(template?.type?.toLowerCase() === 'rechnung');
+    let requiresAppointments = $derived(template?.type?.toLowerCase() === 'rechnung' || template?.type?.toLowerCase() === 'arbeitszeitnachweis');
+
+    let invoiceData = $derived.by(() => {
+        if (!requiresAppointments || selectedAppointmentIds.length === 0) return null;
+        const apps = availableAppointments.filter((a:any) => selectedAppointmentIds.includes(a.id));
+        let positions: any[] = [];
+        let netto = 0;
+        let posCounter = 1;
+
+        for (const app of apps) {
+            // Zeiterfassung berechnen
+            let appTimeMins = 0;
+            if (app.expand?.time_record) {
+                for (const tr of app.expand.time_record) {
+                    if (tr.start && tr.end) {
+                        const diffMs = new Date(tr.end).getTime() - new Date(tr.start).getTime();
+                        if (diffMs > 0) appTimeMins += Math.round(diffMs / 60000);
+                    }
+                }
+            }
+            if (appTimeMins > 0) {
+                const hours = appTimeMins / 60;
+                const total = hours * hourlyWage;
+                netto += total;
+                
+                // Die Tasks auslesen, um eine schöne Beschreibung zu bauen
+                let titleDesc = app.description || 'Alltagshilfe';
+                if (app.expand?.tasks && app.expand.tasks.length > 0) {
+                    titleDesc = app.expand.tasks.map((t:any) => t.title).join(', ');
+                }
+                
+                positions.push({ pos: posCounter++, date: new Date(app.appointment).toLocaleDateString('de-DE'), duration: `${hours.toFixed(2)} h`, title: `${titleDesc}`, price: `${hourlyWage.toFixed(2)} €`, total });
+            }
+
+            // Fahrten berechnen
+            if (app.expand?.drive_record) {
+                for (const dr of app.expand.drive_record) {
+                    let total = 0; let desc = ""; let amount = "";
+                    if (dr.lump_sum > 0) { total = dr.lump_sum; desc = `Fahrtpauschale`; amount = "1"; }
+                    else if (dr.km > 0) { total = dr.km * kmRate; desc = `Fahrtkosten (${dr.km} km)`; amount = `${dr.km} km`; }
+                    if (total > 0) {
+                        netto += total;
+                        positions.push({ pos: posCounter++, date: new Date(app.appointment).toLocaleDateString('de-DE'), duration: amount, title: desc, price: dr.lump_sum > 0 ? `${dr.lump_sum.toFixed(2)} €` : `${kmRate.toFixed(2)} €`, total });
+                    }
+                }
+            }
+
+            // Sonderausgaben berechnen
+            if (app.expand?.expenditures) {
+                for (const exp of app.expand.expenditures) {
+                    if (exp.sum > 0) {
+                        netto += exp.sum;
+                        positions.push({ pos: posCounter++, date: new Date(app.appointment).toLocaleDateString('de-DE'), duration: "1", title: `Auslage: ${exp.titel}`, price: `${exp.sum.toFixed(2)} €`, total: exp.sum });
+                    }
+                }
+            }
+        }
+
+        const taxRateNum = parseFloat(taxRate) || 0;
+        const taxSum = netto * (taxRateNum / 100);
+        const brutto = netto + taxSum;
+        const invoice_nr = manualInvoiceNr || `RE-${new Date().getFullYear()}-${Math.floor(Math.random()*10000).toString().padStart(4, '0')}`;
+
+        let service_period = "";
+        if (apps.length > 0) {
+            const periods = apps.map((a: any) => {
+                if (!a.appointment) return "";
+                const d = new Date(a.appointment);
+                return d.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
+            }).filter(Boolean);
+            // Nutzt ein Set um Duplikate zu filtern. Ergibt z.B. "Mai 2026" oder "April 2026 & Mai 2026"
+            service_period = [...new Set(periods)].join(' & ');
+        }
+
+        return { invoice_nr, netto, tax_sum: taxSum, brutto, positions, service_period, issue_date: manualIssueDate };
+    });
+
+    function getItemsHtml(fieldConf: any) {
+        if (!invoiceData) return "";
+        let tableHtml = `<table style="width: 100%; border-collapse: collapse; font-size: ${fieldConf?.fontSize || 12}px;">`;
+        if (fieldConf?.showHeaders) {
+            tableHtml += `<thead><tr style="background-color: ${fieldConf.headerBackgroundColor}; color: ${fieldConf.headerTextColor}; border-bottom: 2px solid #cbd5e1;">`;
+            for (const col of fieldConf.columns) {
+                tableHtml += `<th style="text-align: ${col.align}; padding: 6px 4px; width: ${col.width}%;">${col.name}</th>`;
+            }
+            tableHtml += `</tr></thead>`;
+        }
+        tableHtml += `<tbody>`;
+        for (const pos of invoiceData.positions) {
+            tableHtml += `<tr style="border-bottom: 1px solid #f1f5f9;">`;
+            for (const col of fieldConf?.columns || []) {
+                let val = "";
+                if (col.type === 'pos') val = pos.pos;
+                else if (col.type === 'date') val = pos.date;
+                else if (col.type === 'duration') val = pos.duration;
+                else if (col.type === 'title') {
+                    if (fieldConf.staticDescription) {
+                        val = replacePlaceholders(fieldConf.staticDescription);
+                    } else {
+                        val = pos.title;
+                    }
+                }
+                else if (col.type === 'price') val = pos.price;
+                else if (col.type === 'total') val = `${pos.total.toFixed(2).replace('.', ',')} €`;
+                tableHtml += `<td style="text-align: ${col.align}; padding: 6px 4px; vertical-align: top;">${val}</td>`;
+            }
+            tableHtml += `</tr>`;
+        }
+        tableHtml += `</tbody></table>`;
+        
+        // Summierung unten anfügen
+        tableHtml += `<div style="margin-top: 15px; border-top: 2px solid ${fieldConf?.headerBackgroundColor || '#ccc'}; padding-top: 10px; width: 250px; margin-left: auto;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Netto:</span> <span>${invoiceData.netto.toFixed(2).replace('.',',')} €</span></div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>MwSt (${taxRate}%):</span> <span>${invoiceData.tax_sum.toFixed(2).replace('.',',')} €</span></div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 14px;"><span>Gesamt:</span> <span>${invoiceData.brutto.toFixed(2).replace('.',',')} €</span></div>
+        </div>`;
+        
+        return tableHtml;
+    }
+
+    function getRecipientData() {
+        if (!client) return {};
+        if (recipientType === 'client') return client;
+        if (recipientType === 'contact') return client.expand?.contacts?.find((c: any) => c.id === recipientId) || {};
+        if (recipientType === 'insurance') return client.expand?.insurance || {};
+        if (recipientType === 'home') return client.expand?.retirement_homes?.find((h: any) => h.id === recipientId) || {};
+        return client;
+    }
+
+    function replacePlaceholders(text: string) {
+        if (!text) return "";
+        let res = text.replace(/\n/g, '<br/>');
+        const rec = getRecipientData() || {};
+        const comp = company || {};
+        const usr = pb.authStore.record || {};
+        const ins = client?.expand?.insurance || {};
+        
+        const clientSignUrl = rec.sign ? pb.files.getUrl(rec, rec.sign) : '';
+        const userSignUrl = usr.sign ? pb.files.getUrl(usr, usr.sign) : '';
+
+        const map: Record<string, string> = {
+            '{{client.salutation}}': rec.salutation || '',
+            '{{client.salutation_formal}}': rec.salutation === 'Herr' ? `Sehr geehrter Herr ${rec.name_last},` : (rec.salutation === 'Frau' ? `Sehr geehrte Frau ${rec.name_last},` : `Guten Tag ${rec.name_first} ${rec.name_last},`),
+            '{{client.name_first}}': rec.name_first || rec.name || '',
+            '{{client.name_last}}': rec.name_last || '',
+            '{{client.street}} {{client.housenr}}': `${rec.street || ''} ${rec.housenr || ''}`.trim(),
+            '{{client.zip}} {{client.city}}': `${rec.zip || ''} ${rec.city || ''}`.trim(),
+            '{{client.email}}': rec.email || '',
+            '{{client.phone}}': rec.phone || '',
+            '{{client.handy}}': rec.handy || '',
+            '{{client.insurance_nr}}': rec.insurance_nr || '',
+            '{{client.birthdate}}': rec.birthdate || '',
+            '{{client.level_of_care}}': rec.level_of_care || '',
+            '{{client.hourly_wage}}': client?.hourly_wage || '',
+            '{{client.km_rate}}': client?.km_rate || '',
+            '{{client.tax_rate}}': client?.tax_rate || '',
+            '{{client.signature}}': clientSignUrl ? `<img src="${clientSignUrl}" style="max-height: 60px; object-fit: contain;" crossorigin="anonymous" />` : '',
+            
+            '{{insurance.name}}': ins.name || '',
+            '{{insurance.type}}': ins.type || '',
+            '{{insurance.street}}': ins.street || '',
+            '{{insurance.zip}} {{insurance.city}}': `${ins.zip || ''} ${ins.city || ''}`.trim(),
+            '{{insurance.phone}}': ins.phone || '',
+            '{{insurance.email}}': ins.email || '',
+            
+            '{{user.name_first}}': usr.name_first || '',
+            '{{user.name_last}}': usr.name_last || '',
+            '{{user.street}} {{user.housenr}}': `${usr.street || ''} ${usr.housenr || ''}`.trim(),
+            '{{user.zip}} {{user.city}}': `${usr.zip || ''} ${usr.city || ''}`.trim(),
+            '{{user.email}}': usr.email || '',
+            '{{user.tel}}': usr.tel || '',
+            '{{user.handy}}': usr.handy || '',
+            '{{user.signature}}': userSignUrl ? `<img src="${userSignUrl}" style="max-height: 60px; object-fit: contain;" crossorigin="anonymous" />` : '',
+            
+            '{{company.name}}': comp.name || '',
+            '{{company.street}} {{company.housenr}}': `${comp.street || ''} ${comp.housenr || ''}`.trim(),
+            '{{company.zip}} {{company.city}}': `${comp.zip || ''} ${comp.city || ''}`.trim(),
+            '{{company.email}}': comp.email || '',
+            '{{company.website}}': comp.website || '',
+            '{{company.number_telephone}}': comp.number_telephone || '',
+            '{{company.number_mobile}}': comp.number_mobile || '',
+            '{{company.vatcode}}': comp.vatcode || '',
+            '{{company.ik_number}}': comp.ik_number || '',
+            '{{company.bank_name}}': comp.bank_name || '',
+            '{{company.bank_iban}}': comp.bank_iban || '',
+            '{{company.bank_bic}}': comp.bank_bic || '',
+            '{{date.today}}': new Date().toLocaleDateString('de-DE'),
+            
+            // Rückwärtskompatibilität für alte HTML-Vorlagen
+            '{{anrede}}': rec.salutation === 'Herr' ? `Sehr geehrter Herr ${rec.name_last},` : (rec.salutation === 'Frau' ? `Sehr geehrte Frau ${rec.name_last},` : `Guten Tag ${rec.name_first} ${rec.name_last},`),
+            '{{company_name}}': comp.name || '',
+            '{{company_street}}': comp.street || '',
+            '{{company_housenr}}': comp.housenr || '',
+            '{{company_zip}}': comp.zip || '',
+            '{{company_city}}': comp.city || '',
+            '{{salutation}}': rec.salutation || '',
+            '{{name_first}}': rec.name_first || '',
+            '{{name_last}}': rec.name_last || '',
+            '{{street}}': rec.street || '',
+            '{{housenr}}': rec.housenr || '',
+            '{{zip}}': rec.zip || '',
+            '{{city}}': rec.city || '',
+            '{{rechnungsdatum}}': new Date().toLocaleDateString('de-DE'),
+            
+            // Rückwärtskompatibilität für alte User-Platzhalter
+            '{{user_name_first}}': usr.name_first || '',
+            '{{user_name_last}}': usr.name_last || '',
+            '{{user_street}}': usr.street || '',
+            '{{user_housenr}}': usr.housenr || '',
+            '{{user_zip}}': usr.zip || '',
+            '{{user_city}}': usr.city || '',
+            '{{user_email}}': usr.email || '',
+            '{{user_tel}}': usr.tel || '',
+            '{{user_handy}}': usr.handy || ''
+        };
+
+        if (invoiceData) {
+            map['{{invoice.number}}'] = invoiceData.invoice_nr || '';
+            map['{{invoice.total}}'] = `${invoiceData.brutto.toFixed(2).replace('.', ',')} €`;
+            map['{{rechnungs_nr}}'] = invoiceData.invoice_nr || '';
+            map['{{invoice.issue_date}}'] = new Date(invoiceData.issue_date).toLocaleDateString('de-DE');
+            map['{{rechnungsdatum}}'] = new Date(invoiceData.issue_date).toLocaleDateString('de-DE');
+            map['{{invoice.service_period}}'] = invoiceData.service_period || '';
+            map['{{leistungszeitraum}}'] = invoiceData.service_period || '';
+        }
+
+        for (const [key, val] of Object.entries(map)) {
+            res = res.split(key).join(val);
+        }
+        return res;
+    }
+
+    function reset() {
+        step = 1;
+        selectedTemplateId = "";
+        selectedClientId = "";
+        recipientType = "client";
+        recipientId = "";
+        selectedAppointmentIds = [];
+        hourlyWage = 40;
+        kmRate = 0.3;
+        taxRate = "0";
+        manualInvoiceNr = "";
+        manualIssueDate = new Date().toISOString().split('T')[0];
+    }
+
+    return {
+        get step() { return step; }, set step(v) { step = v; },
+        get selectedTemplateId() { return selectedTemplateId; }, set selectedTemplateId(v) { selectedTemplateId = v; },
+        get selectedClientId() { return selectedClientId; }, set selectedClientId(v) { selectedClientId = v; },
+        get recipientType() { return recipientType; }, set recipientType(v) { recipientType = v; },
+        get recipientId() { return recipientId; }, set recipientId(v) { recipientId = v; },
+        get selectedAppointmentIds() { return selectedAppointmentIds; }, set selectedAppointmentIds(v) { selectedAppointmentIds = v; },
+        get hourlyWage() { return hourlyWage; }, set hourlyWage(v) { hourlyWage = v; },
+        get kmRate() { return kmRate; }, set kmRate(v) { kmRate = v; },
+        get taxRate() { return taxRate; }, set taxRate(v) { taxRate = v; },
+        get manualInvoiceNr() { return manualInvoiceNr; }, set manualInvoiceNr(v) { manualInvoiceNr = v; },
+        get manualIssueDate() { return manualIssueDate; }, set manualIssueDate(v) { manualIssueDate = v; },
+        get template() { return template; },
+        get client() { return client; },
+        get company() { return company; },
+        get availableAppointments() { return availableAppointments; },
+        get isInvoice() { return isInvoice; },
+        get requiresAppointments() { return requiresAppointments; },
+        get invoiceData() { return invoiceData; },
+        get isLoading() { return isLoading; }, set isLoading(v) { isLoading = v; },
+        get errorMsg() { return errorMsg; }, set errorMsg(v) { errorMsg = v; },
+        get successMsg() { return successMsg; }, set successMsg(v) { successMsg = v; },
+        replacePlaceholders, getItemsHtml, reset
+    };
+}

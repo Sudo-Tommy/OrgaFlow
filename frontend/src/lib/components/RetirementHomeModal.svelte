@@ -8,25 +8,22 @@
 
     let editId = $state<string | null>(null);
     let name = $state("");
-    let street = $state("");
-    let zip = $state("");
-    let city = $state("");
+    let phone = $state("");
+    let email = $state("");
     let contacts = $state<string[]>([]);
 
     export function open(record?: any) {
         if (record) {
             editId = record.id;
             name = record.name || "";
-            street = record.street || "";
-            zip = record.zip || "";
-            city = record.city || "";
+            phone = record.phone || "";
+            email = record.email || "";
             contacts = Array.isArray(record.contacts) ? record.contacts : (record.contacts ? [record.contacts] : []);
         } else {
             editId = null;
             name = "";
-            street = "";
-            zip = "";
-            city = "";
+            phone = "";
+            email = "";
             contacts = [];
         }
         errorMsg = "";
@@ -51,7 +48,7 @@
         errorMsg = "";
 
         try {
-            const data = { name, street, zip, city, contacts };
+            const data = { name, phone, email, contacts };
             if (editId) {
                 await pb.collection('retirement_homes').update(editId, data);
             } else {
@@ -60,7 +57,11 @@
             close();
         } catch (err: any) {
             console.error(err);
-            errorMsg = err.message || "Fehler beim Speichern der Einrichtung.";
+            errorMsg = err.message || "Fehler beim Speichern.";
+            if (err.response?.data) {
+                const details = Object.entries(err.response.data).map(([k, v]: any) => `${k}: ${v.message}`).join(", ");
+                if (details) errorMsg += ` (${details})`;
+            }
         } finally {
             isLoading = false;
         }
@@ -91,10 +92,9 @@
         
         <form onsubmit={onSubmit} class="space-y-4">
             <div><label for="home-name" class="block text-sm font-semibold text-neutral-700 mb-1.5">Name der Einrichtung</label><input id="home-name" type="text" bind:value={name} class="orga-input-clear" required disabled={isLoading} /></div>
-            <div><label for="home-street" class="block text-sm font-semibold text-neutral-700 mb-1.5">Straße & Hausnr.</label><input id="home-street" type="text" bind:value={street} class="orga-input-clear" disabled={isLoading} /></div>
-            <div class="grid grid-cols-3 gap-4">
-                <div class="col-span-1"><label for="home-zip" class="block text-sm font-semibold text-neutral-700 mb-1.5">PLZ</label><input id="home-zip" type="text" bind:value={zip} class="orga-input-clear" disabled={isLoading} /></div>
-                <div class="col-span-2"><label for="home-city" class="block text-sm font-semibold text-neutral-700 mb-1.5">Stadt</label><input id="home-city" type="text" bind:value={city} class="orga-input-clear" disabled={isLoading} /></div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label for="home-email" class="block text-sm font-semibold text-neutral-700 mb-1.5">E-Mail</label><input id="home-email" type="email" bind:value={email} class="orga-input-clear" disabled={isLoading} /></div>
+                <div><label for="home-phone" class="block text-sm font-semibold text-neutral-700 mb-1.5">Telefon</label><input id="home-phone" type="text" bind:value={phone} class="orga-input-clear" disabled={isLoading} /></div>
             </div>
             
             <div class="pt-2">

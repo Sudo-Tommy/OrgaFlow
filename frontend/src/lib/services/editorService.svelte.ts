@@ -1,55 +1,101 @@
 import { pb } from "$lib/services/pocketbase";
 import { goto } from "$app/navigation";
 
+export interface CanvasField {
+    id: string;
+    type: 'text' | 'logo' | 'table';
+    content: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    createdAt: number;
+    style: {
+        backgroundColor: string;
+        color: string;
+        fontSize: number;
+        fontWeight: string;
+        padding: number;
+        textAlign: string;
+    };
+    tableConfig?: any;
+}
+
 export function useEditor(initialDocId: string | null) {
     let docId = $state(initialDocId);
     let title = $state("Unbenannte Vorlage");
-    let content = $state("<p><br></p>");
+    
+    // Das gesamte Canvas-Dokument-Objekt
+    let fields = $state<CanvasField[]>([]);
+    let orientation = $state("portrait");
+    
     let isSaving = $state(false);
     let saveMessage = $state("");
-    let editorRef: HTMLDivElement | null = null;
+    
+    let selectedFieldId = $state<string | null>(null);
 
     async function load() {
         if (docId) {
             try {
                 const record = await pb.collection('document_templates').getOne(docId);
                 title = record.title || "Unbenannte Vorlage";
-                content = record.content_html || "<p><br></p>";
-                if (editorRef) editorRef.innerHTML = content;
+                
+                const data = record.content_html;
+                if (data && typeof data === 'object' && Array.isArray(data.fields)) {
+                    fields = data.fields;
+                    orientation = data.orientation || "portrait";
+                }
             } catch (err) {
                 console.error("Vorlage konnte nicht geladen werden", err);
             }
         }
     }
 
-    function setEditorRef(ref: HTMLDivElement) {
-        editorRef = ref;
-        if (content && editorRef) {
-            editorRef.innerHTML = content;
+    function addField(type: 'text' | 'logo' | 'table') {
+        const newField: CanvasField = {
+            id: crypto.randomUUID(),
+            type,
+            content: type === 'text' ? "Neuer Text" : (type === 'logo' ? "Firmenlogo" : ""),
+            x: 100, y: 100, w: type === 'table' ? 600 : 200, h: type === 'table' ? 200 : 60,
+            createdAt: Date.now(),
+            style: { backgroundColor: "transparent", color: "#000000", fontSize: 12, fontWeight: "normal", padding: 0, textAlign: "left" }
+        };
+        
+        if (type === 'table') {
+            newField.tableConfig = {
+                columns: [
+                    { id: "1", name: "Pos", type: "pos", width: 10, align: "left" },
+                    { id: "2", name: "Datum", type: "date", width: 15, align: "left" },
+                    { id: "3", name: "Menge", type: "duration", width: 15, align: "left" },
+                    { id: "4", name: "Beschreibung", type: "title", width: 35, align: "left" },
+                    { id: "5", name: "EP", type: "price", width: 12, align: "right" },
+                    { id: "6", name: "GP", type: "total", width: 13, align: "right" }
+                ],
+                fontSize: 10, showHeaders: true, headerBackgroundColor: "#d2e6f0", headerTextColor: "#000000",
+                staticDescription: ""
+            };
         }
+        
+        fields.push(newField);
+        selectedFieldId = newField.id;
     }
 
-    function format(command: string, value: string | undefined = undefined) {
-        document.execCommand(command, false, value);
-        if (editorRef) editorRef.focus();
-    }
-
-    function insertPlaceholder(placeholder: string) {
-        if (!placeholder) return;
-        document.execCommand('insertText', false, placeholder);
-        if (editorRef) editorRef.focus();
-        handleInput();
-    }
-
-    function handleInput() {
-        if (editorRef) content = editorRef.innerHTML;
+    function deleteField(id: string) {
+        fields = fields.filter(f => f.id !== id);
+        if (selectedFieldId === id) selectedFieldId = null;
     }
 
     async function save() {
         isSaving = true;
         saveMessage = "Speichert...";
         try {
-            const data = { title, content_html: content };
+            const documentPayload = {
+                fields,
+                orientation,
+                version: 2
+            };
+            
+            const data = { title, content_html: documentPayload };
             if (docId) {
                 await pb.collection('document_templates').update(docId, data);
             } else {
@@ -70,15 +116,14 @@ export function useEditor(initialDocId: string | null) {
     return {
         get title() { return title; },
         set title(v) { title = v; },
-        get content() { return content; },
-        set content(v) { content = v; },
+        get fields() { return fields; },
+        get selectedFieldId() { return selectedFieldId; },
+        set selectedFieldId(v) { selectedFieldId = v; },
         get isSaving() { return isSaving; },
         get saveMessage() { return saveMessage; },
         load,
         save,
-        format,
-        insertPlaceholder,
-        handleInput,
-        setEditorRef
+        addField,
+        deleteField
     };
 }

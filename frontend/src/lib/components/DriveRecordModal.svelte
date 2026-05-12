@@ -63,7 +63,7 @@
             // Termin-Record aktualisieren für UI-Live-Sync
             const updatedApp = await pb.collection('appointments').getOne(appointment.id, { 
                 expand: 'user,client,drive_record,time_record,tasks,expenditures' 
-            });
+            }) as any;
             const index = orgaStore.appointments?.data.findIndex(a => a.id === appointment.id) ?? -1;
             if (index !== -1 && orgaStore.appointments) {
                 orgaStore.appointments.data[index] = updatedApp;
@@ -72,7 +72,11 @@
             close();
         } catch (err: any) {
             console.error(err);
-            errorMsg = err.message || "Fehler beim Speichern der Fahrt.";
+            errorMsg = err.message || "Fehler beim Speichern.";
+            if (err.response?.data) {
+                const details = Object.entries(err.response.data).map(([k, v]: any) => `${k}: ${v.message}`).join(", ");
+                if (details) errorMsg += ` (${details})`;
+            }
         } finally {
             isLoading = false;
         }

@@ -1,6 +1,7 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { pb } from "$lib/services/pocketbase";
+    import { orgaStore } from "$lib/stores/orgaStore.svelte";
 
     let isLoading = $state(false);
     let errorMsg = $state("");
@@ -14,8 +15,14 @@
         status: "Aktiv",
         level_of_care: "",
         street: "",
+        housenr: "",
         zip: "",
-        city: ""
+        city: "",
+        birthdate: "",
+        insurance_nr: "",
+        hourly_wage: 40,
+        km_rate: 0.3,
+        tax_rate: "0"
     });
 
     // Signatur-Status
@@ -106,7 +113,13 @@
         try {
             const pbFormData = new FormData();
             for (const [key, value] of Object.entries(formData)) {
-                pbFormData.append(key, value);
+                if (key === 'tax_rate') {
+                    pbFormData.append(key, value === "0" ? "" : value.toString());
+                } else if (key === 'birthdate') {
+                    pbFormData.append(key, value ? new Date(value as string).toISOString() : "");
+                } else {
+                    pbFormData.append(key, (value ?? '').toString());
+                }
             }
 
             // Signatur anhängen, falls neu gezeichnet/hochgeladen
@@ -125,7 +138,11 @@
             goto(`/clients/${newClient.id}`);
         } catch (err: any) {
             console.error(err);
-            errorMsg = err.message || "Fehler beim Anlegen des Klienten.";
+            errorMsg = err.message || "Fehler beim Anlegen.";
+            if (err.response?.data) {
+                const details = Object.entries(err.response.data).map(([k, v]: any) => `${k}: ${v.message}`).join(", ");
+                if (details) errorMsg += ` (${details})`;
+            }
         } finally {
             isLoading = false;
         }
@@ -148,24 +165,56 @@
         <div class="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-sm font-medium border border-red-100">{errorMsg}</div>
     {/if}
 
-    <form onsubmit={onSubmit} class="space-y-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><label for="new-firstname" class="block text-sm font-semibold text-neutral-700 mb-1.5">Vorname</label><input id="new-firstname" type="text" bind:value={formData.name_first} class="orga-input-clear" required disabled={isLoading} /></div>
-            <div><label for="new-lastname" class="block text-sm font-semibold text-neutral-700 mb-1.5">Nachname</label><input id="new-lastname" type="text" bind:value={formData.name_last} class="orga-input-clear" required disabled={isLoading} /></div>
-            <div><label for="new-email" class="block text-sm font-semibold text-neutral-700 mb-1.5">E-Mail</label><input id="new-email" type="email" bind:value={formData.email} class="orga-input-clear" disabled={isLoading} /></div>
-            <div><label for="new-phone" class="block text-sm font-semibold text-neutral-700 mb-1.5">Telefon</label><input id="new-phone" type="text" bind:value={formData.phone} class="orga-input-clear" disabled={isLoading} /></div>
-            <div><label for="new-status" class="block text-sm font-semibold text-neutral-700 mb-1.5">Status</label><select id="new-status" bind:value={formData.status} class="orga-input-clear" disabled={isLoading}><option value="Aktiv">Aktiv</option><option value="Inaktiv">Inaktiv</option><option value="Verstorben">Verstorben</option></select></div>
-            <div><label for="new-carelevel" class="block text-sm font-semibold text-neutral-700 mb-1.5">Pflegegrad</label><select id="new-carelevel" bind:value={formData.level_of_care} class="orga-input-clear" disabled={isLoading}><option value="">Keiner</option><option value="0">Grad 0</option><option value="1">Grad 1</option><option value="2">Grad 2</option><option value="3">Grad 3</option><option value="4">Grad 4</option><option value="5">Grad 5</option></select></div>
-        </div>
+    <form onsubmit={onSubmit} class="space-y-8">
         
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="md:col-span-2"><label for="new-street" class="block text-sm font-semibold text-neutral-700 mb-1.5">Straße & Hausnr.</label><input id="new-street" type="text" bind:value={formData.street} class="orga-input-clear" disabled={isLoading} /></div>
-            <div><label for="new-zip" class="block text-sm font-semibold text-neutral-700 mb-1.5">PLZ</label><input id="new-zip" type="text" bind:value={formData.zip} class="orga-input-clear" disabled={isLoading} /></div>
-            <div class="md:col-span-3"><label for="new-city" class="block text-sm font-semibold text-neutral-700 mb-1.5">Stadt</label><input id="new-city" type="text" bind:value={formData.city} class="orga-input-clear" disabled={isLoading} /></div>
+        <!-- Stammdaten -->
+        <div>
+            <h3 class="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">Persönliche Daten</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label for="new-firstname" class="block text-sm font-semibold text-neutral-700 mb-1.5">Vorname</label><input id="new-firstname" type="text" bind:value={formData.name_first} class="orga-input-clear" required disabled={isLoading} /></div>
+                <div><label for="new-lastname" class="block text-sm font-semibold text-neutral-700 mb-1.5">Nachname</label><input id="new-lastname" type="text" bind:value={formData.name_last} class="orga-input-clear" required disabled={isLoading} /></div>
+                <div><label for="new-birthdate" class="block text-sm font-semibold text-neutral-700 mb-1.5">Geburtsdatum</label><input id="new-birthdate" type="date" bind:value={formData.birthdate} class="orga-input-clear" disabled={isLoading} /></div>
+                <div class="hidden md:block"></div>
+                <div><label for="new-email" class="block text-sm font-semibold text-neutral-700 mb-1.5">E-Mail</label><input id="new-email" type="email" bind:value={formData.email} class="orga-input-clear" disabled={isLoading} /></div>
+                <div><label for="new-phone" class="block text-sm font-semibold text-neutral-700 mb-1.5">Telefon</label><input id="new-phone" type="text" bind:value={formData.phone} class="orga-input-clear" disabled={isLoading} /></div>
+            </div>
+        </div>
+
+        <!-- Adresse -->
+        <div class="pt-6 border-t border-neutral-100">
+            <h3 class="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">Adresse</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="md:col-span-2"><label for="new-street" class="block text-sm font-semibold text-neutral-700 mb-1.5">Straße</label><input id="new-street" type="text" bind:value={formData.street} class="orga-input-clear" disabled={isLoading} /></div>
+                <div><label for="new-housenr" class="block text-sm font-semibold text-neutral-700 mb-1.5">Hausnr.</label><input id="new-housenr" type="text" bind:value={formData.housenr} class="orga-input-clear" disabled={isLoading} /></div>
+                <div><label for="new-zip" class="block text-sm font-semibold text-neutral-700 mb-1.5">PLZ</label><input id="new-zip" type="text" bind:value={formData.zip} class="orga-input-clear" disabled={isLoading} /></div>
+                <div class="md:col-span-4"><label for="new-city" class="block text-sm font-semibold text-neutral-700 mb-1.5">Stadt</label><input id="new-city" type="text" bind:value={formData.city} class="orga-input-clear" disabled={isLoading} /></div>
+            </div>
+        </div>
+
+        <!-- Pflege & Versicherung -->
+        <div class="pt-6 border-t border-neutral-100">
+            <h3 class="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">Pflege & Status</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label for="new-status" class="block text-sm font-semibold text-neutral-700 mb-1.5">Status</label><select id="new-status" bind:value={formData.status} class="orga-input-clear" disabled={isLoading}><option value="Aktiv">Aktiv</option><option value="Inaktiv">Inaktiv</option><option value="Verstorben">Verstorben</option></select></div>
+                <div><label for="new-carelevel" class="block text-sm font-semibold text-neutral-700 mb-1.5">Pflegegrad</label><select id="new-carelevel" bind:value={formData.level_of_care} class="orga-input-clear" disabled={isLoading}><option value="">Keiner</option><option value="0">Grad 0</option><option value="1">Grad 1</option><option value="2">Grad 2</option><option value="3">Grad 3</option><option value="4">Grad 4</option><option value="5">Grad 5</option></select></div>
+                <div><label for="new-ins-nr" class="block text-sm font-semibold text-neutral-700 mb-1.5">Versicherungsnummer</label><input id="new-ins-nr" type="text" bind:value={formData.insurance_nr} class="orga-input-clear" disabled={isLoading} /></div>
+            </div>
+        </div>
+
+        <!-- Abrechnungskonditionen -->
+        <div class="pt-6 border-t border-neutral-100">
+            <h3 class="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">Abrechnungskonditionen</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label for="new-wage" class="block text-sm font-semibold text-neutral-700 mb-1.5">Stundensatz (€)</label><input id="new-wage" type="number" step="0.01" bind:value={formData.hourly_wage} class="orga-input-clear" disabled={isLoading} /></div>
+                <div><label for="new-km" class="block text-sm font-semibold text-neutral-700 mb-1.5">Fahrtkosten (€/km)</label><input id="new-km" type="number" step="0.01" bind:value={formData.km_rate} class="orga-input-clear" disabled={isLoading} /></div>
+                <div><label for="new-tax" class="block text-sm font-semibold text-neutral-700 mb-1.5">Steuersatz (%)</label><select id="new-tax" bind:value={formData.tax_rate} class="orga-input-clear" disabled={isLoading}><option value="0">0%</option><option value="7">7%</option><option value="19">19%</option></select></div>
+            </div>
         </div>
 
         <!-- Signatur Bereich -->
-        <div class="border border-neutral-200 rounded-2xl p-4 md:p-6 bg-neutral-50/50">
+        <div class="pt-6 border-t border-neutral-100">
+            <h3 class="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">Unterschrift</h3>
+            <div class="border border-neutral-200 rounded-2xl p-4 md:p-6 bg-neutral-50/50">
             <div class="flex items-center justify-between mb-4">
                 <span class="block text-sm font-semibold text-neutral-900">Unterschrift (Optional)</span>
                 <div class="flex bg-neutral-200/60 p-1 rounded-lg">
@@ -193,6 +242,7 @@
                     <input type="file" accept="image/png, image/jpeg" class="w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors" onchange={handleFileChange} />
                 </div>
             {/if}
+            </div>
         </div>
 
         <div class="flex justify-end gap-3 pt-4 border-t border-neutral-100">

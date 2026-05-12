@@ -1,6 +1,9 @@
 <script lang="ts">
     import { pb } from "$lib/services/pocketbase";
+    import ClientLinkInsuranceModal from "./ClientLinkInsuranceModal.svelte";
+    
     let { client } = $props<{ client: any }>();
+    let linkInsuranceModal: ReturnType<typeof ClientLinkInsuranceModal> | undefined = $state();
 </script>
 
 <div class="orga-card-white relative overflow-hidden group">
@@ -19,6 +22,16 @@
         </div>
 
         <div class="space-y-6">
+            {#if client.birthdate}
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-500 flex items-center justify-center shrink-0 shadow-sm"><span class="text-lg">🎂</span></div>
+                <div>
+                    <p class="text-xs text-neutral-500 font-semibold uppercase tracking-wider mb-1">Geburtsdatum</p>
+                    <p class="text-neutral-900 font-bold">{new Date(client.birthdate).toLocaleDateString('de-DE')}</p>
+                </div>
+            </div>
+            {/if}
+            
             {#if client.level_of_care}
             <div class="flex items-start gap-4">
                 <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center shrink-0 shadow-sm"><span class="text-lg">❤️</span></div>
@@ -54,6 +67,31 @@
             </div>
         </div>
         
+        <div class="mt-6 pt-6 border-t border-neutral-100">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-500 flex items-center justify-center shrink-0 shadow-sm"><span class="text-lg">🛡️</span></div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between mb-1">
+                        <p class="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Krankenkasse</p>
+                        <button onclick={() => linkInsuranceModal?.open()} class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Ändern</button>
+                    </div>
+                    <p class="text-neutral-900 font-bold truncate">{client.expand?.insurance?.name || 'Keine / Unbekannt'}</p>
+                    {#if client.insurance_nr}
+                        <p class="text-sm text-neutral-600 mt-1">Vers-Nr: <span class="font-mono bg-neutral-100 px-1 py-0.5 rounded">{client.insurance_nr}</span></p>
+                    {/if}
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-6 pt-6 border-t border-neutral-100">
+            <p class="text-xs text-neutral-500 font-semibold uppercase tracking-wider mb-3">Abrechnungskonditionen</p>
+            <div class="grid grid-cols-3 gap-4 bg-neutral-50 p-4 rounded-xl border border-neutral-100">
+                <div><p class="text-[10px] text-neutral-500 uppercase tracking-wider mb-0.5">Stundensatz</p><p class="text-sm font-bold text-neutral-900">{client.hourly_wage ?? 40} €</p></div>
+                <div><p class="text-[10px] text-neutral-500 uppercase tracking-wider mb-0.5">Fahrtkosten</p><p class="text-sm font-bold text-neutral-900">{client.km_rate ?? 0.3} €/km</p></div>
+                <div><p class="text-[10px] text-neutral-500 uppercase tracking-wider mb-0.5">Steuersatz</p><p class="text-sm font-bold text-neutral-900">{client.tax_rate || '0'} %</p></div>
+            </div>
+        </div>
+        
         {#if client.sign}
             <div class="pt-6 mt-6 border-t border-neutral-100">
                 <p class="text-xs text-neutral-500 font-semibold uppercase tracking-wider mb-3">Unterschrift</p>
@@ -64,3 +102,5 @@
         {/if}
     </div>
 </div>
+
+<ClientLinkInsuranceModal bind:this={linkInsuranceModal} {client} />

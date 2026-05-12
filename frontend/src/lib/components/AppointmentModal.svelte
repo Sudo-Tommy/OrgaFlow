@@ -6,21 +6,34 @@
     let isLoading = $state(false);
     let errorMsg = $state("");
 
+    let editId = $state<string | null>(null);
     let appointmentDate = $state("");
     let description = $state("");
     let is_private = $state(false);
     let selectedClientId = $state("");
-
-    export function open(preselectedDate?: Date) {
-        if (preselectedDate) {
-            // Setze Datum auf preselectedDate und Uhrzeit auf nächste volle Stunde
-            const d = new Date(preselectedDate);
-            d.setHours(new Date().getHours() + 1, 0, 0, 0); 
-            appointmentDate = toLocalISOString(d);
+    
+    export function open(data?: any) {
+        // Wenn "data" existiert und kein reines Date-Objekt ist, bearbeiten wir einen bestehenden Termin!
+        if (data && !(data instanceof Date) && data.id) {
+            editId = data.id;
+            appointmentDate = data.appointment ? toLocalISOString(new Date(data.appointment)) : "";
+            description = data.description || "";
+            is_private = data.is_private || false;
+            
+            // Sichere Extraktion der Klienten-ID (egal ob String oder Array)
+            let cId = "";
+            if (data.client) {
+                if (Array.isArray(data.client) && data.client.length > 0) cId = data.client[0];
+                else if (typeof data.client === "string") cId = data.client;
+            }
+            selectedClientId = cId;
+            
         } else {
-            // Wenn kein Datum vorgewählt, nimm einfach jetzt + 1 Stunde
-            const d = new Date();
-            d.setHours(d.getHours() + 1, 0, 0, 0);
+            editId = null;
+            const d = data instanceof Date ? new Date(data) : new Date();
+            if (data instanceof Date || !data) {
+                d.setHours(new Date().getHours() + 1, 0, 0, 0);
+            }
             appointmentDate = toLocalISOString(d);
         }
         description = "";
@@ -45,35 +58,42 @@
         errorMsg = "";
 
         try {
-            const data: any = {
+            // Termin Payload zusammensetzen
+            const payload: any = {
                 appointment: appointmentDate ? new Date(appointmentDate).toISOString() : null,
                 description,
                 is_private,
-                user: pb.authStore.record?.id
+                user: pb.authStore.record?.id,
+                client: selectedClientId ? [selectedClientId] : []
             };
 
-            // Wenn ein Klient ausgewählt wurde, als Array übergeben (wegen maxSelect in PocketBase)
-            if (selectedClientId) {
-                data.client = [selectedClientId];
+            // Termin updaten oder anlegen
+            if (editId) {
+                await pb.collection('appointments').update(editId, payload);
+            } else {
+                await pb.collection('appointments').create(payload);
             }
 
-            await pb.collection('appointments').create(data);
             close();
         } catch (err: any) {
             console.error(err);
-            errorMsg = err.message || "Fehler beim Erstellen des Termins.";
+            errorMsg = err.message || "Fehler beim Speichern.";
+            if (err.response?.data) {
+                const details = Object.entries(err.response.data).map(([k, v]: any) => `${k}: ${v.message}`).join(", ");
+                if (details) errorMsg += ` (${details})`;
+            }
         } finally {
             isLoading = false;
         }
     }
 </script>
 
-<dialog bind:this={dialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-md mx-auto my-auto rounded-3xl">
+<dialog bind:this={dialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-lg mx-auto my-auto rounded-3xl">
     <div class="bg-white rounded-3xl p-6 md:p-8 w-full relative">
         <button aria-label="Schließen" title="Schließen" onclick={close} class="absolute top-5 right-5 w-10 h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-full flex items-center justify-center transition-colors">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
-        <h2 class="text-2xl font-bold text-neutral-900 mb-6">Neuen Termin anlegen</h2>
+        <h2 class="text-2xl font-bold text-neutral-900 mb-6">{editId ? 'Termin bearbeiten' : 'Neuen Termin anlegen'}</h2>
         {#if errorMsg}<div class="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-sm font-medium border border-red-100">{errorMsg}</div>{/if}
         <form onsubmit={onSubmit} class="space-y-4">
             <div>
@@ -93,6 +113,8 @@
                 <label for="app-desc" class="block text-sm font-semibold text-neutral-700 mb-1.5">Beschreibung / Titel</label>
                 <input id="app-desc" type="text" bind:value={description} class="orga-input-clear" placeholder="z.B. Arztbesuch Begleitung" required disabled={isLoading} />
             </div>
+            
+
             <div class="pt-2">
                 <label for="app-private" class="flex items-center justify-between w-full p-4 border-2 rounded-2xl cursor-pointer transition-all {is_private ? 'border-indigo-500 bg-indigo-50/50' : 'border-neutral-200 bg-white hover:border-indigo-200'} {isLoading ? 'opacity-50 pointer-events-none' : ''}">
                     <div class="flex items-center gap-3">
@@ -113,7 +135,7 @@
             </div>
             <div class="pt-4 flex justify-end gap-3 border-t border-neutral-100">
                 <button type="button" onclick={close} class="orga-button-ghost" disabled={isLoading}>Abbrechen</button>
-                <button type="submit" class="orga-button-primary" disabled={isLoading}>{isLoading ? "Speichert..." : "Termin erstellen"}</button>
+                <button type="submit" class="orga-button-primary" disabled={isLoading}>{isLoading ? "Speichert..." : (editId ? "Speichern" : "Termin erstellen")}</button>
             </div>
         </form>
     </div>

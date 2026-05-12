@@ -3,8 +3,8 @@
     import { page } from "$app/stores";
     import { useEditor } from "$lib/services/editorService.svelte";
     import EditorTopBar from "$lib/components/editor/EditorTopBar.svelte";
-    import EditorToolbar from "$lib/components/editor/EditorToolbar.svelte";
     import EditorCanvas from "$lib/components/editor/EditorCanvas.svelte";
+    import EditorSidebar from "$lib/components/editor/EditorSidebar.svelte";
 
     // Die ID kommt nun dynamisch aus dem Pfad (z.B. /documents/12345 oder /documents/new)
     const docId = $page.params.id === 'new' ? null : ($page.params.id ?? null);
@@ -26,13 +26,17 @@
         saveMessage={editor.saveMessage} 
         isSaving={editor.isSaving} 
         onSave={editor.save} 
+        onAdd={editor.addField}
     />
-    <EditorToolbar 
-        onFormat={editor.format} 
-        onInsertPlaceholder={editor.insertPlaceholder} 
-    />
-    <EditorCanvas 
-        onInput={editor.handleInput} 
-        setRef={editor.setEditorRef} 
-    />
+    <div class="flex-1 flex overflow-hidden">
+        <EditorCanvas 
+            fields={editor.fields} 
+            bind:selectedFieldId={editor.selectedFieldId}
+        />
+        <EditorSidebar 
+            fields={editor.fields} 
+            selectedFieldId={editor.selectedFieldId} 
+            onDelete={editor.deleteField}
+        />
+    </div>
 </div>

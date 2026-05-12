@@ -1,0 +1,119 @@
+<script lang="ts">
+    import { pb } from "$lib/services/pocketbase";
+
+    let dialog: HTMLDialogElement;
+    let isLoading = $state(false);
+    let errorMsg = $state("");
+
+    let editId = $state<string | null>(null);
+    let name = $state("");
+    let type = $state("GKV (Gesetzlich)");
+    let email = $state("");
+    let phone = $state("");
+    let street = $state("");
+    let zip = $state("");
+    let city = $state("");
+    let billing_address_extra = $state("");
+    let notes = $state("");
+
+    export function open(record?: any) {
+        if (record) {
+            editId = record.id;
+            name = record.name || "";
+            type = record.type || "GKV (Gesetzlich)";
+            email = record.email || "";
+            phone = record.phone || "";
+            street = record.street || "";
+            zip = record.zip || "";
+            city = record.city || "";
+            billing_address_extra = record.billing_address_extra || "";
+            // Notes kommt aus einem Editor-Feld als HTML, wir bereinigen es für ein einfaches Textfeld
+            notes = typeof record.notes === 'string' ? record.notes.replace(/<[^>]*>?/gm, '') : "";
+        } else {
+            editId = null;
+            name = "";
+            type = "GKV (Gesetzlich)";
+            email = "";
+            phone = "";
+            street = "";
+            zip = "";
+            city = "";
+            billing_address_extra = "";
+            notes = "";
+        }
+        errorMsg = "";
+        dialog?.showModal();
+    }
+
+    export function close() {
+        dialog?.close();
+    }
+
+    async function onSubmit(e: Event) {
+        e.preventDefault();
+        isLoading = true;
+        errorMsg = "";
+
+        try {
+            const data = { name, type, email, phone, street, zip, city, billing_address_extra, notes };
+            if (editId) {
+                await pb.collection('insurancies').update(editId, data);
+            } else {
+                await pb.collection('insurancies').create(data);
+            }
+            close();
+        } catch (err: any) {
+            console.error(err);
+            errorMsg = err.message || "Fehler beim Speichern.";
+            if (err.response?.data) {
+                const details = Object.entries(err.response.data).map(([k, v]: any) => `${k}: ${v.message}`).join(", ");
+                if (details) errorMsg += ` (${details})`;
+            }
+        } finally {
+            isLoading = false;
+        }
+    }
+    
+    async function onDelete() {
+        if (!editId || !confirm("Möchten Sie diese Krankenkasse wirklich löschen?")) return;
+        isLoading = true;
+        try {
+            await pb.collection('insurancies').delete(editId);
+            close();
+        } catch (err: any) {
+            console.error(err);
+            errorMsg = err.message || "Fehler beim Löschen.";
+        } finally {
+            isLoading = false;
+        }
+    }
+</script>
+
+<dialog bind:this={dialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-lg mx-auto my-auto rounded-3xl">
+    <div class="bg-white rounded-3xl p-6 md:p-8 w-full max-h-[90vh] overflow-y-auto custom-scrollbar relative">
+        <button aria-label="Schließen" title="Schließen" onclick={close} class="absolute top-5 right-5 w-10 h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-full flex items-center justify-center transition-colors">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+        <h2 class="text-2xl font-bold text-neutral-900 mb-6">{editId ? 'Krankenkasse bearbeiten' : 'Neue Krankenkasse anlegen'}</h2>
+        {#if errorMsg}<div class="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-sm font-medium border border-red-100">{errorMsg}</div>{/if}
+        
+        <form onsubmit={onSubmit} class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2"><label for="ins-name" class="block text-sm font-semibold text-neutral-700 mb-1.5">Name der Kasse</label><input id="ins-name" type="text" bind:value={name} class="orga-input-clear" required disabled={isLoading} /></div>
+                <div><label for="ins-type" class="block text-sm font-semibold text-neutral-700 mb-1.5">Versicherungsart</label><select id="ins-type" bind:value={type} class="orga-input-clear" disabled={isLoading}><option value="GKV (Gesetzlich)">GKV (Gesetzlich)</option><option value="PKV (Privat)">PKV (Privat)</option><option value="Beihilfe">Beihilfe</option><option value="Berufsgenossenschaft">Berufsgenossenschaft</option></select></div>
+                <div><label for="ins-extra" class="block text-sm font-semibold text-neutral-700 mb-1.5">Abt. / Zusatz (optional)</label><input id="ins-extra" type="text" bind:value={billing_address_extra} class="orga-input-clear" disabled={isLoading} /></div>
+                <div><label for="ins-email" class="block text-sm font-semibold text-neutral-700 mb-1.5">E-Mail</label><input id="ins-email" type="email" bind:value={email} class="orga-input-clear" disabled={isLoading} /></div>
+                <div><label for="ins-phone" class="block text-sm font-semibold text-neutral-700 mb-1.5">Telefon</label><input id="ins-phone" type="text" bind:value={phone} class="orga-input-clear" disabled={isLoading} /></div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
+                <div class="md:col-span-2"><label for="ins-street" class="block text-sm font-semibold text-neutral-700 mb-1.5">Straße & Hausnr.</label><input id="ins-street" type="text" bind:value={street} class="orga-input-clear" disabled={isLoading} /></div>
+                <div><label for="ins-zip" class="block text-sm font-semibold text-neutral-700 mb-1.5">PLZ</label><input id="ins-zip" type="text" bind:value={zip} class="orga-input-clear" disabled={isLoading} /></div>
+                <div><label for="ins-city" class="block text-sm font-semibold text-neutral-700 mb-1.5">Stadt</label><input id="ins-city" type="text" bind:value={city} class="orga-input-clear" disabled={isLoading} /></div>
+            </div>
+            
+            <div class="pt-2"><label for="ins-notes" class="block text-sm font-semibold text-neutral-700 mb-1.5">Notizen</label><textarea id="ins-notes" bind:value={notes} class="orga-input-clear resize-none" rows="2" disabled={isLoading}></textarea></div>
+            <div class="pt-4 flex justify-between items-center border-t border-neutral-100 mt-6">{#if editId}<button type="button" onclick={onDelete} class="text-sm font-bold text-red-500 hover:text-red-700 transition-colors" disabled={isLoading}>Löschen</button>{:else}<div></div>{/if}<div class="flex gap-3"><button type="button" onclick={close} class="orga-button-ghost" disabled={isLoading}>Abbrechen</button><button type="submit" class="orga-button-primary" disabled={isLoading}>{isLoading ? "Speichert..." : "Speichern"}</button></div></div>
+        </form>
+    </div>
+</dialog>
