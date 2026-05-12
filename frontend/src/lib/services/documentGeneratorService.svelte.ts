@@ -204,7 +204,7 @@ export function useDocumentGenerator() {
             '{{client.phone}}': rec.phone || '',
             '{{client.handy}}': rec.handy || '',
             '{{client.insurance_nr}}': rec.insurance_nr || '',
-            '{{client.birthdate}}': rec.birthdate || '',
+            '{{client.birthdate}}': rec.birthdate ? new Date(rec.birthdate).toLocaleDateString('de-DE', { timeZone: 'UTC' }) : '',
             '{{client.level_of_care}}': rec.level_of_care || '',
             '{{client.hourly_wage}}': client?.hourly_wage || '',
             '{{client.km_rate}}': client?.km_rate || '',
@@ -273,8 +273,10 @@ export function useDocumentGenerator() {
             map['{{invoice.number}}'] = invoiceData.invoice_nr || '';
             map['{{invoice.total}}'] = `${invoiceData.brutto.toFixed(2).replace('.', ',')} €`;
             map['{{rechnungs_nr}}'] = invoiceData.invoice_nr || '';
-            map['{{invoice.issue_date}}'] = new Date(invoiceData.issue_date).toLocaleDateString('de-DE');
-            map['{{rechnungsdatum}}'] = new Date(invoiceData.issue_date).toLocaleDateString('de-DE');
+            map['{{invoice.issue_date}}'] = new Date(invoiceData.issue_date).toLocaleDateString('de-DE', { timeZone: 'UTC' });
+            map['{{rechnungsdatum}}'] = new Date(invoiceData.issue_date).toLocaleDateString('de-DE', { timeZone: 'UTC' });
+            const due = new Date(new Date(invoiceData.issue_date).getTime() + 14 * 24 * 60 * 60 * 1000);
+            map['{{invoice.due_date}}'] = due.toLocaleDateString('de-DE', { timeZone: 'UTC' });
             map['{{invoice.service_period}}'] = invoiceData.service_period || '';
             map['{{leistungszeitraum}}'] = invoiceData.service_period || '';
         }

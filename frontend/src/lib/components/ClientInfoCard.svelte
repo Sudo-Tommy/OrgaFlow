@@ -27,7 +27,7 @@
                 <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-500 flex items-center justify-center shrink-0 shadow-sm"><span class="text-lg">🎂</span></div>
                 <div>
                     <p class="text-xs text-neutral-500 font-semibold uppercase tracking-wider mb-1">Geburtsdatum</p>
-                    <p class="text-neutral-900 font-bold">{new Date(client.birthdate).toLocaleDateString('de-DE')}</p>
+                    <p class="text-neutral-900 font-bold">{new Date(client.birthdate).toLocaleDateString('de-DE', { timeZone: 'UTC' })}</p>
                 </div>
             </div>
             {/if}

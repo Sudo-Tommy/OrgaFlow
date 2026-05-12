@@ -69,8 +69,7 @@
                 pbFormData.append('invoice_nr', service.invoiceData.invoice_nr);
                 pbFormData.append('issue_date', new Date(service.invoiceData.issue_date).toISOString());
                 pbFormData.append('status', 'Entwurf');
-                pbFormData.append('issue_date', new Date().toISOString());
-                const due = new Date(); due.setDate(due.getDate() + 14);
+                const due = new Date(service.invoiceData.issue_date); due.setDate(due.getDate() + 14);
                 pbFormData.append('due_date', due.toISOString());
                 // FIX: Sende leeren String, falls "0" in PocketBase noch nicht im Select erlaubt ist
                 pbFormData.append('tax_rate', service.taxRate === "0" ? "" : service.taxRate);

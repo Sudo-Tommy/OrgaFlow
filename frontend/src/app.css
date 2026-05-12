@@ -137,6 +137,7 @@
     .orga-layout-content {
         @apply relative w-full h-full flex-1 flex flex-col;
     }
+<<<<<<< HEAD
 
     /* --- GENERISCHE SEITEN-LAYOUTS --- */
     .orga-page-header {
@@ -246,4 +247,6 @@
         background-size: 20px 20px, 20px 20px, 100% 1123px;
         position: relative;
     }
+=======
+>>>>>>> 040e0d1e50cbe83a1f4436ed8c76cdc8af821e4d
 }
