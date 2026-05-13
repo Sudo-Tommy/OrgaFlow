@@ -1560,6 +1560,21 @@
         "type": "relation"
       },
       {
+        "help": "",
+        "hidden": false,
+        "id": "file2729472648",
+        "maxSelect": 10,
+        "maxSize": 0,
+        "mimeTypes": null,
+        "name": "documents",
+        "presentable": false,
+        "protected": false,
+        "required": false,
+        "system": false,
+        "thumbs": null,
+        "type": "file"
+      },
+      {
         "hidden": false,
         "id": "autodate2990389176",
         "name": "created",
@@ -4368,5 +4383,72 @@
       "CREATE INDEX `idx_otps_collectionRef_recordRef` ON `_otps` (collectionRef, recordRef)"
     ],
     "system": true
+  },
+  {
+    "id": "pbc_2249334397",
+    "listRule": "",
+    "viewRule": "",
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null,
+    "name": "public_busy_days",
+    "type": "view",
+    "fields": [
+      {
+        "autogeneratePattern": "",
+        "help": "",
+        "hidden": false,
+        "id": "text3208210256",
+        "max": 0,
+        "min": 0,
+        "name": "id",
+        "pattern": "^[a-z0-9]+$",
+        "presentable": false,
+        "primaryKey": true,
+        "required": true,
+        "system": true,
+        "type": "text"
+      },
+      {
+        "help": "",
+        "hidden": false,
+        "id": "_clone_77Js",
+        "max": "",
+        "min": "",
+        "name": "appointment",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "date"
+      },
+      {
+        "cascadeDelete": false,
+        "collectionId": "00vkipv5adisx5g",
+        "help": "",
+        "hidden": false,
+        "id": "_clone_Bssd",
+        "maxSelect": 0,
+        "minSelect": 0,
+        "name": "company",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "relation"
+      },
+      {
+        "help": "",
+        "hidden": false,
+        "id": "json3429461320",
+        "maxSize": 1,
+        "name": "is_blocked",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "json"
+      }
+    ],
+    "indexes": [],
+    "system": false,
+    "viewQuery": "SELECT \n  appointments.id,\n  appointments.appointment,\n  users.company,\n  (CASE WHEN appointments.description LIKE '%[BLOCK]%' THEN 1 ELSE 0 END) as is_blocked\nFROM appointments\nLEFT JOIN users ON users.id = appointments.user\n\n"
   }
 ]

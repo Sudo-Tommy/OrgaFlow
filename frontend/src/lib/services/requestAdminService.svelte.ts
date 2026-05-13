@@ -50,7 +50,7 @@ export function useRequestAdmin() {
 
     function cleanup() {
         if (subscriptionCallback) {
-            pb.collection('appointment_requests').unsubscribe('*', subscriptionCallback);
+            pb.collection('appointment_requests').unsubscribe('*');
         }
     }
 

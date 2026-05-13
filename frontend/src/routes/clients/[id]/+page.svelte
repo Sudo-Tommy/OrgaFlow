@@ -5,6 +5,7 @@
     import ClientInfoCard from "$lib/components/ClientInfoCard.svelte";
     import ClientRelations from "$lib/components/ClientRelations.svelte";
     import ClientEditModal from "$lib/components/ClientEditModal.svelte";
+    import { toastStore } from "$lib/services/toastService.svelte";
 
     // Typ-Sicherheit herstellen, falls .id undefined ist
     let clientId = $derived($page.params.id || '');
@@ -31,12 +32,13 @@
             await pb.collection('clients').update(client.id, { notes });
             
             // Realtime Update im Store erzwingen, für sofortiges UI-Feedback
-            const updatedClient = await pb.collection('clients').getOne(client.id, { expand: 'insurance,retirement_homes,contacts' });
+            const updatedClient = await pb.collection('clients').getOne(client.id, { expand: 'insurance,retirement_homes,contacts' }) as any;
             const index = orgaStore.clients?.data.findIndex(c => c.id === client.id) ?? -1;
             if (index !== -1 && orgaStore.clients) orgaStore.clients.data[index] = updatedClient;
+            toastStore.success("Notizen erfolgreich gespeichert.");
         } catch (err) {
             console.error(err);
-            alert("Fehler beim Speichern der Notizen.");
+            toastStore.error("Fehler beim Speichern der Notizen.");
         } finally {
             isNotesSaving = false;
         }
@@ -99,7 +101,7 @@
                 <div class="flex flex-col gap-3">
                     <textarea 
                         bind:value={notes} 
-                        class="orga-input-clear resize-y min-h-[150px] text-sm" 
+                        class="orga-input-clear resize-y min-h-37.5 text-sm" 
                         placeholder="Besondere Vorkommnisse, Krankheiten oder wichtige Hinweise zu diesem Klienten..."
                         disabled={isNotesSaving}
                     ></textarea>

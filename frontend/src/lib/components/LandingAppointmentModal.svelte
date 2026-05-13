@@ -1,0 +1,322 @@
+<script lang="ts">
+    import { submitAppointmentRequest } from "$lib/services/appointmentRequestService";
+    import { pb } from "$lib/services/pocketbase";
+    import { onMount } from "svelte";
+
+    let dialog: HTMLDialogElement;
+    
+    let isLoading = $state(false);
+    let successMsg = $state("");
+    let errorMsg = $state("");
+
+    let companies = $state<any[]>([]);
+    let company_id = $state("");
+
+    // Form Data
+    let sender_name = $state("");
+    let email = $state("");
+    let phone = $state("");
+    let street = $state("");
+    let zip_city = $state("");
+    let request_text = $state("");
+    let time = $state("");
+
+    // Calendar State
+    let currentDate = $state(new Date());
+    let selectedDate = $state<Date | null>(null);
+    let occupiedDates = $state<string[]>([]);
+    let occupiedTimesByDate = $state<Record<string, string[]>>({});
+
+    let calendarDays = $derived.by(() => {
+        const y = currentDate.getFullYear();
+        const m = currentDate.getMonth();
+        const firstDay = new Date(y, m, 1);
+        let startDay = firstDay.getDay() || 7; // 1 = Mo, 7 = So
+        startDay -= 1;
+
+        const days = [];
+        const prevLastDay = new Date(y, m, 0).getDate();
+        for (let i = startDay - 1; i >= 0; i--) {
+            days.push({ date: new Date(y, m - 1, prevLastDay - i), isCurrentMonth: false });
+        }
+        const lastDay = new Date(y, m + 1, 0).getDate();
+        for (let i = 1; i <= lastDay; i++) {
+            days.push({ date: new Date(y, m, i), isCurrentMonth: true });
+        }
+        const remaining = 42 - days.length;
+        for (let i = 1; i <= remaining; i++) {
+            days.push({ date: new Date(y, m + 1, i), isCurrentMonth: false });
+        }
+        return days;
+    });
+
+    onMount(async () => {
+        try {
+            companies = await pb.collection('company').getFullList({ sort: 'city', requestKey: null });
+            if (companies.length > 0) company_id = companies[0].id;
+        } catch (e) {
+            console.warn("Firmen konnten nicht geladen werden.");
+        }
+    });
+
+    $effect(() => {
+        if (company_id) {
+            loadOccupiedDates(company_id);
+        }
+    });
+
+    async function loadOccupiedDates(compId: string) {
+        occupiedDates = [];
+        occupiedTimesByDate = {};
+        try {
+            // Da die Landingpage öffentlich ist, haben wir keine Rechte auf die eigentlichen 'appointments'.
+            // Wir nutzen ausschließlich die öffentliche View 'public_busy_days', die das Backend bereitstellt.
+            const res: any[] = await pb.collection('public_busy_days').getFullList({ 
+                filter: `company ~ "${compId}" || company ?= "${compId}"`, 
+                requestKey: null 
+            });
+            
+            const counts: Record<string, number> = {};
+            const times: Record<string, string[]> = {};
+            
+            res.forEach((r: any) => {
+                if (r.appointment) {
+                    // ISO-String parsen und sauber in die deutsche, lokale Zeitzone verschieben
+                    const dObj = new Date(r.appointment.replace(' ', 'T'));
+                    if (isNaN(dObj.getTime())) return;
+                    const d = new Date(dObj.getTime() - dObj.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                    
+                    // Wenn der Termin als blockiert markiert ist, sperren wir den Tag künstlich
+                    if (r.is_blocked || (r.description && r.description.includes('[BLOCK]'))) {
+                        counts[d] = (counts[d] || 0) + 100;
+                    } else {
+                        counts[d] = (counts[d] || 0) + 1;
+                    }
+
+                    // Die Zeiten von expliziten "Block"-Terminen (z.B. Urlaub) ignorieren wir für die Uhrzeitanzeige
+                    if (!(r.is_blocked || (r.description && r.description.includes('[BLOCK]')))) {
+                        const tStr = dObj.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                        if (!times[d]) times[d] = [];
+                        if (!times[d].includes(tStr)) times[d].push(tStr);
+                    }
+                }
+            });
+
+            for (const key in times) {
+                times[key].sort();
+            }
+
+            const busy: string[] = [];
+            for (const [d, count] of Object.entries(counts)) {
+                // Ein Tag gilt als komplett "Belegt", wenn 4 oder mehr Termine anliegen
+                if (count >= 4) busy.push(d);
+            }
+            occupiedDates = busy;
+            occupiedTimesByDate = times;
+        } catch (err) {
+            console.warn("Konnte belegte Tage nicht laden. Bitte API-Regeln in PocketBase prüfen!", err);
+        }
+    }
+
+    export function open() {
+        successMsg = "";
+        errorMsg = "";
+        dialog?.showModal();
+    }
+
+    export function close() {
+        dialog?.close();
+    }
+
+    function nextMonth() {
+        currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+    }
+    
+    function prevMonth() {
+        currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    }
+
+    async function handleSubmit(e: Event) {
+        e.preventDefault();
+        isLoading = true;
+        errorMsg = "";
+        successMsg = "";
+
+        if (!selectedDate) {
+            errorMsg = "Bitte wählen Sie ein Wunschdatum im Kalender aus.";
+            isLoading = false;
+            return;
+        }
+
+        // Sicherstellen, dass das Datum in der lokalen Zeitzone bleibt und nicht durch UTC-Verschiebung auf den Vortag springt
+        const formattedDate = new Date(selectedDate.getTime() - selectedDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        const contactMethod = email ? 'e-mail-address' : 'telephone';
+
+        const final_request_text = `${request_text.trim()}
+
+--- Kontaktdaten ---
+E-Mail: ${email || '-'}
+Telefon: ${phone || '-'}
+Adresse: ${street || '-'}, ${zip_city || '-'}`;
+
+        try {
+            await submitAppointmentRequest({
+                company: company_id,
+                sender_name,
+                request_text: final_request_text,
+                date: formattedDate,
+                time,
+                contact_method: contactMethod
+            });
+            
+            successMsg = "Vielen Dank! Ihre Anfrage wurde erfolgreich übermittelt. Wir melden uns in Kürze.";
+            
+            // Reset
+            sender_name = ""; email = ""; phone = ""; street = ""; zip_city = ""; request_text = ""; time = ""; selectedDate = null;
+        } catch (err: any) {
+            console.error(err);
+            errorMsg = "Es gab einen Fehler beim Senden. Bitte rufen Sie uns direkt an.";
+        } finally {
+            isLoading = false;
+        }
+    }
+</script>
+
+<dialog bind:this={dialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-5xl mx-auto my-auto rounded-3xl" onclick={(e) => { if (e.target === dialog) close(); }}>
+    <div class="bg-neutral-50/50 rounded-3xl w-full max-h-[90vh] flex flex-col relative overflow-hidden shadow-2xl border border-neutral-100">
+        
+        <div class="bg-white px-4 sm:px-6 md:px-10 py-4 sm:py-5 border-b border-neutral-200 flex items-center justify-between shrink-0 sticky top-0 z-20 shadow-sm">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold shadow-inner text-xl sm:text-2xl shrink-0">📅</div>
+                <div>
+                    <h2 class="text-lg sm:text-2xl font-bold text-brand-950 leading-tight">Termin online anfragen</h2>
+                    <p class="text-[10px] sm:text-sm text-neutral-500 font-medium mt-0.5 sm:mt-0">Kostenlos und unverbindlich. Wir melden uns umgehend.</p>
+                </div>
+            </div>
+            <button aria-label="Schließen" onclick={close} class="w-8 h-8 sm:w-10 sm:h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-full flex items-center justify-center transition-colors shadow-sm shrink-0"><svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+        </div>
+
+        <div class="p-4 sm:p-6 md:p-8 overflow-y-auto custom-scrollbar">
+            {#if successMsg}
+                <div class="bg-emerald-50 text-emerald-800 p-8 rounded-2xl border border-emerald-200 text-center animate-enter my-8">
+                    <span class="text-4xl block mb-4">✅</span>
+                    <h3 class="text-xl font-bold mb-2">Anfrage erfolgreich!</h3>
+                    <p class="font-medium">{successMsg}</p>
+                    <button type="button" onclick={close} class="mt-6 orga-button-primary">Schließen</button>
+                </div>
+            {:else}
+                {#if errorMsg}
+                    <div class="bg-rose-50 text-rose-800 p-4 rounded-xl border border-rose-200 text-center mb-6 font-bold animate-enter shadow-sm">{errorMsg}</div>
+                {/if}
+
+                <form onsubmit={handleSubmit} class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 pb-4">
+                    
+                    <!-- Linke Spalte: Kalender & Standort -->
+                    <div class="lg:col-span-5 space-y-6">
+                        
+                        <div class="orga-card-white p-4 sm:p-5 border border-amber-200/60 shadow-sm bg-amber-50/40">
+                            <label for="req-company" class="block text-base font-bold text-brand-950 mb-2">1. Ihr Standort *</label>
+                            <p class="text-xs text-neutral-600 mb-3">Bitte wählen Sie Ihre Region, um freie Termine zu sehen.</p>
+                            <select id="req-company" bind:value={company_id} class="orga-input-clear bg-white cursor-pointer w-full text-sm font-semibold shadow-sm" required disabled={isLoading}>
+                                {#each companies as comp}
+                                    <option value={comp.id}>{comp.city} {comp.name ? `(${comp.name})` : ''}</option>
+                                {/each}
+                            </select>
+                        </div>
+
+                        <div class="orga-card-white p-4 sm:p-5 md:p-6 border border-amber-200/60 shadow-sm bg-amber-50/40">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-base font-bold text-brand-950">2. Wunschdatum *</h3>
+                                <div class="flex items-center gap-2 bg-white rounded-lg border border-amber-100 p-1 shadow-sm">
+                                    <button type="button" onclick={prevMonth} class="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center hover:bg-amber-100 rounded text-brand-700 font-bold transition-colors">◀</button>
+                                    <span class="text-xs font-bold text-brand-950 w-20 sm:w-24 text-center">{currentDate.toLocaleString('de-DE', {month:'short', year:'numeric'})}</span>
+                                    <button type="button" onclick={nextMonth} class="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center hover:bg-amber-100 rounded text-brand-700 font-bold transition-colors">▶</button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-7 gap-1 text-center mb-2">
+                                {#each ['Mo','Di','Mi','Do','Fr','Sa','So'] as day}<div class="text-[10px] font-bold text-brand-600/80 uppercase tracking-wider py-1">{day}</div>{/each}
+                            </div>
+                            <div class="grid grid-cols-7 gap-1 sm:gap-1.5">
+                                {#each calendarDays as day}
+                                    {@const isPast = day.date.getTime() < new Date().setHours(0,0,0,0)}
+                                    {@const dateStr = new Date(day.date.getTime() - day.date.getTimezoneOffset() * 60000).toISOString().split('T')[0]}
+                                    {@const isOccupied = occupiedDates.includes(dateStr)}
+                                    {@const dayTimes = occupiedTimesByDate[dateStr] || []}
+                                    <button type="button" disabled={isPast || isOccupied} onclick={() => selectedDate = day.date} class="aspect-square flex flex-col items-center justify-start pt-1 sm:pt-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all border shadow-sm {
+                                        isPast ? 'opacity-40 cursor-not-allowed bg-neutral-100 border-neutral-200 text-neutral-400' : 
+                                        (isOccupied ? 'bg-rose-50 text-rose-400 border-rose-200/50 cursor-not-allowed' : 'bg-white cursor-pointer hover:bg-brand-50 hover:text-brand-800 hover:border-brand-300 text-neutral-700')
+                                    } {!day.isCurrentMonth && !isOccupied && !isPast ? 'opacity-60 text-neutral-500' : ''} {selectedDate && day.date.getTime() === selectedDate.getTime() && !isOccupied && !isPast ? 'bg-brand-600! text-white! border-brand-700! shadow-md scale-105' : ''}">
+                                        <span class={isOccupied ? 'line-through decoration-rose-400 decoration-2' : ''}>{day.date.getDate()}</span>
+                                        {#if isOccupied}
+                                            <span class="text-[7px] sm:text-[8px] font-black uppercase tracking-normal sm:tracking-wider mt-0.5 text-rose-500 truncate max-w-full px-0.5 leading-none">Belegt</span>
+                                        {:else if dayTimes.length > 0 && !isPast}
+                                            <div class="flex flex-col gap-px mt-0.5 items-center w-full px-0">
+                                                {#each dayTimes.slice(0, 2) as t}
+                                                    <span class="text-[7px] sm:text-[8px] leading-tight font-bold {selectedDate && day.date.getTime() === selectedDate.getTime() ? 'text-brand-100' : 'text-rose-500'}">{t}</span>
+                                                {/each}
+                                                {#if dayTimes.length > 2}
+                                                    <span class="text-[7px] sm:text-[8px] leading-tight font-bold {selectedDate && day.date.getTime() === selectedDate.getTime() ? 'text-brand-100' : 'text-rose-500'}">...</span>
+                                                {/if}
+                                            </div>
+                                        {/if}
+                                    </button>
+                                {/each}
+                            </div>
+                            
+                            <div class="mt-6 border-t border-amber-200/50 pt-4">
+                                <label for="req-time" class="block text-sm font-bold text-brand-900 mb-2">Uhrzeit (optional)</label>
+                                <input id="req-time" type="time" bind:value={time} class="orga-input-clear bg-white text-sm shadow-sm" disabled={isLoading} />
+                                {#if selectedDate}
+                                    {@const selDateStr = new Date(selectedDate.getTime() - selectedDate.getTimezoneOffset() * 60000).toISOString().split('T')[0]}
+                                    {@const selTimes = occupiedTimesByDate[selDateStr] || []}
+                                    {#if selTimes.length > 0}
+                                        <div class="mt-3 p-2.5 bg-rose-50 border border-rose-100 rounded-lg text-xs text-rose-700 leading-tight shadow-sm flex items-start gap-2">
+                                            <span class="mt-0.5">⚠️</span>
+                                            <div>
+                                                <span class="font-bold block mb-0.5">Hinweis zu diesem Tag:</span>
+                                                Folgende Zeiten sind bereits vergeben: <strong>{selTimes.join(' Uhr, ')} Uhr</strong>
+                                            </div>
+                                        </div>
+                                    {/if}
+                                {/if}
+                            </div>
+
+                            <div class="mt-4 p-3 bg-white rounded-xl border border-amber-100 text-xs text-neutral-600 flex gap-2 items-start shadow-sm"><span class="text-base leading-none">💡</span><p>Aus Datenschutzgründen zeigen wir hier nur gebuchte Zeiten an. Wir prüfen Ihren Terminwunsch umgehend.</p></div>
+                        </div>
+                    </div>
+
+                    <!-- Rechte Spalte: Formulardaten -->
+                    <div class="lg:col-span-7 flex flex-col">
+                        <div class="orga-card-white p-4 sm:p-6 md:p-8 border border-neutral-200 shadow-lg h-full flex flex-col bg-white">
+                            <h3 class="text-xl font-bold text-brand-950 mb-6 pb-4 border-b border-neutral-100">3. Ihre Kontaktdaten & Anliegen</h3>
+                            
+                            <div class="space-y-5 flex-1">
+                                <div><label for="req-name" class="block text-sm font-semibold text-neutral-700 mb-1.5">Ihr Vor- und Nachname *</label><input id="req-name" type="text" bind:value={sender_name} class="orga-input-clear bg-neutral-50" placeholder="Max Mustermann" required disabled={isLoading} /></div>
+                                
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div><label for="req-email" class="block text-sm font-semibold text-neutral-700 mb-1.5">E-Mail</label><input id="req-email" type="email" bind:value={email} class="orga-input-clear bg-neutral-50" placeholder="mail@beispiel.de" disabled={isLoading} /></div>
+                                    <div><label for="req-phone" class="block text-sm font-semibold text-neutral-700 mb-1.5">Telefon / Mobil</label><input id="req-phone" type="text" bind:value={phone} class="orga-input-clear bg-neutral-50" placeholder="0151..." disabled={isLoading} /></div>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div><label for="req-street" class="block text-sm font-semibold text-neutral-700 mb-1.5">Straße & Hausnr.</label><input id="req-street" type="text" bind:value={street} class="orga-input-clear bg-neutral-50" placeholder="Musterstraße 1" disabled={isLoading} /></div>
+                                    <div><label for="req-zip" class="block text-sm font-semibold text-neutral-700 mb-1.5">PLZ & Stadt</label><input id="req-zip" type="text" bind:value={zip_city} class="orga-input-clear bg-neutral-50" placeholder="06108 Halle" disabled={isLoading} /></div>
+                                </div>
+                                
+                                <div class="flex-1 flex flex-col">
+                                    <label for="req-text" class="block text-sm font-semibold text-neutral-700 mb-1.5">Wie können wir Ihnen helfen? *</label>
+                                    <textarea id="req-text" bind:value={request_text} class="orga-input-clear bg-neutral-50 resize-none custom-scrollbar flex-1 min-h-30" placeholder="Beschreiben Sie kurz Ihr Anliegen..." required disabled={isLoading}></textarea>
+                                </div>
+                            </div>
+
+                            <div class="pt-6 mt-6 border-t border-neutral-100 shrink-0">
+                                <button type="submit" class="orga-button-primary w-full text-base py-3.5 shadow-brand-600/30 hover:shadow-brand-600/50" disabled={isLoading}>{isLoading ? "Anfrage wird sicher übertragen..." : "Termin verbindlich anfragen"}</button>
+                                <p class="text-center text-xs text-neutral-400 mt-3 flex items-center justify-center gap-1.5"><span>🔒</span> Ihre Daten werden verschlüsselt übertragen und streng vertraulich behandelt.</p>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            {/if}
+        </div>
+    </div>
+</dialog>

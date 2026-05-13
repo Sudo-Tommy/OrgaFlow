@@ -1,6 +1,7 @@
 <script lang="ts">
     import { pb } from "$lib/services/pocketbase";
     import { onMount, onDestroy } from "svelte";
+    import { toastStore } from "$lib/services/toastService.svelte";
 
     // Lokaler State für die Stickies
     let stickies = $state<any[]>([]);
@@ -49,7 +50,7 @@
                     pos_y: Math.floor(Math.random() * 100) + 50
                 });
             } catch (err) {
-                alert("Bitte lege zuerst die Tabelle 'stickies' in PocketBase an!");
+                toastStore.error("Datenbank-Fehler: Tabelle 'stickies' existiert nicht.");
             }
         };
 
@@ -143,7 +144,7 @@
             <textarea 
                 bind:value={sticky.content} 
                 oninput={() => handleContentChange(sticky)}
-                class="w-full min-h-[140px] bg-transparent resize-none p-4 pt-2 focus:outline-none text-neutral-800 font-medium leading-relaxed custom-scrollbar placeholder:text-black/40 placeholder:italic"
+                class="w-full min-h-35 bg-transparent resize-none p-4 pt-2 focus:outline-none text-neutral-800 font-medium leading-relaxed custom-scrollbar placeholder:text-black/40 placeholder:italic"
                 placeholder="Notiz eintragen..."
                 spellcheck="false"
             ></textarea>

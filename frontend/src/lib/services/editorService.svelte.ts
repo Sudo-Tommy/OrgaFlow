@@ -73,7 +73,7 @@ export function useEditor(initialDocId: string | null) {
                     { id: "5", name: "EP", type: "price", width: 12, align: "right" },
                     { id: "6", name: "GP", type: "total", width: 13, align: "right" }
                 ],
-                fontSize: 10, showHeaders: true, headerBackgroundColor: "#d2e6f0", headerTextColor: "#000000",
+                fontSize: 10, showHeaders: true, headerBackgroundColor: "#f0d4c9", headerTextColor: "#000000",
                 staticDescription: "",
                 includeTimeRecords: true,
                 includeDriveKm: true,
@@ -114,7 +114,7 @@ export function useEditor(initialDocId: string | null) {
             }
             saveMessage = "Gespeichert!";
             setTimeout(() => saveMessage = "", 2000);
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
             saveMessage = "Fehler!";
             if (err.response?.data) {

@@ -1,20 +1,19 @@
 <script lang="ts">
     import LandingLegalModal from "$lib/components/LandingLegalModal.svelte";
-    import LoginLogout from "$lib/components/LoginLogout.svelte";
     
     const year = new Date().getFullYear();
     let legalModal: ReturnType<typeof LandingLegalModal>;
 </script>
 
-<footer id="kontakt" class="bg-neutral-950 text-neutral-400 pt-20 pb-10 mt-auto border-t border-white/5 relative overflow-hidden">
+<footer id="kontakt" class="bg-brand-900 text-brand-100/90 pt-20 pb-10 mt-auto border-t border-brand-800 relative overflow-hidden">
     <!-- Subtiler Leuchteffekt am oberen Rand -->
-    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-32 bg-brand-500/15 blur-[100px] pointer-events-none z-0"></div>
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-32 bg-white/10 blur-[100px] pointer-events-none z-0"></div>
     
-    <div class="relative z-10 max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-12 mb-12 border-b border-white/5 pb-12">
+    <div class="relative z-10 max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-12 mb-12 border-b border-brand-800/50 pb-12">
         <!-- Adresse -->
         <div>
             <h4 class="text-white font-bold text-lg mb-4">Ihre Seniorenassistenz</h4>
-            <p class="text-neutral-500 leading-relaxed mb-4">Ihr vertrauensvoller Partner für ein selbstbestimmtes Leben. Wir unterstützen Sie und Ihre Angehörigen im Alltag – professionell, transparent und menschlich.</p>
+            <p class="text-brand-100/80 leading-relaxed mb-4">Ihre guten Geister für den Alltag. Wir jonglieren Termine, besiegen den Formulardrachen und haben immer ein offenes Ohr – professionell, transparent und absolut menschlich.</p>
         </div>
         
         <!-- Kontakt -->
@@ -48,9 +47,6 @@
             <ul class="space-y-3">
                 <li>
                     <button onclick={() => legalModal.open()} class="hover:text-white transition-colors">Impressum & Datenschutz</button>
-                </li>
-                <li class="pt-4 mt-4 border-t border-white/10">
-                    <LoginLogout subtle={true} />
                 </li>
             </ul>
         </div>

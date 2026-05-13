@@ -190,7 +190,7 @@
                 <div class="flex gap-2">
                     <input type="text" id="to" bind:value={to} list="contact-list" class="orga-input-clear w-full flex-1" placeholder="klient@beispiel.de, kollege@beispiel.de" required disabled={isSending} />
                     <select 
-                        class="orga-input-clear w-auto bg-neutral-50 cursor-pointer max-w-[200px] text-sm font-medium"
+                        class="orga-input-clear w-auto bg-neutral-50 cursor-pointer max-w-50 text-sm font-medium"
                         onchange={(e) => {
                             const val = (e.target as HTMLSelectElement).value;
                             if(val) addRecipient(val);
@@ -232,14 +232,14 @@
         
         <div class="flex-1 flex flex-col">
             <label for="message" class="block text-sm font-bold text-neutral-700 mb-1.5">Nachricht</label>
-            <textarea id="message" bind:value={message} class="orga-input-clear flex-1 min-h-[160px] resize-none w-full" placeholder="Guten Tag..." required disabled={isSending}></textarea>
+            <textarea id="message" bind:value={message} class="orga-input-clear flex-1 min-h-40 resize-none w-full" placeholder="Guten Tag..." required disabled={isSending}></textarea>
             
             <!-- Dateianhänge Vorschau -->
             {#if attachments.length > 0}
                 <div class="flex flex-wrap gap-2 mt-3">
                     {#each attachments as file, i}
                         <div class="flex items-center gap-2 bg-neutral-100 text-neutral-700 px-3 py-1.5 rounded-lg text-sm border border-neutral-200 shadow-sm animate-enter">
-                            <span class="truncate max-w-[200px] font-medium">📎 {file.name}</span>
+                            <span class="truncate max-w-50 font-medium">📎 {file.name}</span>
                             <button type="button" onclick={() => removeAttachment(i)} class="text-rose-500 hover:text-rose-700 font-bold ml-1" disabled={isSending} title="Anhang entfernen">✕</button>
                         </div>
                     {/each}

@@ -5,9 +5,10 @@
     emailId: string;
     onDelete: () => void;
     onReply: () => void;
+    onBack?: () => void;
   }
 
-  let { emailId, onDelete, onReply } = $props();
+  let { emailId, onDelete, onReply, onBack } = $props();
 
   const emailService = getEmailService();
   let email = $state<MailboxMessage | null>(null);
@@ -80,7 +81,7 @@
     </div>
 
     <!-- Footer with actions -->
-    <div class="border-t border-gray-200 p-4 bg-white flex gap-2 shrink-0">
+    <div class="border-t border-gray-200 p-3 md:p-4 bg-white flex flex-wrap gap-2 shrink-0 justify-around sm:justify-start">
       <button
         onclick={onReply}
         class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded"

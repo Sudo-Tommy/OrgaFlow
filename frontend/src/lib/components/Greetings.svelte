@@ -188,7 +188,7 @@
     }
 </script>
 
-<div class="mt-3 inline-flex items-center gap-4 bg-gradient-to-r from-white to-brand-50/50 border border-brand-100/60 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow w-full">
+<div class="mt-3 inline-flex items-center gap-4 bg-linear-to-r from-white to-brand-50/50 border border-brand-100/60 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow w-full">
     <div class="text-3xl md:text-4xl animate-waving-hand origin-bottom-right drop-shadow-sm">
         {emoji}
     </div>

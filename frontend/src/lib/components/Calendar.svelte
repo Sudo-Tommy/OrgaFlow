@@ -3,6 +3,7 @@
     import AppointmentDetailModal from './AppointmentDetailModal.svelte';
     import { pb } from "$lib/services/pocketbase";
     import { orgaStore } from "$lib/stores/orgaStore.svelte";
+    import { toastStore } from "$lib/services/toastService.svelte";
     
     let { appointments = [], clients = [], onNewAppointment, isWidget = false } = $props<{ appointments: any[], clients: any[], isWidget?: boolean, onNewAppointment?: (date: Date) => void }>();
 
@@ -11,22 +12,35 @@
     let selectedDate = $state<Date | null>(new Date());
     let selectedClientId = $state<string>("all");
 
+    let isSuperAdmin = $state(pb.authStore.isSuperuser || pb.authStore.model?.role === 'superadmin' || pb.authStore.model?.role === 'admin');
+    let users = $state<any[]>([]);
+    let selectedUserId = $state<string>("all");
+
     // Echtzeit-Uhr für QOL-Features (Wochenansicht-Linie)
     let now = $state(new Date());
     let timeInterval: ReturnType<typeof setInterval>;
     onMount(() => {
         timeInterval = setInterval(() => now = new Date(), 60000); // Jede Minute aktualisieren
+        if (isSuperAdmin) {
+            pb.collection('users').getFullList({ requestKey: null }).then(res => users = res).catch(() => {});
+        }
     });
     onDestroy(() => clearInterval(timeInterval));
 
     // Filtert die Termine basierend auf dem gewählten Klienten
     let filteredAppointments = $derived.by(() => {
-        if (selectedClientId === "all") return appointments;
-        return appointments.filter((app: any) => {
-            if (!app.client) return false;
-            if (Array.isArray(app.client)) return app.client.includes(selectedClientId);
-            return app.client === selectedClientId;
-        });
+        let list = appointments;
+        if (selectedClientId !== "all") {
+            list = list.filter((app: any) => {
+                if (!app.client) return false;
+                if (Array.isArray(app.client)) return app.client.includes(selectedClientId);
+                return app.client === selectedClientId;
+            });
+        }
+        if (isSuperAdmin && selectedUserId !== "all") {
+            list = list.filter((app: any) => app.user === selectedUserId);
+        }
+        return list;
     });
 
     function isSameDay(d1: Date, d2: Date) {
@@ -165,16 +179,17 @@
             await pb.collection('appointments').update(appId, { appointment: newDate.toISOString() });
             
             // Aktualisiere den Store, damit die UI sofort reagiert (inkl. der Relationen)
-            const updatedApp = await pb.collection('appointments').getOne(appId, { expand: 'user,client,drive_record,time_record,tasks,expenditures' });
+            const updatedApp = await pb.collection<any>('appointments').getOne(appId, { expand: 'user,client,drive_record,time_record,tasks,expenditures' });
             if (orgaStore.appointments) {
                 const idx = orgaStore.appointments.data.findIndex(a => a.id === appId);
                 if (idx !== -1) {
                     orgaStore.appointments.data[idx] = updatedApp;
                 }
             }
+            toastStore.success("Termin erfolgreich verschoben.");
         } catch (err) {
             console.error("Fehler beim Verschieben des Termins:", err);
-            alert("Der Termin konnte nicht verschoben werden.");
+            toastStore.error("Der Termin konnte nicht verschoben werden.");
         } finally {
             isUpdating = false;
         }
@@ -188,7 +203,7 @@
         isDragging = false;
         if (!app) return;
 
-        const originalDate = new Date(app.appointment);
+        const originalDate = new Date((app.appointment as string) || '');
         const newDate = new Date(targetDate);
         
         // Behalte die ursprüngliche Uhrzeit bei (lokale Zeit)
@@ -248,12 +263,20 @@
                 <button onclick={() => viewMode = 'week'} class="px-3 py-1 text-xs font-bold rounded-md transition-colors {viewMode === 'week' ? 'bg-white shadow-sm text-indigo-600' : 'text-neutral-500 hover:text-neutral-700'}">Woche</button>
             </div>
             <!-- Klienten-Filter -->
-            <select bind:value={selectedClientId} class="bg-white border border-neutral-200 text-sm font-semibold text-neutral-700 rounded-lg px-3 py-1.5 shadow-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none w-full sm:w-auto cursor-pointer">
+            <select bind:value={selectedClientId} class="bg-white border border-neutral-200 text-sm font-semibold text-neutral-700 rounded-lg px-3 py-1.5 shadow-sm focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none w-full sm:w-auto cursor-pointer">
                 <option value="all">Alle Klienten</option>
                 {#each clients as c (c.id)}
                     <option value={c.id}>{c.name_first} {c.name_last}</option>
                 {/each}
             </select>
+            {#if isSuperAdmin}
+                <select bind:value={selectedUserId} class="bg-white border border-neutral-200 text-sm font-semibold text-neutral-700 rounded-lg px-3 py-1.5 shadow-sm focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none w-full sm:w-auto cursor-pointer">
+                    <option value="all">Alle Mitarbeiter</option>
+                    {#each users as u (u.id)}
+                        <option value={u.id}>{u.name_first} {u.name_last}</option>
+                    {/each}
+                </select>
+            {/if}
         </div>
     </div>
 
@@ -297,6 +320,9 @@
                                         <div class="flex items-center gap-1 mb-0.5">
                                             <span class="font-bold text-[11px] leading-none">{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
                                             {#if app.is_private}<span class="text-[9px]">🔒</span>{/if}
+                                            {#if isSuperAdmin && app.expand?.user}
+                                                <span class="text-[9px] font-bold text-neutral-500 bg-neutral-200/50 border border-neutral-200 px-1 py-0.5 rounded truncate max-w-15" title="{app.expand.user.name_first} {app.expand.user.name_last}">👤 {app.expand.user.name_first}</span>
+                                            {/if}
                                         </div>
                                         <div class="text-xs font-semibold truncate text-neutral-900">{app.expand?.client?.[0] ? app.expand.client[0].name_first + ' ' + app.expand.client[0].name_last : 'Kein Klient'}</div>
                                         <div class="text-[10px] truncate opacity-80 mt-0.5">{app.description || 'Termin'}</div>
@@ -310,7 +336,7 @@
 
             <!-- Rechte Seite: Termine des Tages (Nur im Widget/Mobile-Modus) -->
             {#if isWidget && selectedDate}
-                <div class="w-[140px] sm:w-[240px] md:w-[280px] shrink-0 bg-neutral-50/50 p-2 sm:p-4 flex flex-col">
+                <div class="w-35 sm:w-60 md:w-70 shrink-0 bg-neutral-50/50 p-2 sm:p-4 flex flex-col">
                     <div class="flex items-center justify-between mb-3 border-b border-neutral-200/60 pb-2">
                         <h3 class="text-[11px] sm:text-sm font-bold text-neutral-900 flex items-center gap-1.5">
                             <span>📅</span> 
@@ -323,7 +349,7 @@
                     {#if selectedDayAppointments.length === 0}
                         <p class="text-[10px] sm:text-xs text-neutral-500 italic mt-2 text-center">Keine Termine</p>
                     {:else}
-                        <div class="flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-1 max-h-[300px] sm:max-h-[400px]">
+                        <div class="flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-1 max-h-75 sm:max-h-100">
                             {#each selectedDayAppointments as app}
                                 <button type="button" onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="w-full text-left block bg-white p-2 sm:p-3 rounded-lg border border-neutral-200 hover:border-indigo-300 hover:shadow-md transition-all group">
                                     <div class="flex justify-between items-start mb-1">
@@ -331,7 +357,10 @@
                                             {new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                         {#if app.expand?.client?.[0]}
-                                            <span class="hidden sm:inline text-[9px] font-bold text-neutral-600 bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded-md truncate max-w-[100px]">{app.expand.client[0].name_first}</span>
+                                            <span class="hidden sm:inline text-[9px] font-bold text-neutral-600 bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded-md truncate max-w-25">{app.expand.client[0].name_first}</span>
+                                        {/if}
+                                        {#if isSuperAdmin && app.expand?.user}
+                                            <span class="hidden sm:inline text-[9px] font-bold text-neutral-500 bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded-md truncate max-w-25" title="{app.expand.user.name_first} {app.expand.user.name_last}">👤 {app.expand.user.name_first}</span>
                                         {/if}
                                     </div>
                                     <p class="text-[10px] sm:text-xs text-neutral-800 font-medium line-clamp-2">
@@ -389,6 +418,9 @@
                                     <div class="font-bold flex items-center gap-1 mb-0.5">
                                         <span>{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
                                         {#if app.is_private}<span class="text-[8px] sm:text-[10px]">🔒</span>{/if}
+                                        {#if isSuperAdmin && app.expand?.user}
+                                            <span class="text-[8px] font-bold text-neutral-500 bg-neutral-200/50 border border-neutral-200 px-1 py-0.5 rounded truncate max-w-12.5" title="{app.expand.user.name_first} {app.expand.user.name_last}">👤 {app.expand.user.name_first}</span>
+                                        {/if}
                                     </div>
                                     <div class="truncate font-semibold">{app.expand?.client?.[0] ? app.expand.client[0].name_first + ' ' + app.expand.client[0].name_last : 'Kein Klient'}</div>
                                     <div class="truncate opacity-75">{app.description || 'Termin'}</div>
@@ -419,6 +451,9 @@
                                 <span class="text-sm font-bold {app.is_private ? 'text-rose-600' : 'text-indigo-600'}">{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</span>
                                 {#if app.expand?.client?.[0]}
                                     <span class="text-xs font-bold text-neutral-600 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md truncate max-w-37.5">{app.expand.client[0].name_first} {app.expand.client[0].name_last}</span>
+                                {/if}
+                                {#if isSuperAdmin && app.expand?.user}
+                                    <span class="text-xs font-bold text-neutral-500 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md truncate max-w-37.5" title="{app.expand.user.name_first} {app.expand.user.name_last}">👤 {app.expand.user.name_first}</span>
                                 {/if}
                             </div>
                             <p class="text-sm text-neutral-800 font-medium line-clamp-2">{app.description || 'Keine Beschreibung'}</p>

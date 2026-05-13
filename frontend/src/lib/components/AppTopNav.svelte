@@ -6,6 +6,8 @@
 	import { getMailboxService } from "$lib/services/mailboxService.svelte";
 	import { useRequestAdmin } from "$lib/services/requestAdminService.svelte";
 	import { onMount, onDestroy } from "svelte";
+	import logoUrl from "$lib/assets/favicon.png";
+	import { toastStore } from "$lib/services/toastService.svelte";
 
 	let { items = [] } = $props<{
 		items?: Array<{ label: string; href: string; icon: Snippet; roles?: string[] }>;
@@ -36,6 +38,17 @@
 	let unreadMails = $derived(mailboxService.totalUnread || 0);
 	let pendingRequests = $derived(reqAdmin.requests.filter(r => r.status === 'requested').length);
 	let totalNotifications = $derived(unreadMails + pendingRequests);
+
+	let prevUnread = $state(-1);
+	let prevPending = $state(-1);
+
+	$effect(() => {
+		if (prevUnread !== -1 && unreadMails > prevUnread) toastStore.info(`Du hast ${unreadMails - prevUnread} neue E-Mail(s) erhalten!`);
+		prevUnread = unreadMails;
+		
+		if (prevPending !== -1 && pendingRequests > prevPending) toastStore.success(`Eine neue Terminanfrage ist eingetroffen!`);
+		prevPending = pendingRequests;
+	});
 </script>
 
 <!-- Kopfzeile mit dynamischem Einbezug der Safe-Area (iPhone Notch etc.) via CSS env() -->
@@ -58,7 +71,8 @@
 			</button>
 			
 			<!-- Logo auf Mobile anzeigen, da die Sidebar ja ausgeblendet ist -->
-			<div class="md:hidden flex items-center gap-1.5 font-bold tracking-tight text-neutral-900 text-xl">
+			<div class="md:hidden flex items-center gap-2 font-bold tracking-tight text-neutral-900 text-xl">
+				<img src={logoUrl} alt="Logo" class="w-6 h-6 object-contain" />
 				OrgaFlow
 			</div>
 		</div>
@@ -103,7 +117,7 @@
 							{:else}
 								<div class="flex flex-col">
 									{#if unreadMails > 0}
-										<a href="/dashboard" onclick={() => isNotificationsOpen = false} class="p-4 border-b border-neutral-50 hover:bg-neutral-50 transition-colors flex items-start gap-3 cursor-pointer">
+										<a href="/mail" onclick={() => isNotificationsOpen = false} class="p-4 border-b border-neutral-50 hover:bg-neutral-50 transition-colors flex items-start gap-3 cursor-pointer">
 											<div class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 shadow-inner">✉️</div>
 											<div>
 												<p class="text-sm font-bold text-neutral-900">{unreadMails} ungelesene E-Mail{unreadMails > 1 ? 's' : ''}</p>

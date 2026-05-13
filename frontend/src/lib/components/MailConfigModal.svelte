@@ -98,7 +98,7 @@
     <div class="flex-1 overflow-y-auto p-6">
       {#if error || saveError}
         <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
-          <span class="text-xl flex-shrink-0 mt-0.5">⚠️</span>
+          <span class="text-xl shrink-0 mt-0.5">⚠️</span>
           <p class="text-sm text-red-800">{error || saveError}</p>
         </div>
       {/if}
@@ -229,7 +229,7 @@
     </div>
 
     <!-- Footer -->
-    <div class="border-t border-gray-200 p-6 bg-gray-50 flex gap-3 flex-shrink-0 justify-end">
+    <div class="border-t border-gray-200 p-6 bg-gray-50 flex gap-3 shrink-0 justify-end">
       <button
         onclick={onClose}
         disabled={isSaving || isLoading}

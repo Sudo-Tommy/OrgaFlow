@@ -2,23 +2,23 @@ export function getServices() {
     return [
         {
             iconPath: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
-            title: "Alltag & Begleitung",
-            description: "Wir helfen Ihnen dabei, Termine zu vereinbaren, Unterlagen vorzubereiten und Anträge auszufüllen. Wenn Sie möchten, begleiten wir Sie auch zu Ärzten, Behörden oder zur Bank und stehen Ihnen mit Rat und Tat zur Seite."
+            title: "Alltagsbegleitung mit Herz",
+            description: "Ob Arztbesuch, Bankgeschäft oder der Gang zur Behörde: Wir sind Ihr sicherer Anker – und kennen glücklicherweise die besten Abkürzungen durch den deutschen Formulardschungel."
         },
         {
             iconPath: "M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z",
-            title: "Zuhause & Entlastung",
-            description: "Wir unterstützen Sie bei alltäglichen Dingen wie dem Einkaufen oder bei leichten Handgriffen im Haushalt. Auch pflegende Angehörige können durch unsere stundenweise Betreuung endlich einmal unbesorgt durchatmen."
+            title: "Zuhause wohlfühlen",
+            description: "Wir schnappen uns den Einkaufszettel, gießen die Durst leidenden Blumen und sorgen für Ordnung. So können Sie endlich mal wieder entspannt die Füße hochlegen (was Sie ohnehin viel zu selten tun!)."
         },
         {
             iconPath: "M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1",
-            title: "Absprachen & Vermittlung",
-            description: "Es gibt oft viel abzustimmen: Mit der Krankenkasse, dem Pflegedienst, der Wohnungsgesellschaft oder rechtlichen Betreuern. Wir übernehmen diese Telefonate für Sie und erklären Ihnen alles in einfachen Worten."
+            title: "Organisationstalent inklusive",
+            description: "Krankenkasse, Pflegedienst, störrische Handwerker... wer soll da noch durchblicken? Wir übernehmen das Telefon-Ping-Pong für Sie und übersetzen das Fachchinesisch in entspanntes Normal-Deutsch."
         },
         {
             iconPath: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
-            title: "Pflegegrad & Beratung",
-            description: "Wir beraten Sie ausführlich zu Pflegegraden und helfen bei der Beantragung von Leistungen der Pflegekasse, damit Sie die finanzielle Unterstützung erhalten, die Ihnen zusteht."
+            title: "Pflegegrad-Kompass",
+            description: "Wir lotsen Sie sicher durch den Antragswald der Pflegekasse. Wir helfen dabei, dass Sie die Unterstützung bekommen, die Ihnen zusteht – ohne dass Sie dabei graue Haare bekommen."
         }
     ];
 }
@@ -26,24 +26,24 @@ export function getServices() {
 export function getProcessSteps() {
     return [
         {
-            step: "1. Vorgespräch",
-            title: "Unverbindliches Kennenlernen",
-            text: "Wir telefonieren kurz, um Ihr Anliegen zu verstehen. Anschließend besuchen wir Sie zu Hause, besprechen in Ruhe, was Sie genau brauchen und halten alles in einer klaren, verständlichen Vereinbarung fest."
+            step: "1. Tasse Kaffee",
+            title: "Unverbindliches Beschnuppern",
+            text: "Wir plaudern ganz entspannt darüber, wo der Schuh drückt. Wir kommen zu Ihnen nach Hause und schnüren ein Hilfe-Paket, das genau zu Ihnen passt. Kekse bringen wir auf Wunsch auch mit!"
         },
         {
             step: "2. Vorbereitung",
-            title: "Gemeinsame Planung",
-            text: "Steht beispielsweise ein wichtiger Arztbesuch an? Wir erinnern Sie rechtzeitig daran, ordnen mit Ihnen zusammen vorab die wichtigen Papiere und überlegen, welche Fragen Sie dem Arzt stellen möchten."
+            title: "Gemeinsam sortieren",
+            text: "Steht ein wichtiger Arztbesuch an? Wir sortieren das Zettelchaos, notieren Ihre Fragen an den Doktor und sorgen dafür, dass wir pünktlich loskommen (auch wenn der Haustürschlüssel mal wieder Verstecken spielt)."
         },
         {
             step: "3. Begleitung",
-            title: "Sicher unterwegs",
-            text: "Wir fahren gemeinsam zum Termin. Dort schreiben wir für Sie mit, damit keine wichtige Information verloren geht. Die Entscheidungen treffen dabei aber immer ganz allein Sie."
+            title: "Wir sind an Ihrer Seite",
+            text: "Wir navigieren Sie sicher von A nach B. Im Sprechzimmer schreiben wir auf Wunsch fleißig mit, damit absolut nichts vergessen wird. Der Boss im Ring bleiben dabei aber natürlich immer Sie."
         },
         {
-            step: "4. Nachbereitung",
-            title: "Alles in Ordnung bringen",
-            text: "Nach dem Termin heften wir gemeinsam die Unterlagen ab und besprechen, was als Nächstes zu tun ist. So behalten Sie jederzeit den perfekten Überblick über Ihre Angelegenheiten."
+            step: "4. Durchatmen",
+            title: "Abheften & Entspannen",
+            text: "Wieder daheim, heften wir alle Unterlagen sofort ordentlich ab. Dann gibt's einen gemütlichen Plausch und wir planen den nächsten Schritt. Zettel-Chaos hat bei uns ab sofort strenges Hausverbot."
         }
     ];
 }
@@ -51,16 +51,16 @@ export function getProcessSteps() {
 export function getQualityFeatures() {
     return [
         {
-            title: "Ihre Daten sind sicher",
-            text: "Wir behandeln Ihre Unterlagen und Gesundheitsdaten streng vertraulich nach den gesetzlichen Vorgaben. Nur wer es von Ihnen erlaubt bekommt, erhält Auskünfte."
+            title: "Verschwiegen wie ein Tresor",
+            text: "Ihre Daten und Familiengeschichten sind bei uns so sicher wie das streng gehütete Geheimrezept für Omas Apfelkuchen. Ohne Ihr ausdrückliches Nicken geht keine einzige Information nach draußen."
         },
         {
-            title: "Sicherheit im Notfall",
-            text: "Wir besprechen mit Ihnen vorab genau, wen wir anrufen sollen, falls es Ihnen einmal nicht gut geht (Angehörige, Hausarzt, Notruf). Sie sind nie allein gelassen."
+            title: "Sicherheitsnetz für alle Fälle",
+            text: "Wir haben immer einen Plan B in der Tasche. Ob Hausarzt oder die Tochter in München – wir wissen exakt, wen wir anrufen müssen, falls der Kreislauf mal unerwartet meckert."
         },
         {
-            title: "Nachvollziehbar & Transparent",
-            text: "Sie und Ihre Angehörigen können jederzeit einsehen, was wir wann für Sie erledigt haben. Wir schreiben kurze, übersichtliche Notizen zu jedem unserer Besuche."
+            title: "Klipp & Klar dokumentiert",
+            text: "Keine versteckten Klauseln, keine Überraschungen. Wir dokumentieren unsere Besuche für Sie und Ihre Angehörigen. So wissen Ihre Liebsten immer, was wir so treiben (Spoiler: meistens helfen, oft auch einfach nur zuhören)."
         }
     ];
 }
@@ -68,19 +68,19 @@ export function getQualityFeatures() {
 export function getCooperationScenarios() {
     return [
         {
-            tag: "Frühzeitige Hilfe",
-            title: "Vorsorge & Alltagshilfe",
-            text: "Wenn Sie noch gut allein zurechtkommen, aber der Papierkram zu viel wird: Wir helfen Ihnen dabei, die Kontrolle zu behalten, damit ein gesetzlicher Betreuer gar nicht erst nötig wird."
+            tag: "Clever vorsorgen",
+            title: "Hilfe, bevor es stressig wird",
+            text: "Warum erst warten, bis der Papierstapel auf dem Tisch umkippt? Wir steigen ein, wenn es anfängt zu knirschen. So behalten Sie souverän das Ruder in der Hand."
         },
         {
-            tag: "Hand in Hand",
-            title: "Ergänzung zur gesetzlichen Betreuung",
-            text: "Wenn Sie bereits einen gerichtlich bestellten Betreuer haben: Dieser kümmert sich um Verträge und Rechtsfragen, während wir Sie im Alltag begleiten und Zeit für menschliche Nähe haben."
+            tag: "Teamwork",
+            title: "Wir arbeiten Hand in Hand",
+            text: "Sie haben schon einen Betreuer? Wunderbar! Der kümmert sich um die trockenen Paragraphen, und wir bringen die menschliche Wärme in den Alltag. Ein echtes Traumteam."
         },
         {
             tag: "Sondersituationen",
-            title: "Krankenhaus & Umzug",
-            text: "Kommen Sie aus dem Krankenhaus oder ziehen um? Wir kümmern uns um die Organisation, Checklisten und den reibungslosen Ablauf in dieser stressigen Phase."
+            title: "Die Spezialeinheit für Akutes",
+            text: "Plötzlich muss es schnell gehen: Ein Krankenhausaufenthalt oder ein Umzug steht an. Wir packen sofort mit an, erledigen die endlosen To-Do-Listen und bewahren für Sie die rettende Übersicht."
         }
     ];
 }
@@ -95,30 +95,30 @@ export function getTeamMembers() {
 export function getFaqs() {
     return [
         {
-            question: "Was bedeutet Assistenz genau?",
+            question: "Was ist Seniorenassistenz eigentlich?",
             answerLines: [
-                "Wir nehmen Ihnen nichts weg. Das bedeutet: <strong>Die Entscheidungen treffen immer Sie selbst.</strong>",
-                "Wir unterschreiben keine Verträge für Sie und wir setzen auch keine Spritzen. Wir sind Ihre vertrauensvollen Assistenten: Wir organisieren, wir begleiten Sie, ordnen Unterlagen und unterstützen Sie bei Ihren eigenen Vorhaben."
+                "Wir nehmen Ihnen nicht das Steuer aus der Hand. <strong>Sie sind der Kapitän, wir sind der Navigator.</strong>",
+                "Wir unterschreiben nichts heimlich für Sie und wir setzen auch keine Spritzen. Wir sind ganz einfach Ihre motivierte rechte Hand: Wir organisieren, begleiten und unterstützen Sie bei genau den Vorhaben, die Sie sich wünschen."
             ]
         },
         {
             question: "Übernimmt die Pflegekasse die Kosten?",
             answerLines: [
-                "<strong>Das ist oft möglich!</strong> Wenn bei Ihnen bereits ein Pflegegrad (1 bis 5) festgestellt wurde, steht Ihnen monatlich der sogenannte <i>Entlastungsbetrag</i> (125 Euro nach § 45b SGB XI) zu.",
-                "Sofern unsere Leistungen nach Landesrecht anerkannt sind, können wir oft direkt mit der Kasse abrechnen. Rufen Sie uns einfach an, wir klären das gerne mit Ihnen am Telefon."
+                "<strong>In vielen Fällen: Ja!</strong> Haben Sie bereits einen Pflegegrad (1 bis 5)? Dann winken Ihnen monatlich 125 Euro <i>Entlastungsbetrag</i> (§ 45b SGB XI).",
+                "Sofern unsere Leistungen anerkannt sind, rechnen wir oft direkt mit der Kasse ab. Rufen Sie uns einfach an, wir klären das gerne (und ja, wir rufen auch bei der Kasse an, wenn Sie die Warteschleifen-Musik nicht mehr hören können)."
             ]
         },
         {
             question: "Kommen Sie auch zu mir nach Hause?",
             answerLines: [
-                "<strong>Ja, selbstverständlich!</strong> Unsere Dienstleistung findet genau dort statt, wo Sie uns brauchen.",
-                "Wir besuchen Sie zu Hause, begleiten Sie zum Arzt, gehen mit Ihnen einkaufen oder unterstützen Sie direkt bei Behördengängen vor Ort."
+                "<strong>Aber natürlich!</strong> Unsere Dienstleistung findet genau dort statt, wo das Leben gerade spielt.",
+                "Wir kommen zu Ihnen nach Hause an den Küchentisch, treffen uns im Café um die Ecke, begleiten Sie zum Arzt oder gehen gemeinsam einkaufen."
             ]
         },
         {
-            question: "Haftung & Schutz",
+            question: "Was passiert, wenn mal was schiefgeht?",
             answerLines: [
-                "Zu Ihrer absoluten Sicherheit verfügen wir über eine umfassende Betriebshaftpflichtversicherung. Einen entsprechenden Nachweis legen wir Ihnen beim Kennenlernen gerne vor."
+                "Falls uns mal eine wertvolle Ming-Vase aus der Hand rutscht (was wir natürlich nicht hoffen!): Zu Ihrer und unserer Sicherheit verfügen wir über eine umfassende Betriebshaftpflichtversicherung. So können wir alle stets ruhig schlafen."
             ]
         }
     ];

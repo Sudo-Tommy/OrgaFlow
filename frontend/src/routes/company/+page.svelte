@@ -4,14 +4,31 @@
     import CompanyContactCard from "$lib/components/company/CompanyContactCard.svelte";
     import CompanyAddressCard from "$lib/components/company/CompanyAddressCard.svelte";
     import CompanyBankCard from "$lib/components/company/CompanyBankCard.svelte";
+    import { pb } from "$lib/services/pocketbase";
 
     const companyService = useCompanyService();
 
-    // Lade den ersten (und meist einzigen) Firmeneintrag, sobald er verfügbar ist
+    // Lade exakt den Firmeneintrag, der dem eingeloggten Nutzer zugewiesen ist
     $effect(() => {
         if (!orgaStore.company?.isLoading && !companyService.isLoaded) {
-            const record = orgaStore.company?.data?.[0];
-            companyService.load(record);
+            const user = pb.authStore.model;
+            let userCompanyId = '';
+            
+            if (user?.company) {
+                userCompanyId = Array.isArray(user.company) ? user.company[0] : user.company;
+            }
+            
+            let record = null;
+            if (userCompanyId) {
+                record = orgaStore.company?.data?.find((c: any) => c.id === userCompanyId);
+            }
+            
+            // Fallback: Falls ein Superadmin noch keine Zuweisung hat, lade den ersten Eintrag
+            if (!record && (user?.role === 'superadmin' || pb.authStore.isSuperuser)) {
+                record = orgaStore.company?.data?.[0];
+            }
+            
+            if (record) companyService.load(record);
         }
     });
 </script>

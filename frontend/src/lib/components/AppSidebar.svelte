@@ -15,7 +15,7 @@
 
 	<!-- Header / Logo -->
 	<div class="p-6 mb-2 relative">
-		<h2 class="font-extrabold text-2xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400 drop-shadow-sm">OrgaFlow</h2>
+		<h2 class="font-extrabold text-2xl tracking-tight bg-clip-text text-transparent bg-linear-to-r from-indigo-400 to-cyan-400 drop-shadow-sm">OrgaFlow</h2>
 		<p class="text-[10px] text-neutral-500 mt-1 uppercase tracking-widest font-bold flex items-center gap-2">
 			Seniorenassistenz
 			<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>

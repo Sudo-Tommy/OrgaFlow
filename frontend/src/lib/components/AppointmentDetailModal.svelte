@@ -4,6 +4,8 @@
     import DriveRecordModal from "$lib/components/DriveRecordModal.svelte";
     import ExpenditureModal from "$lib/components/ExpenditureModal.svelte";
     import AppointmentModal from "$lib/components/AppointmentModal.svelte";
+    import { toastStore } from "$lib/services/toastService.svelte";
+    import { confirmStore } from "$lib/services/confirmService.svelte";
 
     let dialog: HTMLDialogElement;
     let appId = $state<string | null>(null);
@@ -86,7 +88,7 @@
 
     async function updateAppointmentStore() {
         if (!appointment) return;
-        const updatedApp = await pb.collection('appointments').getOne(appointment.id, { expand: 'user,client,drive_record,time_record,tasks,expenditures' });
+        const updatedApp = await pb.collection('appointments').getOne(appointment.id, { expand: 'user,client,drive_record,time_record,tasks,expenditures' }) as any;
         const index = orgaStore.appointments?.data.findIndex(a => a.id === appointment!.id) ?? -1;
         if (index !== -1 && orgaStore.appointments) orgaStore.appointments.data[index] = updatedApp;
     }
@@ -104,14 +106,15 @@
             }
             await updateAppointmentStore();
             cancelTimeEdit();
-        } catch (err) { console.error(err); alert("Fehler beim Speichern der Zeit."); } finally { isTimeLoading = false; }
+            toastStore.success(editTimeId ? "Zeiterfassung aktualisiert." : "Zeiterfassung hinzugefügt.");
+        } catch (err) { console.error(err); toastStore.error("Fehler beim Speichern der Zeit."); } finally { isTimeLoading = false; }
     }
 
     async function deleteTime(id: string) {
-        if (!confirm("Wollen Sie diesen Zeiteintrag wirklich löschen?")) return;
+        if (!(await confirmStore.ask("Wollen Sie diesen Zeiteintrag wirklich löschen?", "Zeit löschen?", "Löschen", "Abbrechen", true))) return;
         isTimeLoading = true;
-        try { await pb.collection('time_records').delete(id); if (editTimeId === id) cancelTimeEdit(); await updateAppointmentStore(); } 
-        catch (err) { console.error(err); alert("Fehler beim Löschen."); } finally { isTimeLoading = false; }
+        try { await pb.collection('time_records').delete(id); if (editTimeId === id) cancelTimeEdit(); await updateAppointmentStore(); toastStore.info("Zeiterfassung gelöscht."); } 
+        catch (err) { console.error(err); toastStore.error("Fehler beim Löschen."); } finally { isTimeLoading = false; }
     }
 
     async function toggleTask(taskId: string) {
@@ -121,7 +124,8 @@
         try {
             await pb.collection('appointments').update(appointment.id, { tasks: newIds });
             await updateAppointmentStore();
-        } catch (err) { console.error(err); alert("Fehler beim Aktualisieren der Leistungen."); }
+            toastStore.success("Leistungen aktualisiert.");
+        } catch (err) { console.error(err); toastStore.error("Fehler beim Aktualisieren der Leistungen."); }
     }
 
     function openTaskModal() {
@@ -140,16 +144,17 @@
             await updateAppointmentStore();
             newTaskTitle = "";
             taskDialog?.close();
-        } catch (err) { console.error(err); alert("Fehler beim Erstellen der Leistung."); } finally { isTaskLoading = false; }
+            toastStore.success("Leistung hinzugefügt.");
+        } catch (err) { console.error(err); toastStore.error("Fehler beim Erstellen der Leistung."); } finally { isTaskLoading = false; }
     }
 
     async function deleteAppointment() {
-        if (!appointment || !confirm("Möchten Sie diesen Termin wirklich löschen?")) return;
-        try { await pb.collection('appointments').delete(appointment.id); close(); } catch (err) { alert("Fehler beim Löschen."); }
+        if (!appointment || !(await confirmStore.ask("Möchten Sie diesen Termin wirklich löschen?", "Termin löschen?", "Löschen", "Abbrechen", true))) return;
+        try { await pb.collection('appointments').delete(appointment.id); close(); toastStore.info("Termin gelöscht."); } catch (err) { toastStore.error("Fehler beim Löschen."); }
     }
 </script>
 
-<dialog bind:this={dialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-5xl mx-auto my-auto rounded-3xl">
+<dialog bind:this={dialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-5xl mx-auto my-auto rounded-3xl" onclick={(e) => { if (e.target === dialog) close(); }}>
     <div class="bg-brand-50 rounded-3xl w-full max-h-[90vh] flex flex-col relative overflow-hidden shadow-2xl">
         
         <div class="bg-white px-6 py-5 border-b border-neutral-100 flex items-center justify-between shrink-0 sticky top-0 z-20">
@@ -260,7 +265,7 @@
     <ExpenditureModal bind:this={expenditureModal} {appointment} />
     <AppointmentModal bind:this={editModal} />
     
-    <dialog bind:this={taskDialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-sm mx-auto my-auto rounded-3xl">
+    <dialog bind:this={taskDialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-sm mx-auto my-auto rounded-3xl" onclick={(e) => { if (e.target === taskDialog) taskDialog?.close(); }}>
         <div class="bg-white rounded-3xl p-6 w-full relative">
             <button aria-label="Schließen" onclick={() => taskDialog?.close()} class="absolute top-4 right-4 w-8 h-8 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-full flex items-center justify-center transition-colors">✕</button>
             <h2 class="text-lg font-bold text-neutral-900 mb-2">Details zur Leistung</h2>

@@ -17,6 +17,8 @@
   let replyData = $state<any>(null);
   let showConfigModal = $state(false);
   let isInitialized = $state(false);
+  let mobileMenuOpen = $state(false);
+  let mobileDetailOpen = $state(false);
 
   // Initialize on mount
   async function initializeMail() {
@@ -71,6 +73,8 @@
   function handleFolderSelect(folderPath: string) {
     mailboxService.selectedFolderPath = folderPath;
     selectedEmailId = null;
+    mobileMenuOpen = false;
+    mobileDetailOpen = false;
     if (mailboxService.selectedFolder) {
       emailService.loadEmails({
         folder: folderPath
@@ -81,6 +85,7 @@
   // Handle email selection
   function handleEmailSelect(emailId: string) {
     selectedEmailId = emailId;
+    mobileDetailOpen = true;
   }
 
   // Handle email delete
@@ -94,6 +99,7 @@
           folder: mailboxService.selectedFolder.folder_path
         });
       }
+    mobileDetailOpen = false;
     } catch (err) {
       console.error('[Mail Layout] Delete error:', err);
     }
@@ -134,9 +140,13 @@
   });
 </script>
 
-<div class="flex h-full w-full bg-white">
+<div class="flex h-full w-full bg-white relative overflow-hidden">
   <!-- Sidebar -->
-  <div class="w-64 border-r border-gray-300 bg-white">
+  {#if mobileMenuOpen}
+    <!-- svelte-ignore a11y_consider_explicit_label -->
+    <button class="fixed inset-0 bg-neutral-900/20 backdrop-blur-sm z-40 md:hidden border-none w-full h-full cursor-default" onclick={() => (mobileMenuOpen = false)}></button>
+  {/if}
+  <div class="absolute inset-y-0 left-0 z-50 w-72 md:w-64 md:relative border-r border-gray-300 bg-white transform transition-transform duration-300 {mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}">
     {#if mailConfigService.isLoading}
       <div class="p-4 text-center text-sm text-gray-500">Lädt...</div>
     {:else if mailConfigService.error}
@@ -150,6 +160,7 @@
         onConfigClick={() => (showConfigModal = true)}
         onComposeClick={() => (showComposer = true)}
         isLoading={mailboxService.isLoading}
+        onCloseMenu={() => (mobileMenuOpen = false)}
       />
     {/if}
   </div>
@@ -178,31 +189,37 @@
         </div>
       {/if}
       <!-- Mail list and detail -->
-      <div class="flex-1 flex overflow-hidden">
+      <div class="flex-1 flex overflow-hidden relative">
         <!-- List -->
-        <div class="w-96 border-r border-gray-300 bg-white overflow-y-auto">
+        <div class="flex-1 md:w-96 md:flex-none border-r border-gray-300 bg-white overflow-y-auto flex flex-col min-w-0">
           <MailList
             emails={emailService.paginatedEmails}
             selectedEmailId={selectedEmailId}
             currentPage={emailService.currentPage}
             totalPages={emailService.totalPages}
             isLoading={emailService.isLoading}
+            folderName={mailboxService.selectedFolder?.folder_name || 'Posteingang'}
             onEmailSelect={handleEmailSelect}
-            onPageChange={(page) => (emailService.currentPage = page)}
+            onPageChange={(page: number) => (emailService.currentPage = page)}
+            onToggleMenu={() => (mobileMenuOpen = true)}
           />
         </div>
 
         <!-- Detail -->
-        <div class="flex-1 bg-gray-50 overflow-y-auto">
+        <div class="absolute inset-0 z-30 md:relative md:z-auto bg-gray-50 flex-1 overflow-y-auto transition-transform duration-300 transform {mobileDetailOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}">
           {#if selectedEmailId}
             <MailDetail
               emailId={selectedEmailId}
               onDelete={() => handleEmailDelete(selectedEmailId || '')}
               onReply={() => handleEmailReply(selectedEmailId || '')}
+              onBack={() => (mobileDetailOpen = false)}
             />
           {:else}
-            <div class="flex items-center justify-center h-full">
-              <p class="text-gray-500">E-Mail auswählen zum Anzeigen</p>
+            <div class="hidden md:flex items-center justify-center h-full bg-neutral-50/50">
+              <div class="text-center flex flex-col items-center">
+                <span class="text-6xl mb-4 opacity-20">✉️</span>
+                <p class="font-medium text-neutral-400">Wähle eine Nachricht aus, um sie zu lesen.</p>
+              </div>
             </div>
           {/if}
         </div>

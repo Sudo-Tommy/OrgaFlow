@@ -10,7 +10,7 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="flex-1 overflow-auto custom-scrollbar bg-[#EDF0F2] flex justify-center py-10" onclick={() => selectedFieldId = null}>
+<div class="flex-1 overflow-auto custom-scrollbar bg-neutral-200 flex justify-center py-10" onclick={() => selectedFieldId = null}>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="orga-canvas-a4 relative bg-white shadow-xl shadow-black/10 shrink-0" onclick={(e) => e.stopPropagation()}>
         {#each fields as _, i (fields[i].id)}

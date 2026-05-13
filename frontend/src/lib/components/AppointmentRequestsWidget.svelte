@@ -1,9 +1,15 @@
 <script lang="ts">
     import { useRequestAdmin } from "$lib/services/requestAdminService.svelte";
     import { onMount, onDestroy } from "svelte";
+    import { sendEmail } from "$lib/services/emailService";
+    import { toastStore } from "$lib/services/toastService.svelte";
+    import { confirmStore } from "$lib/services/confirmService.svelte";
+    import { pb } from "$lib/services/pocketbase";
+    import RequestReplyModal from "./RequestReplyModal.svelte";
 
     const reqService = useRequestAdmin();
     let showAll = $state(false);
+    let replyModal: ReturnType<typeof RequestReplyModal> | undefined = $state();
 
     onMount(() => reqService.init());
     onDestroy(() => reqService.cleanup());
@@ -21,11 +27,39 @@
         }
     }
     
+    async function handlePropose(id: string) {
+        const req = reqService.requests.find((r) => r.id === id);
+        if (req) {
+            const emailMatch = req.request_text.match(/E-Mail:\s*([^\n]+)/);
+            const clientEmail = emailMatch ? emailMatch[1].trim() : null;
+            
+            if (clientEmail && clientEmail !== '-' && clientEmail.includes('@')) {
+                replyModal?.open(req, 'propose' as any, clientEmail);
+            } else {
+                toastStore.warning("Dieser Klient hat keine E-Mail-Adresse hinterlegt.");
+            }
+        }
+    }
+
     async function handleStatus(id: string, status: 'accepted' | 'denied' | 'requested') {
+        const req = reqService.requests.find((r) => r.id === id);
         try {
             await reqService.updateStatus(id, status);
+            
+            // Direktbenachrichtigung via E-Mail anbieten
+            if (req && status !== 'requested') {
+                const emailMatch = req.request_text.match(/E-Mail:\s*([^\n]+)/);
+                const clientEmail = emailMatch ? emailMatch[1].trim() : null;
+                
+                if (clientEmail && clientEmail !== '-' && clientEmail.includes('@')) {
+                    replyModal?.open(req, status, clientEmail);
+                } else {
+                    toastStore.success(`Anfrage wurde auf '${status === 'accepted' ? 'Angenommen' : 'Abgelehnt'}' gesetzt.`);
+                }
+            }
         } catch (err) {
-            alert("Fehler beim Aktualisieren des Status.");
+            console.error(err);
+            toastStore.error("Fehler beim Aktualisieren oder beim Senden der E-Mail.");
         }
     }
 
@@ -33,8 +67,9 @@
         if (confirm("Möchten Sie diese Anfrage wirklich unwiderruflich löschen?")) {
             try {
                 await reqService.deleteReq(id);
+                toastStore.info("Anfrage wurde gelöscht.");
             } catch (err) {
-                alert("Fehler beim Löschen.");
+                toastStore.error("Fehler beim Löschen der Anfrage.");
             }
         }
     }
@@ -59,7 +94,7 @@
       </div>
 
     <!-- Content -->
-    <div class="p-6 bg-white min-h-[200px] max-h-[500px] overflow-y-auto custom-scrollbar">
+    <div class="p-6 bg-white min-h-50 max-h-125 overflow-y-auto custom-scrollbar">
         {#if reqService.isLoading}
             <p class="text-neutral-500 text-sm text-center py-10">Lade Anfragen...</p>
         {:else if visibleRequests.length === 0}
@@ -103,6 +138,7 @@
                             <div class="flex items-center gap-2 w-full sm:w-auto">
                                 {#if req.status === 'requested'}
                                     <button onclick={() => handleStatus(req.id, 'denied')} class="px-3 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200">Ablehnen</button>
+                                    <button onclick={() => handlePropose(req.id)} class="px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200">Vorschlag</button>
                                     <button onclick={() => handleStatus(req.id, 'accepted')} class="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors border border-emerald-300">Annehmen</button>
                                 {:else}
                                     <button onclick={() => handleStatus(req.id, 'requested')} class="px-2 py-1.5 text-xs font-bold text-neutral-500 hover:text-neutral-700 transition-colors">Zurücksetzen</button>
@@ -116,3 +152,5 @@
         {/if}
     </div>
 </div>
+
+<RequestReplyModal bind:this={replyModal} />

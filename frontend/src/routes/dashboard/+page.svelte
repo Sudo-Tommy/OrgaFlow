@@ -7,6 +7,7 @@
 	import AppointmentRequestsWidget from "$lib/components/AppointmentRequestsWidget.svelte";
 	import AppointmentDetailModal from "$lib/components/AppointmentDetailModal.svelte";
 	import StickiesLayer from "$lib/components/StickiesLayer.svelte";
+	import { pb } from "$lib/services/pocketbase";
 
 	let appointmentModal: ReturnType<typeof AppointmentModal> | undefined = $state();
 	let detailModal: ReturnType<typeof AppointmentDetailModal> | undefined = $state();
@@ -27,6 +28,8 @@
 
 	// 3. Aktive Klienten zählen
 	let activeClientsCount = $derived((orgaStore.clients?.data || []).filter((c: any) => (c.status || '').toLowerCase() === 'aktiv').length);
+
+	let isSuperAdmin = $state(pb.authStore.isSuperuser || pb.authStore.model?.role === 'superadmin' || pb.authStore.model?.role === 'admin');
 
 	function handleNewAppointment(date?: Date) {
 		appointmentModal?.open(date);
@@ -60,13 +63,16 @@
                 {#if todaysAppointments.length === 0}
                     <p class="text-neutral-500 text-sm mt-2">Heute stehen keine Termine an. Lehnen Sie sich zurück!</p>
                 {:else}
-                    <div class="space-y-3 mt-2 flex-1 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                    <div class="space-y-3 mt-2 flex-1 max-h-100 overflow-y-auto custom-scrollbar pr-2">
                         {#each todaysAppointments as app}
                             <button type="button" onclick={() => detailModal?.open(app.id)} class="w-full text-left block p-3 rounded-xl border border-neutral-100 hover:border-indigo-300 bg-neutral-50 hover:bg-white transition-all group shadow-sm hover:shadow-md">
                                 <div class="flex justify-between items-start mb-1">
-                                    <span class="text-xs font-bold {app.is_private ? 'text-rose-600' : 'text-indigo-600'}">{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</span>
+                                    <span class="text-xs font-bold {app.is_private ? 'text-rose-600' : 'text-indigo-600'}">{new Date(app.appointment as string).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</span>
                                     {#if app.expand?.client?.[0]}
-                                        <span class="text-[10px] font-bold text-neutral-600 bg-neutral-200 px-1.5 py-0.5 rounded truncate max-w-[100px]">{app.expand.client[0].name_first} {app.expand.client[0].name_last}</span>
+                                        <span class="text-[10px] font-bold text-neutral-600 bg-neutral-200 px-1.5 py-0.5 rounded truncate max-w-25">{app.expand.client[0].name_first} {app.expand.client[0].name_last}</span>
+                                    {/if}
+                                    {#if isSuperAdmin && app.expand?.user}
+                                        <span class="text-[10px] font-bold text-neutral-500 bg-neutral-200 border border-neutral-300 px-1.5 py-0.5 rounded truncate max-w-25 shadow-sm" title="{app.expand.user.name_first} {app.expand.user.name_last}">👤 {app.expand.user.name_first}</span>
                                     {/if}
                                 </div>
                                 <p class="text-sm font-semibold text-neutral-900 truncate">{app.description || 'Termin ohne Beschreibung'}</p>
@@ -81,7 +87,7 @@
                 <div class="p-4 sm:p-6 border-b border-neutral-100 bg-neutral-50/50 flex justify-between items-center">
                     <h2 class="text-lg font-bold text-neutral-900 flex items-center gap-2"><span>🗓️</span> Kalenderübersicht</h2>
                 </div>
-                <div class="p-0 sm:p-6 bg-white flex-1 min-h-[400px]">
+                <div class="p-0 sm:p-6 bg-white flex-1 min-h-100">
                     <Calendar 
                         appointments={orgaStore.appointments?.data || []} 
                         clients={orgaStore.clients?.data || []} 

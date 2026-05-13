@@ -9,6 +9,7 @@
     onConfigClick: () => void;
     onComposeClick: () => void;
     isLoading: boolean;
+    onCloseMenu?: () => void;
   }
 
   let { 
@@ -18,14 +19,19 @@
     onFolderSelect, 
     onConfigClick, 
     onComposeClick,
-    isLoading 
+    isLoading,
+    onCloseMenu
   } = $props();
 </script>
 
 <div class="h-full flex flex-col">
   <!-- Header -->
-  <div class="p-4 border-b border-gray-200">
-    <div class="flex gap-2 mb-4">
+  <div class="p-4 border-b border-gray-200 bg-white">
+    <div class="flex items-center justify-between md:hidden mb-4">
+      <h2 class="font-bold text-lg text-gray-900">Postfach</h2>
+      <button aria-label="Menü schließen" onclick={onCloseMenu} class="p-2 -mr-2 text-gray-500 hover:bg-gray-100 rounded-lg"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+    </div>
+    <div class="flex gap-2 mb-2 md:mb-4">
       <button
         onclick={onComposeClick}
         disabled={isLoading}

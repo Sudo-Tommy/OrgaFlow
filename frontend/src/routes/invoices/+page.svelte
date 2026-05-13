@@ -5,6 +5,8 @@
     import DocumentGeneratorModal from "$lib/components/DocumentGeneratorModal.svelte";
     import InvoiceEmailModal from "$lib/components/InvoiceEmailModal.svelte";
     import { onMount } from "svelte";
+    import { toastStore } from "$lib/services/toastService.svelte";
+    import { confirmStore } from "$lib/services/confirmService.svelte";
 
     const invoicesStore = orgaStore.invoices;
     const filterService = useInvoiceFilter(() => invoicesStore?.data || []);
@@ -16,20 +18,22 @@
     async function updateStatus(id: string, newStatus: string) {
         try {
             await pb.collection('invoices').update(id, { status: newStatus });
+            toastStore.success("Status erfolgreich aktualisiert.");
         } catch (err) {
             console.error("Fehler beim Status-Update:", err);
-            alert("Der Status konnte nicht aktualisiert werden.");
+            toastStore.error("Der Status konnte nicht aktualisiert werden.");
         }
     }
 
     // Funktion zum Löschen einer Rechnung
     async function deleteInvoice(id: string) {
-        if (confirm("Möchten Sie diese Rechnung wirklich unwiderruflich löschen?")) {
+        if (await confirmStore.ask("Möchten Sie diese Rechnung wirklich unwiderruflich löschen?", "Rechnung löschen?", "Löschen", "Abbrechen", true)) {
             try {
                 await pb.collection('invoices').delete(id);
+                toastStore.info("Rechnung wurde gelöscht.");
             } catch (err) {
                 console.error("Fehler beim Löschen:", err);
-                alert("Die Rechnung konnte nicht gelöscht werden.");
+                toastStore.error("Die Rechnung konnte nicht gelöscht werden.");
             }
         }
     }
@@ -84,7 +88,7 @@
             setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(blobUrl); }, 100);
         } catch (error) {
             console.error("Download fehlgeschlagen:", error);
-            alert("Das Dokument konnte nicht geladen werden.");
+            toastStore.error("Das Dokument konnte nicht geladen werden.");
         }
     }
 
@@ -143,70 +147,129 @@
             <p>Passen Sie die Suche an oder generieren Sie eine neue Rechnung über die Vorlagen.</p>
         </div>
     {:else}
-        <div class="orga-grid">
-            {#each filterService.filtered as inv (inv.id)}
-                <div class="orga-card-white flex flex-col p-0! group">
-                    <!-- Kopfbereich (Datum & Status) -->
-                    <div class="p-5 border-b border-neutral-100 flex justify-between items-start bg-neutral-50/50">
-                        <div>
-                            <span class="text-xs font-bold text-neutral-400 uppercase tracking-wider block mb-1">Ausgestellt am {inv.issue_date ? new Date(inv.issue_date).toLocaleDateString('de-DE') : '-'}</span>
-                            <h3 class="text-lg font-bold text-neutral-900">{inv.invoice_nr || 'RE-Unbekannt'}</h3>
+        <div class="orga-card-white overflow-hidden">
+            <!-- Desktop View -->
+            <div class="hidden lg:block overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse min-w-200">
+                    <thead class="bg-neutral-50 border-b border-neutral-100">
+                        <tr>
+                            <th class="p-4 font-bold text-neutral-500 text-xs uppercase tracking-wider">Rechnung</th>
+                            <th class="p-4 font-bold text-neutral-500 text-xs uppercase tracking-wider">Klient</th>
+                            <th class="p-4 font-bold text-neutral-500 text-xs uppercase tracking-wider text-right">Betrag</th>
+                            <th class="p-4 font-bold text-neutral-500 text-xs uppercase tracking-wider text-center">Status</th>
+                            <th class="p-4 font-bold text-neutral-500 text-xs uppercase tracking-wider text-right">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-neutral-50">
+                        {#each filterService.filtered as inv (inv.id)}
+                            <tr class="hover:bg-neutral-50/50 transition-colors group">
+                                <td class="p-4">
+                                    <div class="flex flex-col">
+                                        <span class="font-bold text-neutral-900">{inv.invoice_nr || 'RE-Unbekannt'}</span>
+                                        <span class="text-xs text-neutral-500 mt-0.5">{inv.issue_date ? new Date(inv.issue_date).toLocaleDateString('de-DE') : '-'}</span>
+                                    </div>
+                                </td>
+                                <td class="p-4">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm shrink-0">{(getClient(inv)?.name_first?.charAt(0) || '')}{(getClient(inv)?.name_last?.charAt(0) || '?')}</div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-bold text-neutral-900 truncate">{getClient(inv) ? `${getClient(inv).name_first} ${getClient(inv).name_last}` : 'Ohne Klient'}</p>
+                                            <p class="text-xs text-neutral-500 mt-0.5 truncate">{Array.isArray(inv.appointments) ? inv.appointments.length : (inv.appointments ? 1 : 0)} Termin(e)</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-right">
+                                    <span class="font-black text-indigo-700 text-lg">{inv.brutto ? inv.brutto.toFixed(2).replace('.', ',') : '0,00'} €</span>
+                                </td>
+                                <td class="p-4 text-center">
+                                    <select 
+                                        value={inv.status} 
+                                        onchange={(e) => updateStatus(inv.id, e.currentTarget.value)}
+                                        class="text-xs font-bold rounded-lg px-2.5 py-1.5 outline-none cursor-pointer shadow-sm transition-colors border {getStatusClass(inv.status)}"
+                                    >
+                                        <option value="Entwurf">Entwurf</option>
+                                        <option value="Eingereicht">Eingereicht</option>
+                                        <option value="In Bearbeitung">In Bearbeitung</option>
+                                        <option value="Abgeschlossen">Abgeschlossen</option>
+                                        <option value="Abgelehnt">Abgelehnt</option>
+                                        <option value="Storniert">Storniert</option>
+                                    </select>
+                                </td>
+                                <td class="p-4">
+                                    <div class="flex items-center justify-end gap-1.5 opacity-100 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity">
+                                        {#if getPdfUrl(inv, 0)}
+                                            <button type="button" onclick={() => downloadPdf(inv, 0, 'Rechnung')} class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-neutral-600 bg-white border border-neutral-200 hover:bg-neutral-100 hover:text-neutral-900 rounded-lg transition-colors shadow-sm" title="Rechnung herunterladen">
+                                                <span>📄</span> <span class="hidden 2xl:inline">Rechnung</span>
+                                            </button>
+                                        {/if}
+                                        
+                                        {#if getPdfUrl(inv, 1)}
+                                            <button type="button" onclick={() => downloadPdf(inv, 1, 'Zeitnachweis')} class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-neutral-600 bg-white border border-neutral-200 hover:bg-neutral-100 hover:text-neutral-900 rounded-lg transition-colors shadow-sm" title="Zeitnachweis herunterladen">
+                                                <span>⏱️</span> <span class="hidden 2xl:inline">Zeiten</span>
+                                            </button>
+                                        {/if}
+                                        
+                                        {#if getPdfUrl(inv, 0) || getPdfUrl(inv, 1)}
+                                            <button type="button" onclick={() => emailModal?.open(inv)} class="p-2 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-lg transition-colors border border-blue-100" title="Per E-Mail versenden">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                            </button>
+                                        {/if}
+                                        
+                                        <button onclick={() => deleteInvoice(inv.id)} class="p-2 text-rose-500 bg-rose-50 hover:bg-rose-500 hover:text-white rounded-lg transition-colors border border-rose-100 ml-1" title="Rechnung löschen">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile View -->
+            <div class="block lg:hidden divide-y divide-neutral-100">
+                {#each filterService.filtered as inv (inv.id)}
+                    <div class="p-4 flex flex-col gap-3">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="font-bold text-neutral-900">{inv.invoice_nr || 'RE-Unbekannt'}</span>
+                                <span class="text-xs text-neutral-500 block mt-0.5">{inv.issue_date ? new Date(inv.issue_date).toLocaleDateString('de-DE') : '-'}</span>
+                            </div>
+                            <span class="font-black text-indigo-700 text-lg">{inv.brutto ? inv.brutto.toFixed(2).replace('.', ',') : '0,00'} €</span>
                         </div>
-                        <select 
-                            value={inv.status} 
-                            onchange={(e) => updateStatus(inv.id, e.currentTarget.value)}
-                            class="text-xs font-bold rounded-lg px-2 py-1 outline-none cursor-pointer shadow-sm transition-colors {getStatusClass(inv.status)}"
-                        >
-                            <option value="Entwurf">Entwurf</option>
-                            <option value="Eingereicht">Eingereicht</option>
-                            <option value="In Bearbeitung">In Bearbeitung</option>
-                            <option value="Abgeschlossen">Abgeschlossen</option>
-                            <option value="Abgelehnt">Abgelehnt</option>
-                            <option value="Storniert">Storniert</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Mittelteil (Klient & Betrag) -->
-                    <div class="p-5 flex-1">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm shrink-0">{(getClient(inv)?.name_first?.charAt(0) || '')}{(getClient(inv)?.name_last?.charAt(0) || '?')}</div>
+                        
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm shrink-0">{(getClient(inv)?.name_first?.charAt(0) || '')}{(getClient(inv)?.name_last?.charAt(0) || '?')}</div>
                             <div class="flex-1 min-w-0">
                                 <p class="text-sm font-bold text-neutral-900 truncate">{getClient(inv) ? `${getClient(inv).name_first} ${getClient(inv).name_last}` : 'Ohne Klient'}</p>
-                                <p class="text-xs text-neutral-500 truncate">Zugeordnete Termine: {Array.isArray(inv.appointments) ? inv.appointments.length : (inv.appointments ? 1 : 0)}</p>
+                                <p class="text-xs text-neutral-500 mt-0.5 truncate">{Array.isArray(inv.appointments) ? inv.appointments.length : (inv.appointments ? 1 : 0)} Termin(e)</p>
                             </div>
                         </div>
-                        <div class="flex justify-between items-end mt-4 pt-4 border-t border-neutral-100">
-                            <span class="text-xs font-bold text-neutral-400 uppercase tracking-wider">Brutto Gesamt</span>
-                            <span class="text-xl font-black text-indigo-700">{inv.brutto ? inv.brutto.toFixed(2).replace('.', ',') : '0,00'} €</span>
-                        </div>
-                    </div>
 
-                    <!-- Fussbereich (Aktionen) -->
-                    <div class="flex flex-col mt-auto border-t border-neutral-100">
-                        <div class="flex">
-                            {#if getPdfUrl(inv, 0)}
-                                <button type="button" onclick={() => downloadPdf(inv, 0, 'Rechnung')} class="flex-1 block text-center py-3.5 bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-sm transition-colors border-r border-neutral-700 cursor-pointer" title="Rechnung herunterladen">Rechnung</button>
-                            {:else}
-                                <div class="flex-1 text-center py-3.5 bg-neutral-100 text-neutral-400 font-bold text-sm italic border-r border-neutral-200">Keine Rechnung</div>
-                            {/if}
-                            
-                            {#if getPdfUrl(inv, 1)}
-                                <button type="button" onclick={() => downloadPdf(inv, 1, 'Zeitnachweis')} class="flex-1 block text-center py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm transition-colors cursor-pointer" title="Zeitnachweis herunterladen">Zeitnachweis</button>
-                            {/if}
-                            
-                            {#if getPdfUrl(inv, 0) || getPdfUrl(inv, 1)}
-                                <button type="button" onclick={() => emailModal?.open(inv)} class="w-14 shrink-0 flex items-center justify-center bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white transition-colors" title="Per E-Mail versenden">
-                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                                </button>
-                            {/if}
-                            
-                            <button onclick={() => deleteInvoice(inv.id)} class="w-14 shrink-0 flex items-center justify-center bg-red-50 hover:bg-red-500 text-red-500 hover:text-white transition-colors" title="Rechnung löschen">
-                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </button>
+                        <div class="flex items-center justify-between gap-2 mt-1 pt-3 border-t border-neutral-50">
+                            <select 
+                                value={inv.status} 
+                                onchange={(e) => updateStatus(inv.id, e.currentTarget.value)}
+                                class="text-xs font-bold rounded-lg px-2.5 py-1.5 outline-none cursor-pointer shadow-sm border {getStatusClass(inv.status)}"
+                            >
+                                <option value="Entwurf">Entwurf</option>
+                                <option value="Eingereicht">Eingereicht</option>
+                                <option value="In Bearbeitung">In Bearbeitung</option>
+                                <option value="Abgeschlossen">Abgeschlossen</option>
+                                <option value="Abgelehnt">Abgelehnt</option>
+                                <option value="Storniert">Storniert</option>
+                            </select>
+
+                            <div class="flex items-center gap-1.5">
+                                {#if getPdfUrl(inv, 0)}<button type="button" onclick={() => downloadPdf(inv, 0, 'Rechnung')} class="p-2 text-neutral-600 bg-white border border-neutral-200 hover:bg-neutral-100 rounded-lg shadow-sm" title="Rechnung herunterladen"><span>📄</span></button>{/if}
+                                {#if getPdfUrl(inv, 1)}<button type="button" onclick={() => downloadPdf(inv, 1, 'Zeitnachweis')} class="p-2 text-neutral-600 bg-white border border-neutral-200 hover:bg-neutral-100 rounded-lg shadow-sm" title="Zeitnachweis herunterladen"><span>⏱️</span></button>{/if}
+                                {#if getPdfUrl(inv, 0) || getPdfUrl(inv, 1)}<button type="button" onclick={() => emailModal?.open(inv)} class="p-2 text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-600 hover:text-white rounded-lg" title="Per E-Mail versenden"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></button>{/if}
+                                <button onclick={() => deleteInvoice(inv.id)} class="p-2 text-rose-500 bg-rose-50 border border-rose-100 hover:bg-rose-500 hover:text-white rounded-lg ml-1" title="Rechnung löschen"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            {/each}
+                {/each}
+            </div>
         </div>
     {/if}
 </div>

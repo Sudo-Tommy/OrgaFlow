@@ -1,6 +1,7 @@
 <script lang="ts">
     import { pb } from "$lib/services/pocketbase";
     import { orgaStore } from "$lib/stores/orgaStore.svelte";
+    import { confirmStore } from "$lib/services/confirmService.svelte";
 
     let dialog: HTMLDialogElement;
     let isLoading = $state(false);
@@ -68,7 +69,7 @@
     }
     
     async function onDelete() {
-        if (!editId || !confirm("Möchten Sie dieses Pflegeheim wirklich löschen?")) return;
+        if (!editId || !(await confirmStore.ask("Möchten Sie dieses Pflegeheim wirklich löschen?", "Pflegeheim löschen?", "Löschen", "Abbrechen", true))) return;
         isLoading = true;
         try {
             await pb.collection('retirement_homes').delete(editId);
@@ -82,7 +83,7 @@
     }
 </script>
 
-<dialog bind:this={dialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-lg mx-auto my-auto rounded-3xl">
+<dialog bind:this={dialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-lg mx-auto my-auto rounded-3xl" onclick={(e) => { if (e.target === dialog) close(); }}>
     <div class="bg-white rounded-3xl p-6 md:p-8 w-full max-h-[90vh] overflow-y-auto custom-scrollbar relative">
         <button aria-label="Schließen" title="Schließen" onclick={close} class="absolute top-5 right-5 w-10 h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-full flex items-center justify-center transition-colors">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>

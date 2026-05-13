@@ -2,6 +2,8 @@
     import { orgaStore } from "$lib/stores/orgaStore.svelte";
     import { pb } from "$lib/services/pocketbase";
     import DocumentGeneratorModal from "$lib/components/DocumentGeneratorModal.svelte";
+    import { toastStore } from "$lib/services/toastService.svelte";
+    import { confirmStore } from "$lib/services/confirmService.svelte";
 
     let searchQuery = $state("");
     let generatorModal: ReturnType<typeof DocumentGeneratorModal> | undefined = $state();
@@ -14,9 +16,25 @@
         );
     });
 
+    async function duplicateDoc(doc: any) {
+        try {
+            const data = {
+                title: doc.title + " (Kopie)",
+                type: doc.type,
+                content_html: doc.content_html,
+                css_style: doc.css_style
+            };
+            await pb.collection('document_templates').create(data);
+            toastStore.success(`Vorlage "${doc.title}" wurde erfolgreich dupliziert.`);
+        } catch (err) {
+            toastStore.error("Fehler beim Duplizieren der Vorlage.");
+        }
+    }
+
     async function deleteDoc(id: string) {
-        if (confirm("Möchten Sie diese Vorlage wirklich löschen?")) {
+        if (await confirmStore.ask("Möchten Sie diese Vorlage wirklich löschen?", "Vorlage löschen?", "Löschen", "Abbrechen", true)) {
             await pb.collection('document_templates').delete(id);
+            toastStore.info("Vorlage wurde gelöscht.");
         }
     }
 </script>
@@ -43,25 +61,75 @@
     </div>
 </div>
 
-<div class="orga-grid animate-enter delay-200">
-    {#each documents as doc}
-        <div class="orga-card-white p-6 flex flex-col hover:border-indigo-200 transition-all group">
-            <div class="flex-1">
-                <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mb-4 shadow-inner text-2xl">📄</div>
-                <h2 class="text-lg font-bold text-neutral-900 mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors">{doc.title || 'Unbenannte Vorlage'}</h2>
-                <p class="text-sm text-neutral-500 mb-4 line-clamp-3 overflow-hidden" style="display: -webkit-box; -webkit-box-orient: vertical;">
-                    {typeof doc.content_html === 'string' ? doc.content_html.replace(/<[^>]*>?/gm, '') : 'Kein Inhalt...'}
-                </p>
-            </div>
-            <div class="pt-4 mt-auto border-t border-neutral-100 flex items-center justify-between">
-                <span class="text-xs text-neutral-400 font-semibold">{new Date(doc.updated || doc.created).toLocaleDateString('de-DE')}</span>
-                <div class="flex gap-2">
-                    <button onclick={() => deleteDoc(doc.id)} class="text-neutral-400 hover:text-red-500 transition-colors" title="Löschen"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                    <a href="/documents/{doc.id}" class="text-indigo-600 hover:text-indigo-800 font-bold text-sm bg-indigo-50 px-3 py-1 rounded-md transition-colors">Bearbeiten</a>
+<div class="orga-card-white overflow-hidden animate-enter delay-200">
+    <!-- Desktop Table View -->
+    <div class="hidden md:block overflow-x-auto custom-scrollbar">
+        <table class="w-full text-left border-collapse min-w-150">
+            <thead class="bg-neutral-50 border-b border-neutral-100">
+                <tr>
+                    <th class="p-4 font-bold text-neutral-500 text-xs uppercase tracking-wider">Titel</th>
+                    <th class="p-4 font-bold text-neutral-500 text-xs uppercase tracking-wider">Typ</th>
+                    <th class="p-4 font-bold text-neutral-500 text-xs uppercase tracking-wider">Zuletzt bearbeitet</th>
+                    <th class="p-4 font-bold text-neutral-500 text-xs uppercase tracking-wider text-right">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-neutral-50">
+                {#each documents as doc (doc.id)}
+                    <tr class="hover:bg-neutral-50/50 transition-colors group">
+                        <td class="p-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 bg-brand-50 text-brand-600 rounded-lg flex items-center justify-center text-lg shrink-0 shadow-inner">📄</div>
+                                <div>
+                                    <a href="/documents/{doc.id}" class="font-bold text-neutral-900 hover:text-brand-600 transition-colors">{doc.title || 'Unbenannte Vorlage'}</a>
+                                    {#if doc.content_html?.fields}
+                                        <span class="text-xs text-neutral-500 block mt-0.5">{doc.content_html.fields.length} Elemente</span>
+                                    {:else}
+                                        <span class="text-xs text-neutral-500 block mt-0.5 italic">Leere Vorlage</span>
+                                    {/if}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-4">
+                            <span class="inline-block px-2 py-0.5 bg-neutral-100 rounded text-xs font-bold text-neutral-600 w-max uppercase tracking-wider">{doc.type || 'Dokument'}</span>
+                        </td>
+                        <td class="p-4 text-neutral-600 text-sm">
+                            {new Date(doc.updated || doc.created).toLocaleDateString('de-DE')}
+                        </td>
+                        <td class="p-4">
+                            <div class="flex items-center justify-end gap-2 opacity-100 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity">
+                                <button onclick={() => duplicateDoc(doc)} class="p-2 text-neutral-400 hover:text-brand-600 rounded-lg hover:bg-brand-50 transition-colors" title="Duplizieren"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg></button>
+                                <button onclick={() => deleteDoc(doc.id)} class="p-2 text-neutral-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors" title="Löschen"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                <a href="/documents/{doc.id}" class="text-brand-600 hover:text-brand-800 font-bold text-sm bg-brand-50 hover:bg-brand-100 px-4 py-2 rounded-lg transition-colors ml-2">Bearbeiten</a>
+                            </div>
+                        </td>
+                    </tr>
+                {/each}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobile Card View -->
+    <div class="block md:hidden divide-y divide-neutral-100">
+        {#each documents as doc (doc.id)}
+            <div class="p-4 flex flex-col gap-3">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 bg-brand-50 text-brand-600 rounded-lg flex items-center justify-center text-lg shrink-0 shadow-inner">📄</div>
+                    <div class="flex-1 min-w-0">
+                        <a href="/documents/{doc.id}" class="font-bold text-neutral-900 hover:text-brand-600 transition-colors line-clamp-2">{doc.title || 'Unbenannte Vorlage'}</a>
+                        <span class="inline-block mt-1 px-2 py-0.5 bg-neutral-100 rounded text-xs font-bold text-neutral-600 w-max uppercase tracking-wider">{doc.type || 'Dokument'}</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between gap-2 mt-1 pt-3 border-t border-neutral-50">
+                    <span class="text-xs text-neutral-400 font-semibold">{new Date(doc.updated || doc.created).toLocaleDateString('de-DE')}</span>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick={() => duplicateDoc(doc)} class="p-2 text-neutral-400 hover:text-brand-600 rounded-lg hover:bg-brand-50 transition-colors" title="Duplizieren"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg></button>
+                        <button onclick={() => deleteDoc(doc.id)} class="p-2 text-neutral-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors" title="Löschen"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                        <a href="/documents/{doc.id}" class="text-brand-600 hover:text-brand-800 font-bold text-sm bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-md transition-colors ml-1">Bearbeiten</a>
+                    </div>
                 </div>
             </div>
-        </div>
-    {/each}
+        {/each}
+    </div>
 </div>
 
 <DocumentGeneratorModal bind:this={generatorModal} />

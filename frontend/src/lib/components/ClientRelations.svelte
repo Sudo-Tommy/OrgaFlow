@@ -4,6 +4,9 @@
     import ClientLinkHomeModal from "./ClientLinkHomeModal.svelte";
     import AppointmentModal from "./AppointmentModal.svelte";
     import AppointmentDetailModal from "./AppointmentDetailModal.svelte";
+    import { pb } from "$lib/services/pocketbase";
+    import { toastStore } from "$lib/services/toastService.svelte";
+    import { confirmStore } from "$lib/services/confirmService.svelte";
 
     let { clientId } = $props<{ clientId: string }>();
 
@@ -20,6 +23,9 @@
     let linkHomeModal: ReturnType<typeof ClientLinkHomeModal> | undefined = $state();
     let appointmentModal: ReturnType<typeof AppointmentModal> | undefined = $state();
     let detailModal: ReturnType<typeof AppointmentDetailModal> | undefined = $state();
+    
+    let fileInput: HTMLInputElement;
+    let isUploading = $state(false);
 
     // Helper um live zu prüfen, ob dieser Termin bereits in einer Rechnung auftaucht
     function isAppointmentBilled(appId: string) {
@@ -27,6 +33,47 @@
         return invoices.some((inv: any) => 
             Array.isArray(inv.appointments) ? inv.appointments.includes(appId) : inv.appointments === appId
         );
+    }
+
+    async function uploadDocuments(e: Event) {
+        const input = e.target as HTMLInputElement;
+        if (!input.files || input.files.length === 0) return;
+        isUploading = true;
+        try {
+            const formData = new FormData();
+            const existingFiles = clientData?.documents ?? [];
+            for (const existing of existingFiles) formData.append('documents', existing);
+            for (const file of input.files) formData.append('documents', file);
+            
+            await pb.collection('clients').update(clientId, formData);
+            
+            const updatedClient = await pb.collection<any>('clients').getOne(clientId, { expand: 'insurance,retirement_homes,contacts' });
+            const index = orgaStore.clients?.data.findIndex((c: any) => c.id === clientId) ?? -1;
+            if (index !== -1 && orgaStore.clients) orgaStore.clients.data[index] = updatedClient;
+            
+            toastStore.success(`${input.files.length} Dokument(e) erfolgreich hochgeladen.`);
+        } catch (err) {
+            console.error(err);
+            toastStore.error("Fehler beim Hochladen der Dokumente. Existiert das Feld 'documents' in PocketBase?");
+        } finally {
+            isUploading = false;
+            input.value = '';
+        }
+    }
+
+    async function deleteDocument(filename: string) {
+        if (!(await confirmStore.ask(`Möchten Sie das Dokument '${filename}' wirklich löschen?`, "Dokument löschen?", "Löschen", "Abbrechen", true))) return;
+        try {
+            const existingFiles = clientData?.documents ?? [];
+            const formData = new FormData();
+            for (const existing of existingFiles) { if (existing !== filename) formData.append('documents', existing); }
+            if (existingFiles.length === 1 && existingFiles[0] === filename) formData.append('documents', '');
+            await pb.collection('clients').update(clientId, formData);
+            const updatedClient = await pb.collection<any>('clients').getOne(clientId, { expand: 'insurance,retirement_homes,contacts' });
+            const index = orgaStore.clients?.data.findIndex((c: any) => c.id === clientId) ?? -1;
+            if (index !== -1 && orgaStore.clients) orgaStore.clients.data[index] = updatedClient;
+            toastStore.info("Dokument wurde gelöscht.");
+        } catch (err) { console.error(err); toastStore.error("Fehler beim Löschen des Dokuments."); }
     }
 </script>
 
@@ -177,31 +224,51 @@
     <div class="orga-card-white flex flex-col p-0!">
         <div class="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
             <h3 class="text-base font-bold text-neutral-900 flex items-center gap-2">
-                <span class="w-8 h-8 flex items-center justify-center bg-amber-100 text-amber-600 rounded-lg shadow-inner text-sm">📄</span> Vorlagen
+                <span class="w-8 h-8 flex items-center justify-center bg-amber-100 text-amber-600 rounded-lg shadow-inner text-sm">📄</span> Dokumente & Akte
             </h3>
-            <button class="orga-button-ghost py-1.5 px-3 text-xs md:text-sm font-bold">
-                + Hochladen
-            </button>
+            <div class="flex items-center gap-2">
+                <input type="file" multiple bind:this={fileInput} onchange={uploadDocuments} class="hidden" disabled={isUploading} accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" />
+                <button onclick={() => fileInput.click()} disabled={isUploading} class="orga-button-primary py-1.5 px-3 text-xs font-bold bg-neutral-900 hover:bg-neutral-800 shadow-neutral-900/20" title="Scans oder Dateien hochladen">
+                    {isUploading ? 'Lädt...' : '+ Datei hochladen'}
+                </button>
+            </div>
         </div>
-        <div class="p-6">
-            {#if documents.length === 0}
+        <div class="p-6 max-h-80 overflow-y-auto custom-scrollbar">
+            {#if documents.length === 0 && (!clientData?.documents || clientData.documents.length === 0)}
                 <div class="text-center py-10 border-2 border-dashed border-neutral-200 rounded-2xl bg-neutral-50/50">
                     <span class="text-3xl mb-2 block opacity-80">📂</span>
                     <p class="text-neutral-500 font-bold text-sm mb-1">Die Akte ist noch leer.</p>
-                    <p class="text-neutral-400 text-xs">Hinterlegen Sie hier klientenspezifische Vorlagen oder Verträge.</p>
+                    <p class="text-neutral-400 text-xs">Laden Sie Scans (PDF/Bilder) hoch oder erstellen Sie Vorlagen.</p>
                 </div>
             {:else}
-                <div class="grid grid-cols-1 gap-3">
-                    {#each documents as doc}
-                        <!-- Sauberes Routing: Link direkt zur Dokument-Ansicht -->
-                        <a href="/documents/{doc.id}" class="group flex items-start gap-3 p-4 rounded-xl border border-neutral-100 hover:border-amber-200 hover:bg-amber-50/30 transition-all cursor-pointer shadow-sm hover:shadow-md">
-                            <div class="text-2xl mt-0.5 opacity-90 group-hover:scale-110 transition-transform duration-300">📄</div>
-                            <div class="flex-1 overflow-hidden">
-                                <p class="text-sm font-bold text-neutral-900 truncate">{doc.title || 'Dokument'}</p>
-                                <p class="text-xs text-neutral-500 mt-1">{doc.created ? new Date(doc.created).toLocaleDateString('de-DE') : 'Unbekannt'}</p>
+                <div class="space-y-6">
+                    {#if clientData?.documents && clientData.documents.length > 0}
+                        <div>
+                            <h4 class="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">Hochgeladene Dateien</h4>
+                            <div class="grid grid-cols-1 gap-2">
+                                {#each clientData.documents as docFileName}
+                                    <div class="group flex items-center justify-between p-3 rounded-xl border border-neutral-100 hover:border-amber-200 hover:bg-amber-50/30 transition-all shadow-sm hover:shadow-md">
+                                        <a href={pb.files.getURL(clientData, docFileName)} target="_blank" class="flex items-center gap-3 min-w-0 flex-1">
+                                            <div class="text-xl shrink-0 opacity-80 group-hover:scale-110 transition-transform duration-300">{docFileName.endsWith('.pdf') ? '📕' : '🖼️'}</div>
+                                            <div class="truncate"><p class="text-sm font-bold text-neutral-900 truncate" title={docFileName}>{docFileName}</p></div>
+                                        </a>
+                                        <button onclick={() => deleteDocument(docFileName)} class="p-2 text-neutral-400 hover:text-rose-500 transition-colors opacity-0 xl:opacity-100 group-hover:opacity-100" title="Löschen"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                    </div>
+                                {/each}
                             </div>
-                        </a>
-                    {/each}
+                        </div>
+                    {/if}
+
+                    {#if documents.length > 0}
+                        <div>
+                            <h4 class="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">System-Vorlagen</h4>
+                            <div class="grid grid-cols-1 gap-2">
+                                {#each documents as doc}
+                                    <a href="/documents/{doc.id}" class="group flex items-center gap-3 p-3 rounded-xl border border-neutral-100 hover:border-indigo-200 hover:bg-indigo-50/30 transition-all cursor-pointer shadow-sm hover:shadow-md"><div class="text-xl shrink-0 opacity-80 group-hover:scale-110 transition-transform duration-300">📄</div><div class="flex-1 overflow-hidden"><p class="text-sm font-bold text-neutral-900 truncate">{doc.title || 'Dokument'}</p><p class="text-[10px] text-neutral-500 mt-0.5">{doc.created ? new Date(doc.created).toLocaleDateString('de-DE') : 'Unbekannt'}</p></div><span class="text-indigo-600 opacity-0 xl:opacity-100 group-hover:opacity-100 transition-opacity"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg></span></a>
+                                {/each}
+                            </div>
+                        </div>
+                    {/if}
                 </div>
             {/if}
         </div>

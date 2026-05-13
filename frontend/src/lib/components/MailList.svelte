@@ -7,8 +7,10 @@
     currentPage: number;
     totalPages: number;
     isLoading: boolean;
+    folderName: string;
     onEmailSelect: (id: string) => void;
     onPageChange: (page: number) => void;
+    onToggleMenu: () => void;
   }
 
   let { 
@@ -17,8 +19,10 @@
     currentPage, 
     totalPages, 
     isLoading, 
+    folderName,
     onEmailSelect,
-    onPageChange
+    onPageChange,
+    onToggleMenu
   } = $props();
 
   function formatDate(dateStr: string) {
@@ -42,8 +46,14 @@
 
 <div class="h-full flex flex-col">
   <!-- Header -->
-  <div class="p-4 border-b border-gray-200 shrink-0">
-    <p class="text-sm font-semibold text-gray-700">{emails.length} E-Mails</p>
+  <div class="p-4 border-b border-gray-200 shrink-0 flex items-center gap-3 bg-white sticky top-0 z-10">
+    <button class="md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" onclick={onToggleMenu} aria-label="Menü öffnen">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+    </button>
+    <div class="flex-1">
+      <h2 class="text-lg font-bold text-gray-900">{folderName}</h2>
+      <p class="text-xs font-semibold text-gray-500">{emails.length} E-Mail{emails.length !== 1 ? 's' : ''}</p>
+    </div>
   </div>
 
   <!-- Email list -->
@@ -67,16 +77,16 @@
           >
             <div class="flex items-start gap-3">
               {#if !email.is_read}
-                <div class="w-2 h-2 rounded-full bg-blue-600 mt-2 flex-shrink-0"></div>
+                <div class="w-2 h-2 rounded-full bg-blue-600 mt-2 shrink-0"></div>
               {:else}
-                <div class="w-2 h-2 flex-shrink-0"></div>
+                <div class="w-2 h-2 shrink-0"></div>
               {/if}
               <div class="flex-1 min-w-0">
                 <div class="flex items-baseline gap-2 justify-between">
-                  <p class={`text-sm truncate max-w-[200px] ${email.is_read ? 'font-normal text-gray-700' : 'font-semibold text-gray-900'}`}>
+                  <p class={`text-sm truncate max-w-50 ${email.is_read ? 'font-normal text-gray-700' : 'font-semibold text-gray-900'}`}>
                     {email.folder === 'Sent' ? `An: ${email.to_address?.split('<')[0] || email.to_address}` : (email.from_address?.split('<')[0] || email.from_address)}
                   </p>
-                  <span class="text-xs text-gray-500 flex-shrink-0">{formatDate(email.date)}</span>
+                  <span class="text-xs text-gray-500 shrink-0">{formatDate(email.date)}</span>
                 </div>
                 <p class={`text-sm truncate ${email.is_read ? 'text-gray-600' : 'text-gray-800 font-medium'}`}>
                   {email.subject || '(Kein Betreff)'}
@@ -92,7 +102,7 @@
 
   <!-- Pagination -->
   {#if totalPages > 1}
-    <div class="border-t border-gray-200 p-4 flex items-center justify-between flex-shrink-0">
+    <div class="border-t border-gray-200 p-4 flex items-center justify-between shrink-0">
       <button
         onclick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}

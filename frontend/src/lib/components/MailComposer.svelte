@@ -142,7 +142,7 @@
     <div class="flex-1 overflow-y-auto p-6">
       {#if error}
         <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
-          <span class="text-xl flex-shrink-0 mt-0.5">⚠️</span>
+          <span class="text-xl shrink-0 mt-0.5">⚠️</span>
           <p class="text-sm text-red-800">{error}</p>
         </div>
       {/if}
@@ -224,7 +224,7 @@
       <div class="flex flex-wrap gap-2 pt-2">
         {#each attachments as file, i}
           <div class="flex items-center gap-2 bg-neutral-100 text-neutral-700 px-3 py-1.5 rounded-lg text-sm border border-neutral-200 shadow-sm animate-enter">
-            <span class="truncate max-w-[200px] font-medium">📎 {file.name}</span>
+            <span class="truncate max-w-50 font-medium">📎 {file.name}</span>
             <button type="button" onclick={() => removeAttachment(i)} class="text-rose-500 hover:text-rose-700 font-bold ml-1" disabled={isSending} title="Anhang entfernen">✕</button>
           </div>
         {/each}

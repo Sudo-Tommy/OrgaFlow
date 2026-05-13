@@ -129,7 +129,7 @@
     }
 </script>
 
-<dialog bind:this={dialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-lg mx-auto my-auto rounded-3xl">
+<dialog bind:this={dialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-lg mx-auto my-auto rounded-3xl" onclick={(e) => { if (e.target === dialog) close(); }}>
     <div class="bg-white rounded-3xl p-6 md:p-8 w-full relative shadow-2xl">
         <button aria-label="Schließen" title="Schließen" onclick={close} class="absolute top-5 right-5 w-10 h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-full flex items-center justify-center transition-colors">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -166,7 +166,7 @@
             <div class="flex flex-wrap gap-2 pt-2 mt-2 border-t border-neutral-100">
                 {#each invoice.pdf as pdfFile}
                     <div class="flex items-center gap-2 bg-neutral-100 text-neutral-700 px-3 py-1.5 rounded-lg text-sm border border-neutral-200 shadow-sm animate-enter">
-                        <span class="truncate max-w-[200px] font-medium">📎 {pdfFile}</span>
+                        <span class="truncate max-w-50 font-medium">📎 {pdfFile}</span>
                     </div>
                 {/each}
             </div>

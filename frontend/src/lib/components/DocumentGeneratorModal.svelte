@@ -3,6 +3,7 @@
     import { orgaStore } from "$lib/stores/orgaStore.svelte";
     import { pb } from "$lib/services/pocketbase";
     import { sendEmail } from "$lib/services/emailService";
+    import { toastStore } from "$lib/services/toastService.svelte";
 
     let dialog: HTMLDialogElement;
     const service = useDocumentGenerator();
@@ -166,7 +167,7 @@
             emailSuccessMsg = "E-Mail wurde erfolgreich mit Anhang versendet!";
         } catch (err: any) {
             console.error(err);
-            alert("Fehler beim Senden der E-Mail: " + err.message);
+            toastStore.error("Fehler beim Senden der E-Mail: " + err.message);
         } finally { isEmailSending = false; }
     }
 
@@ -186,7 +187,7 @@
                 filename: filename,
                 image: { type: 'jpeg' as const, quality: 0.95 },
                 html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-                jsPDF: { unit: 'px', format: [794, 1123], orientation: service.template?.content_html?.orientation || 'portrait' }
+                jsPDF: { unit: 'px', format: [794, 1123] as any, orientation: service.template?.content_html?.orientation || 'portrait' }
             };
 
             const pdfBlob = await html2pdf().set(opt).from(pdfContainerRef).output('blob');
@@ -200,7 +201,7 @@
                     filename: tsFilename,
                     image: { type: 'jpeg' as const, quality: 0.95 },
                     html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-                    jsPDF: { unit: 'px', format: [794, 1123], orientation: service.timesheetTemplate.content_html?.orientation || 'portrait' }
+                    jsPDF: { unit: 'px', format: [794, 1123] as any, orientation: service.timesheetTemplate.content_html?.orientation || 'portrait' }
                 };
                 tsBlob = await html2pdf().set(optTs).from(timesheetPdfContainerRef).output('blob');
             }
@@ -261,7 +262,7 @@
     }
 </script>
 
-<dialog bind:this={dialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-2xl mx-auto my-auto rounded-3xl">
+<dialog bind:this={dialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-2xl mx-auto my-auto rounded-3xl" onclick={(e) => { if (e.target === dialog) close(); }}>
     <div class="bg-white rounded-3xl p-6 md:p-8 w-full min-h-100 flex flex-col relative overflow-hidden">
         <button aria-label="Schließen" title="Schließen" onclick={close} class="absolute top-5 right-5 w-10 h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-full flex items-center justify-center transition-colors z-10"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
         
@@ -352,11 +353,11 @@
                             <div><label for="emailText" class="block text-xs font-semibold text-neutral-600 mb-1">Nachricht</label><textarea id="emailText" bind:value={emailText} rows="4" class="orga-input-clear py-2 text-sm resize-none" disabled={isEmailSending}></textarea></div>
                             <div class="flex flex-wrap gap-2 pt-2 mt-2 border-t border-neutral-100">
                                 <div class="flex items-center gap-2 bg-neutral-100 text-neutral-700 px-3 py-1.5 rounded-lg text-sm border border-neutral-200 shadow-sm animate-enter">
-                                    <span class="truncate max-w-[200px] font-medium">📎 {generatedFilename}</span>
+                                    <span class="truncate max-w-50 font-medium">📎 {generatedFilename}</span>
                                 </div>
                                 {#if generatedTsBlob}
                                     <div class="flex items-center gap-2 bg-neutral-100 text-neutral-700 px-3 py-1.5 rounded-lg text-sm border border-neutral-200 shadow-sm animate-enter delay-100">
-                                        <span class="truncate max-w-[200px] font-medium">📎 {generatedTsFilename}</span>
+                                        <span class="truncate max-w-50 font-medium">📎 {generatedTsFilename}</span>
                                     </div>
                                 {/if}
                             </div>

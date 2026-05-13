@@ -18,6 +18,7 @@
 <dialog 
     bind:this={dialog} 
     class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-4xl mx-auto my-auto rounded-3xl"
+    onclick={(e) => { if (e.target === dialog) close(); }}
 >
     <div class="bg-white rounded-3xl p-8 md:p-12 w-full max-h-[85vh] overflow-y-auto custom-scrollbar relative">
         
@@ -42,8 +43,8 @@
 
 <style>
     /* Scoped Styling für die eingefügten HTML-Inhalte aus dem Service */
-    .legal-content :global(h3) { font-size: 1.5rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.75rem; color: #1e1b4b; }
-    .legal-content :global(h4) { font-size: 1.125rem; font-weight: 700; margin-top: 1.25rem; margin-bottom: 0.5rem; color: #312e81; }
+    .legal-content :global(h3) { font-size: 1.5rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.75rem; color: #36150e; }
+    .legal-content :global(h4) { font-size: 1.125rem; font-weight: 700; margin-top: 1.25rem; margin-bottom: 0.5rem; color: #7b3623; }
     .legal-content :global(p) { margin-bottom: 1rem; line-height: 1.6; }
     .legal-content :global(strong) { font-weight: 600; color: #171717; }
 </style>

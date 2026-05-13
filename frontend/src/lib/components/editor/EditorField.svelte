@@ -10,6 +10,14 @@
         onSelect: () => void;
     }>();
 
+    let userCompany = $derived.by(() => {
+        const user = pb.authStore.model;
+        let cId = user?.company;
+        if (Array.isArray(cId)) cId = cId[0];
+        if (cId) return orgaStore.company?.data?.find((c: any) => c.id === cId);
+        return orgaStore.company?.data?.[0];
+    });
+
     let isDragging = false;
     let isResizing = false;
     let startX = 0; let startY = 0;
@@ -110,16 +118,16 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div 
-    class="absolute cursor-move select-none transition-shadow {isSelected ? 'ring-2 ring-indigo-500 shadow-lg z-20' : 'ring-1 ring-neutral-200/50 hover:ring-indigo-300 z-10'}"
+    class="absolute cursor-move select-none transition-shadow {isSelected ? 'ring-2 ring-brand-500 shadow-lg z-20' : 'ring-1 ring-neutral-200/50 hover:ring-brand-300 z-10'}"
     style="left: {field.x}px; top: {field.y}px; width: {field.w}px; height: {field.h}px; background-color: {field.style.backgroundColor};"
     onmousedown={startDrag}
 >
     <!-- Snapping Hilfslinien -->
     {#if snapLineX !== null}
-        <div class="absolute bg-indigo-500/40 pointer-events-none z-0" style="left: {snapLineX - field.x}px; top: -2000px; bottom: -2000px; width: 1px;"></div>
+        <div class="absolute bg-brand-500/40 pointer-events-none z-0" style="left: {snapLineX - field.x}px; top: -2000px; bottom: -2000px; width: 1px;"></div>
     {/if}
     {#if snapLineY !== null}
-        <div class="absolute bg-indigo-500/40 pointer-events-none z-0" style="top: {snapLineY - field.y}px; left: -2000px; right: -2000px; height: 1px;"></div>
+        <div class="absolute bg-brand-500/40 pointer-events-none z-0" style="top: {snapLineY - field.y}px; left: -2000px; right: -2000px; height: 1px;"></div>
     {/if}
 
     <!-- Rendering des Inhalts -->
@@ -127,9 +135,9 @@
         {#if field.type === 'text'}
             {@html field.content.replace(/\n/g, '<br/>')}
         {:else if field.type === 'logo'}
-            {#if orgaStore.company?.data?.[0]?.logo}
+            {#if userCompany?.logo}
                 <div class="w-full h-full flex items-center justify-center bg-transparent">
-                    <img src={pb.files.getURL(orgaStore.company.data[0], orgaStore.company.data[0].logo)} class="max-w-full max-h-full object-contain" alt="Logo" crossorigin="anonymous" />
+                    <img src={pb.files.getURL(userCompany, userCompany.logo)} class="max-w-full max-h-full object-contain" alt="Logo" crossorigin="anonymous" />
                 </div>
             {:else}
                 <div class="w-full h-full border-2 border-dashed border-neutral-300 flex items-center justify-center bg-neutral-50/50 text-neutral-400 font-bold tracking-widest uppercase text-sm">
@@ -194,6 +202,6 @@
 
     <!-- Resize Handle -->
     {#if isSelected}
-        <div class="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-indigo-600 border border-white rounded-full cursor-se-resize shadow-md" onmousedown={startResize}></div>
+        <div class="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-brand-600 border border-white rounded-full cursor-se-resize shadow-md" onmousedown={startResize}></div>
     {/if}
 </div>

@@ -8,6 +8,8 @@
 	import { orgaStore } from "$lib/stores/orgaStore.svelte";
 	import AppSidebar from "$lib/components/AppSidebar.svelte";
 	import AppTopNav from "$lib/components/AppTopNav.svelte";
+	import ToastLayer from "$lib/components/ToastLayer.svelte";
+	import ConfirmLayer from "$lib/components/ConfirmLayer.svelte";
 
 	let { children } = $props();
 
@@ -107,7 +109,7 @@
 		<AppSidebar items={navItems} />
 		<div class="flex-1 flex flex-col relative overflow-hidden">
 			<!-- Subtiler Hintergrund-Glow im Main-Bereich für mehr visuelle Tiefe -->
-			<div class="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/5 blur-[100px] pointer-events-none rounded-full"></div>
+			<div class="absolute top-0 right-0 w-125 h-125 bg-indigo-500/5 blur-[100px] pointer-events-none rounded-full"></div>
 			<AppTopNav items={navItems} />
 			<main class="flex-1 overflow-y-auto p-6 md:p-10 lg:p-12 custom-scrollbar scroll-smooth relative z-10">
 				{@render children()}
@@ -121,3 +123,6 @@
 		</div>
 	</div>
 {/if}
+
+<ToastLayer />
+<ConfirmLayer />

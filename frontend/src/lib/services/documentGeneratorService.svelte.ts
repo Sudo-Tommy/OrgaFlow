@@ -102,7 +102,7 @@ export function useDocumentGenerator() {
                 if (app.expand?.time_record) {
                     for (const tr of app.expand.time_record) {
                         if (tr.start && tr.end) {
-                            const diffMs = new Date(tr.end).getTime() - new Date(tr.start).getTime();
+                            const diffMs = new Date(tr.end as string).getTime() - new Date(tr.start as string).getTime();
                             if (diffMs > 0) appTimeMins += Math.round(diffMs / 60000);
                         }
                     }
@@ -115,7 +115,7 @@ export function useDocumentGenerator() {
                     if (app.expand?.tasks && app.expand.tasks.length > 0) {
                         titleDesc = app.expand.tasks.map((t:any) => t.title).join(', ');
                     }
-                    positions.push({ pos: posCounter++, date: new Date(app.appointment).toLocaleDateString('de-DE'), duration: `${hours.toFixed(2)} h`, title: `${titleDesc}`, price: `${hourlyWage.toFixed(2)} €`, total });
+                    positions.push({ pos: posCounter++, date: new Date(app.appointment as string).toLocaleDateString('de-DE'), duration: `${hours.toFixed(2)} h`, title: `${titleDesc}`, price: `${hourlyWage.toFixed(2)} €`, total });
                 }
             }
 
@@ -124,12 +124,12 @@ export function useDocumentGenerator() {
                 for (const dr of app.expand.drive_record) {
                     if (dr.lump_sum > 0 && includeDriveLumpSum) { 
                         netto += dr.lump_sum;
-                        positions.push({ pos: posCounter++, date: new Date(app.appointment).toLocaleDateString('de-DE'), duration: "1", title: `Anfahrt`, price: `${dr.lump_sum.toFixed(2)} €`, total: dr.lump_sum });
+                        positions.push({ pos: posCounter++, date: new Date(app.appointment as string).toLocaleDateString('de-DE'), duration: "1", title: `Anfahrt`, price: `${dr.lump_sum.toFixed(2)} €`, total: dr.lump_sum });
                     }
                     if (dr.km > 0 && includeDriveKm) { 
                         let total = dr.km * kmRate;
                         netto += total;
-                        positions.push({ pos: posCounter++, date: new Date(app.appointment).toLocaleDateString('de-DE'), duration: `${dr.km} km`, title: `Fahrtkosten (${dr.km} km)`, price: `${kmRate.toFixed(2)} €`, total: total });
+                        positions.push({ pos: posCounter++, date: new Date(app.appointment as string).toLocaleDateString('de-DE'), duration: `${dr.km} km`, title: `Fahrtkosten (${dr.km} km)`, price: `${kmRate.toFixed(2)} €`, total: total });
                     }
                 }
             }
@@ -139,7 +139,7 @@ export function useDocumentGenerator() {
                 for (const exp of app.expand.expenditures) {
                     if (exp.sum > 0) {
                         netto += exp.sum;
-                        positions.push({ pos: posCounter++, date: new Date(app.appointment).toLocaleDateString('de-DE'), duration: "1", title: `Auslage: ${exp.titel}`, price: `${exp.sum.toFixed(2)} €`, total: exp.sum });
+                        positions.push({ pos: posCounter++, date: new Date(app.appointment as string).toLocaleDateString('de-DE'), duration: "1", title: `Auslage: ${exp.titel}`, price: `${exp.sum.toFixed(2)} €`, total: exp.sum });
                     }
                 }
             }
@@ -178,7 +178,7 @@ export function useDocumentGenerator() {
             if (app.expand?.time_record) {
                 for (const tr of app.expand.time_record) {
                     if (tr.start && tr.end) {
-                        const diffMs = new Date(tr.end).getTime() - new Date(tr.start).getTime();
+                const diffMs = new Date(tr.end as string).getTime() - new Date(tr.start as string).getTime();
                         if (diffMs > 0) appTimeMins += Math.round(diffMs / 60000);
                     }
                 }
@@ -191,7 +191,7 @@ export function useDocumentGenerator() {
                 if (app.expand?.tasks && app.expand.tasks.length > 0) {
                     titleDesc = app.expand.tasks.map((t:any) => t.title).join(', ');
                 }
-                positions.push({ pos: posCounter++, date: new Date(app.appointment).toLocaleDateString('de-DE'), duration: `${hours.toFixed(2)} h`, title: `${titleDesc}`, price: `${hourlyWage.toFixed(2)} €`, total });
+                positions.push({ pos: posCounter++, date: new Date(app.appointment as string).toLocaleDateString('de-DE'), duration: `${hours.toFixed(2)} h`, title: `${titleDesc}`, price: `${hourlyWage.toFixed(2)} €`, total });
             }
         }
 
@@ -282,10 +282,10 @@ export function useDocumentGenerator() {
         }
 
         let res = text.replace(/\n/g, '<br/>');
-        const rec = getRecipientData() || {};
-        const comp = company || {};
-        const usr = pb.authStore.record || {};
-        const ins = client?.expand?.insurance || {};
+        const rec: any = getRecipientData() || {};
+        const comp: any = company || {};
+        const usr: any = pb.authStore.record || {};
+        const ins: any = client?.expand?.insurance || {};
         const dataToUse = isTimesheet ? timesheetData : invoiceData;
         
         const clientSignUrl = rec.sign ? pb.files.getURL(rec, rec.sign) : '';
@@ -304,9 +304,9 @@ export function useDocumentGenerator() {
             '{{client.insurance_nr}}': rec.insurance_nr || '',
             '{{client.birthdate}}': safeFormatDate(rec.birthdate),
             '{{client.level_of_care}}': rec.level_of_care || '',
-            '{{client.hourly_wage}}': client?.hourly_wage || '',
-            '{{client.km_rate}}': client?.km_rate || '',
-            '{{client.tax_rate}}': client?.tax_rate || '',
+            '{{client.hourly_wage}}': (client?.hourly_wage || '').toString(),
+            '{{client.km_rate}}': (client?.km_rate || '').toString(),
+            '{{client.tax_rate}}': (client?.tax_rate || '').toString(),
             '{{client.signature}}': clientSignUrl ? `<img src="${clientSignUrl}" style="max-height: 60px; object-fit: contain;" crossorigin="anonymous" />` : '',
             
             '{{insurance.name}}': ins.name || '',

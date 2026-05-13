@@ -2,6 +2,8 @@
     import { useChat } from '$lib/services/chatService.svelte';
     import { pb } from '$lib/services/pocketbase';
     import { onMount, onDestroy, tick } from 'svelte';
+    import { toastStore } from "$lib/services/toastService.svelte";
+    import { confirmStore } from "$lib/services/confirmService.svelte";
 
     const chat = useChat();
     let chatContainer: HTMLElement;
@@ -20,8 +22,25 @@
     let recordingTime = $state(0);
     let recordingInterval: any;
 
-    onMount(() => { chat.init(); });
-    onDestroy(() => { chat.cleanup(); });
+    // Re-Init Funktion: Erkennt Standby-Aufwachen oder Netzwechsel
+    function handleResume() {
+        if (document.visibilityState === 'visible' && navigator.onLine) {
+            chat.init(); // Läd die Historie lautlos neu, um Lücken zu füllen
+        }
+    }
+
+    onMount(() => { 
+        chat.init(); 
+        document.addEventListener('visibilitychange', handleResume);
+        window.addEventListener('focus', handleResume);
+        window.addEventListener('online', handleResume);
+    });
+    onDestroy(() => { 
+        document.removeEventListener('visibilitychange', handleResume);
+        window.removeEventListener('focus', handleResume);
+        window.removeEventListener('online', handleResume);
+        chat.cleanup(); 
+    });
 
     // Auto-Scroll nach unten, wenn eine neue Nachricht kommt
     $effect(() => {
@@ -80,7 +99,7 @@
             recordingInterval = setInterval(() => recordingTime++, 1000);
         } catch (err) {
             console.error("Mikrofon-Zugriff verweigert", err);
-            alert("Konnte nicht auf das Mikrofon zugreifen. Bitte überprüfe die Browser-Berechtigungen.");
+            toastStore.error("Konnte nicht auf das Mikrofon zugreifen. Bitte überprüfe die Browser-Berechtigungen.");
         }
     }
 
@@ -105,11 +124,12 @@
     }
 
     async function handleDelete(id: string) {
-        if (confirm("Möchtest du diese Nachricht wirklich löschen?")) {
+        if (await confirmStore.ask("Möchtest du diese Nachricht wirklich löschen?", "Nachricht löschen?", "Löschen", "Abbrechen", true)) {
             try {
                 await chat.deleteMessage(id);
+                toastStore.info("Nachricht gelöscht.");
             } catch (err: any) {
-                alert("Fehler beim Löschen: " + err.message);
+                toastStore.error("Fehler beim Löschen: " + err.message);
             }
         }
     }
@@ -139,18 +159,18 @@
 
 <div class="orga-card-white flex flex-col overflow-hidden border border-neutral-200 relative" style="height: 600px;">
     <!-- Header -->
-    <div class="bg-[#075e54] text-white p-4 flex items-center gap-4 z-10 shadow-md">
+    <div class="bg-brand-800 text-white p-4 flex items-center gap-4 z-10 shadow-md">
         <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-xl">💬</div>
         <div>
             <h2 class="font-bold text-lg leading-tight">Team Chat & Support</h2>
-            <p class="text-xs text-emerald-100 flex items-center gap-1">
+            <p class="text-xs text-brand-100 flex items-center gap-1">
                 <span class="w-2 h-2 rounded-full bg-emerald-400"></span> System online
             </p>
         </div>
     </div>
 
     <!-- Chat History / Messages -->
-    <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-[#efeae2]" bind:this={chatContainer}>
+    <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-brand-50" bind:this={chatContainer}>
         {#each chat.messages as msg}
             {@const isMe = msg.user === chat.currentUserId}
             {@const isBugReport = msg.text ? msg.text.includes('🚨 [BUG REPORT]') : false}
@@ -165,8 +185,8 @@
                 
                 <!-- Bubble -->
                 <div class="max-w-[85%] md:max-w-[70%] rounded-2xl p-3 shadow-sm relative
-                            {isMe ? 'bg-[#d9fdd3] text-neutral-900 rounded-tr-none' : 'bg-white text-neutral-900 rounded-tl-none'}
-                            {isBugReport ? '!bg-rose-100 !border !border-rose-300' : ''}">
+                            {isMe ? 'bg-brand-200 text-brand-950 rounded-tr-none' : 'bg-white text-neutral-900 rounded-tl-none'}
+                            {isBugReport ? 'bg-rose-100! border! border-rose-300!' : ''}">
                     
                     <!-- Delete Button -->
                     {#if isMe || chat.isAdmin}
@@ -184,9 +204,9 @@
                     {#if msg.file && msg.file.length > 0}
                         {@const fileName = Array.isArray(msg.file) ? msg.file[0] : msg.file}
                         {#if fileName.match(/\.(webm|mp3|wav|ogg|m4a)$/i)}
-                            <div class="mb-2 p-1 bg-black/5 rounded-xl border border-black/10 min-w-[200px]">
+                            <div class="mb-2 p-1 bg-black/5 rounded-xl border border-black/10 min-w-50">
                                 <!-- svelte-ignore a11y_media_has_caption -->
-                                <audio controls src={pb.files.getUrl(msg, fileName)} class="w-full max-w-[240px] h-10"></audio>
+                                <audio controls src={pb.files.getUrl(msg, fileName)} class="w-full max-w-60 h-10"></audio>
                             </div>
                         {:else}
                             <div class="mb-2 p-2 bg-black/5 rounded-xl border border-black/10 flex items-center gap-2">
@@ -206,7 +226,7 @@
                         {formatMessageTime(msg.created)}
                         {#if isMe}
                             <!-- Blaue Haken (Gelesen-Bestätigung) -->
-                            <svg class="w-4 h-4 text-[#53bdeb]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <svg class="w-4 h-4 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M18 6L7 17l-5-5"/><path d="M22 10l-7.5 7.5L13 16"/>
                             </svg>
                         {/if}
@@ -217,7 +237,7 @@
     </div>
 
     <!-- Controls & Input Area -->
-    <div class="bg-[#f0f0f0] flex flex-col p-3 z-10 border-t border-neutral-200">
+    <div class="bg-neutral-100 flex flex-col p-3 z-10 border-t border-neutral-200">
         
         <!-- Obere Kontroll-Leiste (Optionen) -->
         <div class="flex items-center gap-3 mb-3 px-1">
@@ -225,7 +245,7 @@
             🚨 Bug melden
             </button>
             
-            <select bind:value={whisperTo} class="text-xs font-bold px-3 py-1.5 rounded-full border border-neutral-300 bg-white text-neutral-600 focus:outline-none focus:border-emerald-500 cursor-pointer w-full">
+            <select bind:value={whisperTo} class="text-xs font-bold px-3 py-1.5 rounded-full border border-neutral-300 bg-white text-neutral-600 focus:outline-none focus:border-brand-500 cursor-pointer w-full">
                 <option value="">Offen für alle</option>
                 {#each chat.users as u}
                     {#if u.id !== chat.currentUserId}
@@ -236,11 +256,11 @@
          </div>
 
         <!-- Eingabeleiste -->
-        <form onsubmit={handleSend} class="flex flex-col bg-white rounded-2xl md:rounded-3xl border border-neutral-200 shadow-sm p-2 transition-colors focus-within:border-emerald-500">
+        <form onsubmit={handleSend} class="flex flex-col bg-white rounded-2xl md:rounded-3xl border border-neutral-200 shadow-sm p-2 transition-colors focus-within:border-brand-500">
             
             <!-- Dateivorschau (wird oberhalb des Textfelds eingeklinkt, wenn vorhanden) -->
             {#if selectedFile && !isRecording}
-                <div class="bg-emerald-50 text-emerald-800 text-xs font-bold px-3 py-2 rounded-xl border border-emerald-100 mb-2 max-w-full flex items-center justify-between gap-2 animate-enter">
+                <div class="bg-neutral-50 text-neutral-800 text-xs font-bold px-3 py-2 rounded-xl border border-neutral-100 mb-2 max-w-full flex items-center justify-between gap-2 animate-enter">
                     <span class="truncate">{selectedFile.type.startsWith('audio/') ? '🎤 Sprachnachricht' : `📎 ${selectedFile.name}`}</span>
                     <button type="button" onclick={() => selectedFile = null} class="text-rose-500 hover:text-rose-700 bg-white rounded-full p-1 shadow-sm">✕</button>
                 </div>
@@ -255,7 +275,7 @@
                     <button type="button" onclick={cancelRecording} class="text-xs font-bold text-rose-600 hover:text-rose-800 transition-colors">Abbrechen</button>
                 </div>
             {:else}
-                <textarea bind:value={msgText} onkeydown={(e) => { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); } }} placeholder="Schreibe eine Nachricht..." class="w-full bg-transparent border-none px-2 py-1 min-h-[44px] max-h-[120px] resize-none focus:outline-none custom-scrollbar" disabled={isSending}></textarea>
+                <textarea bind:value={msgText} onkeydown={(e) => { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); } }} placeholder="Schreibe eine Nachricht..." class="w-full bg-transparent border-none px-2 py-1 min-h-11 max-h-30 resize-none focus:outline-none custom-scrollbar" disabled={isSending}></textarea>
             {/if}
             
             <!-- Steuerleiste unter dem Textfeld -->
@@ -273,11 +293,11 @@
                 </div>
                 
                 {#if isRecording}
-                    <button type="button" aria-label="Aufnahme beenden" onclick={stopRecording} class="p-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full transition-all shadow-md active:scale-95 flex-shrink-0" title="Aufnahme beenden & anhängen">
+                    <button type="button" aria-label="Aufnahme beenden" onclick={stopRecording} class="p-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full transition-all shadow-md active:scale-95 shrink-0" title="Aufnahme beenden & anhängen">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                     </button>
                 {:else}
-                    <button type="submit" aria-label="Senden" disabled={isSending || (!msgText.trim() && !selectedFile)} class="p-2.5 bg-[#00a884] hover:bg-[#008f6f] text-white rounded-full transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex-shrink-0">
+                    <button type="submit" aria-label="Senden" disabled={isSending || (!msgText.trim() && !selectedFile)} class="p-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-full transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:active:scale-100 shrink-0">
                         <svg class="w-4 h-4 translate-x-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg>
                     </button>
                 {/if}

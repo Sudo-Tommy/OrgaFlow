@@ -38,7 +38,7 @@
         {:else}
             <div class="space-y-4">
                 <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">{activeField.type} Element</span>
+                <span class="text-xs font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2 py-1 rounded-md">{activeField.type} Element</span>
                     <button onclick={() => onDelete(activeField.id)} class="text-rose-500 hover:text-white hover:bg-rose-500 p-1.5 rounded-md transition-colors" title="Löschen"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                 </div>
 
@@ -55,7 +55,7 @@
                         <textarea id="prop-text" bind:this={textareaRef} bind:value={activeField.content} rows="5" class="orga-input-clear py-2 text-sm resize-none custom-scrollbar font-mono"></textarea>
                         
                         <div class="mt-2">
-                            <select onchange={(e) => { insertPlaceholder(e.currentTarget.value); e.currentTarget.value = ''; }} class="w-full bg-neutral-100 border border-neutral-200 hover:border-indigo-300 px-2 py-1.5 rounded text-xs font-bold text-indigo-700 outline-none cursor-pointer">
+                        <select onchange={(e) => { insertPlaceholder(e.currentTarget.value); e.currentTarget.value = ''; }} class="w-full bg-neutral-100 border border-neutral-200 hover:border-brand-300 px-2 py-1.5 rounded text-xs font-bold text-brand-700 outline-none cursor-pointer">
                                 <option value="" selected disabled>+ Datenfeld (Variable) einfügen</option>
                                 <optgroup label="Klient (Empfänger)">
                                     <option value={"{{client.salutation}}"}>Anrede (Herr/Frau)</option>
@@ -125,19 +125,19 @@
                     <div class="pt-2 border-t border-neutral-100">
                         <span class="block text-xs font-semibold text-neutral-600 mb-2">Anzuzeigende Positionen</span>
                         <div class="space-y-1.5 bg-neutral-50 p-3 rounded-xl border border-neutral-200">
-                            <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeTimeRecords} class="text-indigo-600 rounded border-neutral-300"> Zeiterfassungen (Stunden)</label>
-                            <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeDriveKm} class="text-indigo-600 rounded border-neutral-300"> Fahrtkosten (Kilometer)</label>
-                            <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeDriveLumpSum} class="text-indigo-600 rounded border-neutral-300"> Anfahrtskosten (Pauschalen)</label>
-                            <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeExpenditures} class="text-indigo-600 rounded border-neutral-300"> Sonderausgaben / Spesen</label>
+                        <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeTimeRecords} class="text-brand-600 rounded border-neutral-300"> Zeiterfassungen (Stunden)</label>
+                        <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeDriveKm} class="text-brand-600 rounded border-neutral-300"> Fahrtkosten (Kilometer)</label>
+                        <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeDriveLumpSum} class="text-brand-600 rounded border-neutral-300"> Anfahrtskosten (Pauschalen)</label>
+                        <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeExpenditures} class="text-brand-600 rounded border-neutral-300"> Sonderausgaben / Spesen</label>
                         </div>
                     </div>
 
                     <div class="pt-2 border-t border-neutral-100">
                         <span class="block text-xs font-semibold text-neutral-600 mb-2">Tabellen-Fußzeile (Summen)</span>
                         <div class="space-y-1.5 bg-neutral-50 p-3 rounded-xl border border-neutral-200">
-                            <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeTotalNetto} class="text-indigo-600 rounded border-neutral-300"> Netto-Summe anzeigen</label>
-                            <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeTotalTax} class="text-indigo-600 rounded border-neutral-300"> MwSt-Betrag anzeigen</label>
-                            <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeTotalBrutto} class="text-indigo-600 rounded border-neutral-300"> Gesamt-Brutto anzeigen</label>
+                        <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeTotalNetto} class="text-brand-600 rounded border-neutral-300"> Netto-Summe anzeigen</label>
+                        <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeTotalTax} class="text-brand-600 rounded border-neutral-300"> MwSt-Betrag anzeigen</label>
+                        <label class="flex items-center gap-2 text-sm text-neutral-700 cursor-pointer"><input type="checkbox" bind:checked={activeField.tableConfig.includeTotalBrutto} class="text-brand-600 rounded border-neutral-300"> Gesamt-Brutto anzeigen</label>
                         </div>
                     </div>
 

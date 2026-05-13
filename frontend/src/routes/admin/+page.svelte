@@ -2,6 +2,7 @@
     import { useAdminService } from "$lib/services/adminService.svelte";
     import AdminDataTable from "$lib/components/admin/AdminDataTable.svelte";
     import AdminRecordModal from "$lib/components/admin/AdminRecordModal.svelte";
+    import { confirmStore } from "$lib/services/confirmService.svelte";
 
     const adminService = useAdminService();
     let modal: ReturnType<typeof AdminRecordModal> | undefined = $state();
@@ -15,7 +16,7 @@
     }
 
     async function handleDelete(id: string) {
-        if (confirm(`Möchten Sie diesen Datensatz unwiderruflich aus '${adminService.activeCollection}' löschen?`)) {
+        if (await confirmStore.ask(`Möchten Sie diesen Datensatz unwiderruflich aus '${adminService.activeCollection}' löschen?`, "Datensatz löschen?", "Unwiderruflich Löschen", "Abbrechen", true)) {
             await adminService.deleteRecord(adminService.activeCollection, id);
         }
     }

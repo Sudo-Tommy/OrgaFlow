@@ -8,6 +8,9 @@ set "VERSION_FILE=%PROJECT_ROOT%version.txt"
 set "BACKUP_DIR=%PROJECT_ROOT%..\OrgaFlow_Backups"
 set "NGINX_DIR=S:\nginx-1.30.0"
 
+:: Stelle sicher, dass das Skript im Projektverzeichnis ausgefuehrt wird (wichtig bei Admin-Rechten)
+cd /d "%PROJECT_ROOT%"
+
 :: --- INIT VERSION ---
 if not exist "%VERSION_FILE%" echo 0 > "%VERSION_FILE%"
 set /p BUILD_VER=<"%VERSION_FILE%"
@@ -19,45 +22,51 @@ echo ========================================================
 echo   OrgaFlow Server Management Tool v!APP_VERSION!
 echo ========================================================
 echo.
-echo  [ START MODI ]
-echo   1) DEV-Modus (Backend + Svelte Dev + Mailer Dev)
-echo   2) LIVE-Modus (Backend hostet pb_public + Mailer)
-echo   X) Alle Server beenden (DEV ^& LIVE schliessen)
+echo  [ DEV MODUS ]
+echo   1) DEV-Modus STARTEN (Backend + Svelte + Mailer)
+echo   2) DEV-Modus BEENDEN
+echo.
+echo  [ LIVE MODUS ]
+echo   3) LIVE-Modus STARTEN (pb_public + Mailer + Nginx)
+echo   4) LIVE-Modus BEENDEN
 echo.
 echo  [ BUILD ^& DEPLOY ]
-echo   3) Frontend Builden ^& in Backend (pb_public) kopieren
+echo   5) Frontend Builden ^& in Backend (pb_public) kopieren
 echo.
 echo  [ UPDATES ]
-echo   4) Komplettes Update (PB + Svelte + Node) ^& Version++
-echo   5) Nur PocketBase Update
-echo   6) Nur Frontend (Svelte) Update
-echo   7) Nur Microservice (Node) Update
+echo   6) Komplettes Update (PB + Svelte + Node) ^& Version++
+echo   7) Nur PocketBase Update
+echo   8) Nur Frontend (Svelte) Update
+echo   9) Nur Microservice (Node) Update
 echo.
 echo  [ SYSTEM ]
-echo   8) 1:1 Projekt-Backup erstellen (Mirror)
-echo   9) Version manuell erhoehen
+echo   B) 1:1 Projekt-Backup erstellen (Mirror)
+echo   V) Version manuell erhoehen
+echo   X) ALLE Server beenden (Not-Aus)
 echo.
 echo  [ NGINX STEUERUNG ]
-echo   A) Nginx starten
-echo   B) Nginx Config neu laden (reload)
-echo   C) Nginx beenden (quit)
+echo   N1) Nginx starten
+echo   N2) Nginx Config neu laden (reload)
+echo   N3) Nginx beenden (quit)
 echo   0) Beenden
 echo ========================================================
 set /p choice="Waehle eine Option: "
 
 if "%choice%"=="1" goto start_dev
-if "%choice%"=="2" goto start_live
+if "%choice%"=="2" goto stop_dev
+if "%choice%"=="3" goto start_live
+if "%choice%"=="4" goto stop_live
+if "%choice%"=="5" goto build
+if "%choice%"=="6" goto update_all
+if "%choice%"=="7" goto update_pb
+if "%choice%"=="8" goto update_front
+if "%choice%"=="9" goto update_micro
+if /i "%choice%"=="B" goto backup
+if /i "%choice%"=="V" goto bump_version
 if /i "%choice%"=="X" goto kill_all
-if "%choice%"=="3" goto build
-if "%choice%"=="4" goto update_all
-if "%choice%"=="5" goto update_pb
-if "%choice%"=="6" goto update_front
-if "%choice%"=="7" goto update_micro
-if "%choice%"=="8" goto backup
-if "%choice%"=="9" goto bump_version
-if /i "%choice%"=="A" goto nginx_start
-if /i "%choice%"=="B" goto nginx_reload
-if /i "%choice%"=="C" goto nginx_stop
+if /i "%choice%"=="N1" goto nginx_start
+if /i "%choice%"=="N2" goto nginx_reload
+if /i "%choice%"=="N3" goto nginx_stop
 if "%choice%"=="0" exit
 
 goto menu
@@ -71,6 +80,16 @@ echo Starte Frontend (Dev)...
 start "SvelteKit Frontend" cmd /k "cd frontend && npm run dev -- --host --open"
 goto menu
 
+:stop_dev
+echo ==========================================
+echo Beende DEV-Server Prozesse...
+taskkill /F /FI "WINDOWTITLE eq PocketBase Backend*" /T >nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq Email Microservice*" /T >nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq SvelteKit Frontend*" /T >nul 2>&1
+echo DEV-Server erfolgreich beendet!
+pause
+goto menu
+
 :start_live
 echo Starte LIVE Backend (PocketBase auf Port 8090)...
 start "OrgaFlow PB (LIVE)" cmd /k "cd backend && pocketbase.exe serve --http=127.0.0.1:8090"
@@ -80,6 +99,20 @@ echo Starte Nginx Proxy...
 cd /d "%NGINX_DIR%"
 start "" nginx.exe
 cd /d "%PROJECT_ROOT%"
+goto menu
+
+:stop_live
+echo ==========================================
+echo Beende LIVE-Server Prozesse...
+taskkill /F /FI "WINDOWTITLE eq OrgaFlow PB (LIVE)*" /T >nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq OrgaFlow Mailer (LIVE)*" /T >nul 2>&1
+echo Beende Nginx Proxy...
+cd /d "%NGINX_DIR%"
+nginx.exe -s quit >nul 2>&1
+taskkill /F /IM nginx.exe >nul 2>&1
+cd /d "%PROJECT_ROOT%"
+echo LIVE-Server erfolgreich beendet!
+pause
 goto menu
 
 :kill_all
@@ -105,9 +138,9 @@ goto menu
 :build
 echo ==========================================
 echo Erstelle Frontend-Build...
-cd frontend
+cd /d "%PROJECT_ROOT%frontend"
 call npm run build
-cd ..
+cd /d "%PROJECT_ROOT%"
 echo.
 echo Loesche alten pb_public Ordner im Backend...
 if exist "backend\pb_public" rmdir /s /q "backend\pb_public"
@@ -129,12 +162,12 @@ goto menu
 :update_all
 echo ==========================================
 echo [1/3] PocketBase Update...
-cd backend && call pocketbase update
+cd /d "%PROJECT_ROOT%backend" && call pocketbase update
 echo [2/3] SvelteKit Update...
-cd ..\frontend && call npm update
+cd /d "%PROJECT_ROOT%frontend" && call npm update
 echo [3/3] Microservice Update...
-cd ..\microservice && call npm update
-cd ..
+cd /d "%PROJECT_ROOT%microservice" && call npm update
+cd /d "%PROJECT_ROOT%"
 call :increment_version
 echo ==========================================
 echo Alle Updates abgeschlossen!
@@ -142,17 +175,17 @@ pause
 goto menu
 
 :update_pb
-cd backend && call pocketbase update && cd ..
+cd /d "%PROJECT_ROOT%backend" && call pocketbase update && cd /d "%PROJECT_ROOT%"
 pause
 goto menu
 
 :update_front
-cd frontend && call npm update && cd ..
+cd /d "%PROJECT_ROOT%frontend" && call npm update && cd /d "%PROJECT_ROOT%"
 pause
 goto menu
 
 :update_micro
-cd microservice && call npm update && cd ..
+cd /d "%PROJECT_ROOT%microservice" && call npm update && cd /d "%PROJECT_ROOT%"
 pause
 goto menu
 

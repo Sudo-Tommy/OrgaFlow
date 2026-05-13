@@ -13,13 +13,15 @@ export async function submitAppointmentRequest(data: AppointmentRequestInput) {
     // PocketBase erwartet bei Date-Feldern gültige ISO-Strings
     let dateIso = null;
     if (data.date) {
-        dateIso = new Date(`${data.date}T12:00:00.000Z`).toISOString();
+        // Ohne das 'Z' am Ende wird die Zeit als lokale Zeit (Deutschland) interpretiert!
+        dateIso = new Date(`${data.date}T12:00:00`).toISOString();
     }
 
     let timeIso = null;
     if (data.time) {
-        const baseDate = data.date ? data.date : new Date().toISOString().split('T')[0];
-        timeIso = new Date(`${baseDate}T${data.time}:00.000Z`).toISOString();
+        // Holen des aktuellen lokalen Datums als Fallback (YYYY-MM-DD) ohne UTC-Verschiebung
+        const baseDate = data.date ? data.date : new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        timeIso = new Date(`${baseDate}T${data.time}:00`).toISOString();
     }
 
     const payload = {

@@ -5,18 +5,70 @@
 @theme {
     --font-sans: "Inter", system-ui, sans-serif;
 
-    /* Landing Page Brand Colors - Warmes Terracotta / Sand */
-    --color-brand-50: #fdf8f6;
-    --color-brand-100: #f8ebe6;
-    --color-brand-200: #f0d4c9;
-    --color-brand-300: #e5b4a3;
-    --color-brand-400: #d68e76;
-    --color-brand-500: #c66a4d;
-    --color-brand-600: #b35134;
-    --color-brand-700: #954028;
-    --color-brand-800: #7b3623; /* Warme, vertrauensvolle Hauptfarbe */
-    --color-brand-900: #652e1f;
-    --color-brand-950: #36150e;
+    /* Landing Page Brand Colors - Edles Petrol/Türkis (Passend zum Herz-Logo) */
+    --color-brand-50: #f2f7f8;
+    --color-brand-100: #dceced;
+    --color-brand-200: #bbdbe0;
+    --color-brand-300: #91c2c9;
+    --color-brand-400: #62a2ac;
+    --color-brand-500: #458893;
+    --color-brand-600: #386d78;
+    --color-brand-700: #315862;
+    --color-brand-800: #20565d; /* Exakte dunkle Petrol-Farbe deines Logos */
+    --color-brand-900: #244149;
+    --color-brand-950: #142a30;
+
+        /* --- FARB-UMLEITUNG (WARMES THEME) --- */
+        /* Mache kühle Blautöne zu warmem Terracotta (Brand) */
+        --color-indigo-50: var(--color-brand-50);
+        --color-indigo-100: var(--color-brand-100);
+        --color-indigo-200: var(--color-brand-200);
+        --color-indigo-300: var(--color-brand-300);
+        --color-indigo-400: var(--color-brand-400);
+        --color-indigo-500: var(--color-brand-500);
+        --color-indigo-600: var(--color-brand-600);
+        --color-indigo-700: var(--color-brand-700);
+        --color-indigo-800: var(--color-brand-800);
+        --color-indigo-900: var(--color-brand-900);
+        --color-indigo-950: var(--color-brand-950);
+
+        --color-blue-50: var(--color-brand-50);
+        --color-blue-100: var(--color-brand-100);
+        --color-blue-200: var(--color-brand-200);
+        --color-blue-300: var(--color-brand-300);
+        --color-blue-400: var(--color-brand-400);
+        --color-blue-500: var(--color-brand-500);
+        --color-blue-600: var(--color-brand-600);
+        --color-blue-700: var(--color-brand-700);
+        --color-blue-800: var(--color-brand-800);
+        --color-blue-900: var(--color-brand-900);
+        --color-blue-950: var(--color-brand-950);
+
+        /* Ersetze kalte Akzente durch warmes Bernstein (Amber) */
+        --color-cyan-50: #fffbeb; --color-teal-50: #fffbeb;
+        --color-cyan-100: #fef3c7; --color-teal-100: #fef3c7;
+        --color-cyan-200: #fde68a; --color-teal-200: #fde68a;
+        --color-cyan-300: #fcd34d; --color-teal-300: #fcd34d;
+        --color-cyan-400: #fbbf24; --color-teal-400: #fbbf24;
+        --color-cyan-500: #f59e0b; --color-teal-500: #f59e0b;
+        --color-cyan-600: #d97706; --color-teal-600: #d97706;
+        --color-cyan-700: #b45309; --color-teal-700: #b45309;
+        --color-cyan-800: #92400e; --color-teal-800: #92400e;
+        --color-cyan-900: #78350f; --color-teal-900: #78350f;
+        --color-cyan-950: #451a03; --color-teal-950: #451a03;
+
+        /* Kaltes Neutral und Gray wird zu erdigem Stone (Warm Gray) */
+        --color-neutral-50: #fafaf9; --color-gray-50: #fafaf9;
+        --color-neutral-100: #f5f5f4; --color-gray-100: #f5f5f4;
+        --color-neutral-200: #e7e5e4; --color-gray-200: #e7e5e4;
+        --color-neutral-300: #d6d3d1; --color-gray-300: #d6d3d1;
+        --color-neutral-400: #a8a29e; --color-gray-400: #a8a29e;
+        --color-neutral-500: #78716c; --color-gray-500: #78716c;
+        --color-neutral-600: #57534e; --color-gray-600: #57534e;
+        --color-neutral-700: #44403c; --color-gray-700: #44403c;
+        --color-neutral-800: #292524; --color-gray-800: #292524;
+        --color-neutral-900: #1c1917; --color-gray-900: #1c1917;
+        --color-neutral-950: #0c0a09; --color-gray-950: #0c0a09;
 }
 
 /* 3. Basis-HTML/Body Setup für perfekte Lesbarkeit auf allen Geräten */
@@ -26,8 +78,8 @@
         @apply antialiased min-h-screen;
         
         /* FIX für html2pdf.js: Feste HEX-Farben statt Tailwind v4 OKLCH für Root-Elemente */
-        background-color: #0a0a0a !important;
-        color: #f5f5f5 !important;
+        background-color: #fafaf9 !important; /* Stone-50 (Ein warmes, helles Wollweiß) */
+        color: #1c1917 !important; /* Stone-900 (Ein warmes Schwarz) */
 
         /* Verhindert, dass iOS beim Drehen des Handys die Schriftgröße zerschießt */
         -webkit-text-size-adjust: 100%;
@@ -82,7 +134,7 @@
     }
 
     .orga-card-dark {
-        @apply bg-neutral-900 border border-neutral-800 rounded-2xl md:rounded-3xl shadow-xl overflow-hidden;
+        @apply bg-white text-neutral-900 border border-neutral-800 rounded-2xl md:rounded-3xl shadow-xl overflow-hidden;
     }
 
     /* --- EINGABEFELDER --- */
@@ -143,7 +195,7 @@
     /* --- LAYOUT --- */
     /* Globaler Haupt-Wrapper für das Seitenlayout */
     .orga-layout-wrapper {
-        @apply min-h-screen bg-brand-50 text-neutral-900 font-sans antialiased selection:bg-brand-500/30 flex flex-col relative;
+        @apply min-h-screen  text-neutral-900 font-sans antialiased selection:bg-brand-500/30 flex flex-col relative;
     }
 
     /* Content-Bereich neben dem Menü */
@@ -224,7 +276,7 @@
     }
 
     .orga-calendar-day {
-        @apply bg-white min-h-17.5 sm:min-h-[100px] p-1 sm:p-2 cursor-pointer transition-colors hover:bg-brand-50 flex flex-col relative;
+        @apply bg-white min-h-17.5 sm:min-h-25 p-1 sm:p-2 cursor-pointer transition-colors hover:bg-brand-50 flex flex-col relative;
     }
 
     /* --- EDITOR --- */
