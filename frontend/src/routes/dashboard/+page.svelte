@@ -26,12 +26,23 @@
 	function handleNewAppointment(date?: Date) {
 		appointmentModal?.open(date);
 	}
+    import EmailComposer from '$lib/components/EmailComposer.svelte';
 </script>
 
-<div class="orga-dashboard-header animate-enter">
-	<h1 class="orga-dashboard-title">Dashboard</h1>
-	<Greetings />
-</div>
+<div class="orga-layout-wrapper">
+    <div class="orga-layout-content p-6 md:p-8">
+        
+        <!-- Dashboard Header -->
+        <header class="orga-dashboard-header animate-enter flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="orga-dashboard-title">Dashboard</h1>
+					</div>
+			</header>
+			
+			<!-- Dashboard Begrüßung -->
+			<div class="orga-card mb-10 w-full">
+				<Greetings />
+			</div>
 
 <div class="orga-dashboard-grid mb-10">
 	<div class="orga-card-white p-6 animate-enter delay-100 flex flex-col">
@@ -82,20 +93,29 @@
 		</div>
 		<a href="/clients" class="block text-center text-sm font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 py-2.5 rounded-xl transition-colors mt-4">Klienten verwalten &rarr;</a>
 	</div>
-</div>
+    </div>
 
-<!-- Eingebetteter Kalender -->
-<div class="orga-card-white overflow-hidden animate-enter delay-300">
-	<div class="p-6 border-b border-neutral-100 bg-neutral-50/50 flex justify-between items-center">
-		<h2 class="text-lg font-bold text-neutral-900 flex items-center gap-2"><span>📅</span> Kalenderübersicht</h2>
-	</div>
-	<div class="p-4 sm:p-6 bg-white">
-		<Calendar 
-			appointments={orgaStore.appointments?.data || []} 
-			clients={orgaStore.clients?.data || []} 
-			onNewAppointment={handleNewAppointment}
-		/>
-	</div>
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-4 h-1/2">
+            <!-- Email Composer Bereich -->
+            <div class="animate-enter delay-200 h-1/4">
+                <EmailComposer />
+            </div>
+            
+            <!-- Eingebetteter Kalender -->
+            <div class="orga-card-white overflow-hidden animate-enter delay-300 h-full flex flex-col">
+                <div class="p-6 border-b border-neutral-100 bg-neutral-50/50 flex justify-between items-center">
+                    <h2 class="text-lg font-bold text-neutral-900 flex items-center gap-2"><span>📅</span> Kalenderübersicht</h2>
+                </div>
+                <div class="p-4 sm:p-6 bg-white flex-1 min-h-[400px]">
+                    <Calendar 
+                        appointments={orgaStore.appointments?.data || []} 
+                        clients={orgaStore.clients?.data || []} 
+                        onNewAppointment={handleNewAppointment}
+                    />
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <AppointmentModal bind:this={appointmentModal} />

@@ -1,0 +1,214 @@
+import { pb } from './pocketbase';
+import type { RecordModel } from 'pocketbase';
+
+/**
+ * Mailbox Folders Service
+ * 
+ * Manages mailbox folder structure and metadata.
+ * Tracks unread counts, sync status, and folder hierarchy.
+ */
+
+export interface MailboxFolder extends RecordModel {
+  user: string;
+  folder_name: string;
+  folder_path: string;
+  unread_count: number;
+  total_count: number;
+  last_synced: string;
+  created: string;
+  updated: string;
+}
+
+export interface MailboxFolderInput {
+  folder_name: string;
+  folder_path: string;
+  unread_count?: number;
+  total_count?: number;
+}
+
+export function createMailboxService() {
+  let folders = $state<MailboxFolder[]>([]);
+  let isLoading = $state(false);
+  let error = $state<string | null>(null);
+  let selectedFolderPath = $state<string>('INBOX');
+
+  const selectedFolder = $derived.by(() => {
+    return folders.find(f => f.folder_path === selectedFolderPath) || folders[0];
+  });
+
+  const totalUnread = $derived.by(() => {
+    return folders.reduce((sum, f) => sum + (f.unread_count || 0), 0);
+  });
+
+  return {
+    get folders() {
+      return folders;
+    },
+    get isLoading() {
+      return isLoading;
+    },
+    get error() {
+      return error;
+    },
+    get selectedFolder() {
+      return selectedFolder;
+    },
+    get totalUnread() {
+      return totalUnread;
+    },
+    get selectedFolderPath() {
+      return selectedFolderPath;
+    },
+    set selectedFolderPath(path: string) {
+      selectedFolderPath = path;
+    },
+
+    // Fetch all folders for current user
+    async loadFolders(): Promise<MailboxFolder[]> {
+      isLoading = true;
+      error = null;
+      try {
+        const authData = pb.authStore.model;
+        if (!authData?.id) {
+          throw new Error('User not authenticated');
+        }
+
+        const records = await pb.collection('mailboxFolders').getFullList<MailboxFolder>({
+          filter: `user = "${authData.id}"`,
+          sort: 'folder_name'
+        });
+
+        folders = records;
+        if (folders.length === 0) {
+          error = 'No folders found. Please sync your mailbox first.';
+        }
+        return folders;
+      } catch (err) {
+        error = err instanceof Error ? err.message : 'Failed to load folders';
+        console.error('[Mailbox] Load error:', error);
+        return [];
+      } finally {
+        isLoading = false;
+      }
+    },
+
+    // Create a new folder
+    async createFolder(input: MailboxFolderInput): Promise<MailboxFolder> {
+      isLoading = true;
+      error = null;
+      try {
+        const authData = pb.authStore.model;
+        if (!authData?.id) {
+          throw new Error('User not authenticated');
+        }
+
+        const formData = new FormData();
+        formData.append('user', authData.id);
+        formData.append('folder_name', input.folder_name);
+        formData.append('folder_path', input.folder_path);
+        formData.append('unread_count', (input.unread_count || 0).toString());
+        formData.append('total_count', (input.total_count || 0).toString());
+
+        const folder = await pb.collection('mailboxFolders').create<MailboxFolder>(formData);
+        folders.push(folder);
+        return folder;
+      } catch (err) {
+        error = err instanceof Error ? err.message : 'Failed to create folder';
+        console.error('[Mailbox] Create error:', error);
+        throw err;
+      } finally {
+        isLoading = false;
+      }
+    },
+
+    // Update folder metadata (unread count, total count)
+    async updateFolder(folderId: string, updates: Partial<MailboxFolderInput>): Promise<MailboxFolder> {
+      isLoading = true;
+      error = null;
+      try {
+        const formData = new FormData();
+        if (updates.folder_name !== undefined) {
+          formData.append('folder_name', updates.folder_name);
+        }
+        if (updates.unread_count !== undefined) {
+          formData.append('unread_count', updates.unread_count.toString());
+        }
+        if (updates.total_count !== undefined) {
+          formData.append('total_count', updates.total_count.toString());
+        }
+
+        const updated = await pb.collection('mailboxFolders').update<MailboxFolder>(
+          folderId,
+          formData
+        );
+
+        // Update in local state
+        const index = folders.findIndex(f => f.id === folderId);
+        if (index !== -1) {
+          folders[index] = updated;
+        }
+
+        return updated;
+      } catch (err) {
+        error = err instanceof Error ? err.message : 'Failed to update folder';
+        console.error('[Mailbox] Update error:', error);
+        throw err;
+      } finally {
+        isLoading = false;
+      }
+    },
+
+    // Delete a folder
+    async deleteFolder(folderId: string): Promise<void> {
+      isLoading = true;
+      error = null;
+      try {
+        await pb.collection('mailboxFolders').delete(folderId);
+        folders = folders.filter(f => f.id !== folderId);
+      } catch (err) {
+        error = err instanceof Error ? err.message : 'Failed to delete folder';
+        console.error('[Mailbox] Delete error:', error);
+        throw err;
+      } finally {
+        isLoading = false;
+      }
+    },
+
+    // Fetch folders via API (triggers backend sync)
+    async syncFolders(): Promise<MailboxFolder[]> {
+      isLoading = true;
+      error = null;
+      try {
+        const response = await fetch('/api/mail/folders', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        
+        // Reload folders from DB to get updated counts
+        return await this.loadFolders();
+      } catch (err) {
+        error = err instanceof Error ? err.message : 'Failed to sync folders';
+        console.error('[Mailbox] Sync error:', error);
+        throw err;
+      } finally {
+        isLoading = false;
+      }
+    }
+  };
+}
+
+// Singleton instance
+let mailboxService: ReturnType<typeof createMailboxService>;
+
+export function getMailboxService() {
+  if (!mailboxService) {
+    mailboxService = createMailboxService();
+  }
+  return mailboxService;
+}
