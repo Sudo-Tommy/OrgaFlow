@@ -11,6 +11,8 @@
     let description = $state("");
     let is_private = $state(false);
     let selectedClientId = $state("");
+    // Holt sich live die Daten (inkl. Notizen) des aktuell gewählten Klienten
+    let selectedClientRecord = $derived(orgaStore.clients?.data?.find((c: any) => c.id === selectedClientId));
     
     export function open(data?: any) {
         // Wenn "data" existiert und kein reines Date-Objekt ist, bearbeiten wir einen bestehenden Termin!
@@ -31,14 +33,15 @@
         } else {
             editId = null;
             const d = data instanceof Date ? new Date(data) : new Date();
-            if (data instanceof Date || !data) {
+            if (data instanceof Date || !data || data.preselectedClient) {
                 d.setHours(new Date().getHours() + 1, 0, 0, 0);
             }
             appointmentDate = toLocalISOString(d);
+            // Felder nur beim Erstellen eines neuen Termins zurücksetzen
+            description = "";
+            is_private = false;
+            selectedClientId = data?.preselectedClient || "";
         }
-        description = "";
-        is_private = false;
-        selectedClientId = "";
         errorMsg = "";
         dialog?.showModal();
     }
@@ -63,7 +66,7 @@
                 appointment: appointmentDate ? new Date(appointmentDate).toISOString() : null,
                 description,
                 is_private,
-                user: pb.authStore.record?.id,
+                user: pb.authStore.model?.id,
                 client: selectedClientId ? [selectedClientId] : []
             };
 
@@ -108,6 +111,16 @@
                         <option value={client.id}>{client.name_first} {client.name_last}</option>
                     {/each}
                 </select>
+                <!-- Subtiler Hinweis auf Klienten-Notizen -->
+                {#if selectedClientRecord?.notes}
+                    <div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2 shadow-sm animate-enter">
+                        <span class="text-amber-500 text-lg leading-none mt-0.5">💡</span>
+                        <div>
+                            <p class="text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-0.5">Klienten-Notizen / Hinweise</p>
+                            <p class="text-xs text-amber-900 font-medium whitespace-pre-wrap leading-relaxed">{selectedClientRecord.notes}</p>
+                        </div>
+                    </div>
+                {/if}
             </div>
             <div>
                 <label for="app-desc" class="block text-sm font-semibold text-neutral-700 mb-1.5">Beschreibung / Titel</label>

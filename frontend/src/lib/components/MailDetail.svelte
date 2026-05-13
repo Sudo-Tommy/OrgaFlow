@@ -1,6 +1,5 @@
 <script lang="ts">
   import { getEmailService, type MailboxMessage } from '$lib/services/emailService.svelte';
-  import { Trash2, Reply, Forward, Download } from 'lucide-svelte';
 
   interface Props {
     emailId: string;
@@ -71,14 +70,13 @@
     </div>
 
     <!-- Body -->
-    <div class="flex-1 overflow-y-auto p-6 bg-white">
-      {#if email.body_html}
-        <div class="prose prose-sm max-w-none">
-          {@html email.body_html}
-        </div>
-      {:else}
-        <p class="text-gray-800 whitespace-pre-wrap">{email.body_text}</p>
-      {/if}
+    <div class="flex-1 bg-white relative">
+      <iframe 
+          srcdoc={email.body_html || `<div style="font-family: sans-serif; padding: 20px;">${email.body_text?.replace(/\n/g, '<br>') || ''}</div>`} 
+          class="absolute inset-0 w-full h-full border-none" 
+          title="E-Mail Inhalt" 
+          sandbox="allow-same-origin allow-popups"
+      ></iframe>
     </div>
 
     <!-- Footer with actions -->
@@ -87,21 +85,21 @@
         onclick={onReply}
         class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded"
       >
-        <Reply size={16} />
+        <span class="text-base">↩️</span>
         Antworten
       </button>
       <button
         onclick={onReply}
         class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded"
       >
-        <Forward size={16} />
+        <span class="text-base">↪️</span>
         Weiterleiten
       </button>
       <button
         onclick={onDelete}
         class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded"
       >
-        <Trash2 size={16} />
+        <span class="text-base">🗑️</span>
         Löschen
       </button>
     </div>

@@ -3,12 +3,14 @@
     import { orgaStore } from "$lib/stores/orgaStore.svelte";
     import { useInvoiceFilter } from "$lib/services/invoiceFilterService.svelte";
     import DocumentGeneratorModal from "$lib/components/DocumentGeneratorModal.svelte";
+    import InvoiceEmailModal from "$lib/components/InvoiceEmailModal.svelte";
     import { onMount } from "svelte";
 
     const invoicesStore = orgaStore.invoices;
     const filterService = useInvoiceFilter(() => invoicesStore?.data || []);
 
     let generatorModal: ReturnType<typeof DocumentGeneratorModal> | undefined = $state();
+    let emailModal: ReturnType<typeof InvoiceEmailModal> | undefined = $state();
 
     // Funktion für das direkte Aktualisieren des Status aus der Übersicht heraus
     async function updateStatus(id: string, newStatus: string) {
@@ -103,7 +105,7 @@
     </div>
     <button onclick={openGenerator} class="orga-button-primary inline-flex">
         <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-        Neue Rechnung (Generator)
+        Neue Rechnung
     </button>
 </div>
 
@@ -192,6 +194,12 @@
                                 <button type="button" onclick={() => downloadPdf(inv, 1, 'Zeitnachweis')} class="flex-1 block text-center py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm transition-colors cursor-pointer" title="Zeitnachweis herunterladen">Zeitnachweis</button>
                             {/if}
                             
+                            {#if getPdfUrl(inv, 0) || getPdfUrl(inv, 1)}
+                                <button type="button" onclick={() => emailModal?.open(inv)} class="w-14 shrink-0 flex items-center justify-center bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white transition-colors" title="Per E-Mail versenden">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                </button>
+                            {/if}
+                            
                             <button onclick={() => deleteInvoice(inv.id)} class="w-14 shrink-0 flex items-center justify-center bg-red-50 hover:bg-red-500 text-red-500 hover:text-white transition-colors" title="Rechnung löschen">
                                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                             </button>
@@ -204,3 +212,4 @@
 </div>
 
 <DocumentGeneratorModal bind:this={generatorModal} />
+<InvoiceEmailModal bind:this={emailModal} />

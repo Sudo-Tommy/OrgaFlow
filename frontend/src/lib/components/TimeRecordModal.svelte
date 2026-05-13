@@ -109,7 +109,7 @@
         <form onsubmit={onSubmit} class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
                 <div><label for="time-start" class="block text-sm font-semibold text-neutral-700 mb-1.5">Startzeit</label><input id="time-start" type="time" bind:value={startTime} class="orga-input-clear" required disabled={isLoading} /></div>
-                <div><label for="time-end" class="block text-sm font-semibold text-neutral-700 mb-1.5">Endzeit (optional)</label><input id="time-end" type="time" bind:value={endTime} class="orga-input-clear" disabled={isLoading} /></div>
+                <div><label for="time-end" class="block text-sm font-semibold text-neutral-700 mb-1.5">Endzeit</label><input id="time-end" type="time" bind:value={endTime} class="orga-input-clear" disabled={isLoading} /></div>
             </div>
             <div class="pt-4 flex justify-end gap-3 border-t border-neutral-100">
                 <button type="button" onclick={close} class="orga-button-ghost" disabled={isLoading}>Abbrechen</button>

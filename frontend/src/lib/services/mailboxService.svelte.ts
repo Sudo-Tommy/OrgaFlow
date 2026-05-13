@@ -73,15 +73,21 @@ export function createMailboxService() {
           throw new Error('User not authenticated');
         }
 
-        const records = await pb.collection('mailboxFolders').getFullList<MailboxFolder>({
-          filter: `user = "${authData.id}"`,
-          sort: 'folder_name'
-        });
+      // Wir rufen die ungelesenen Mails für den Badge live ab
+      const unreadInbox = await pb.collection('mailbox_messages').getList(1, 1, {
+          filter: `folder = "INBOX" && is_read = false`,
+          requestKey: null
+      });
+      const totalInbox = await pb.collection('mailbox_messages').getList(1, 1, { filter: `folder = "INBOX"`, requestKey: null });
+      const totalSent = await pb.collection('mailbox_messages').getList(1, 1, { filter: `folder = "Sent"`, requestKey: null });
+      const totalTrash = await pb.collection('mailbox_messages').getList(1, 1, { filter: `folder = "Trash"`, requestKey: null });
 
-        folders = records;
-        if (folders.length === 0) {
-          error = 'No folders found. Please sync your mailbox first.';
-        }
+      // Standard-Ordnerstruktur erzwingen
+      folders = [
+          { id: 'inbox', folder_name: 'Posteingang', folder_path: 'INBOX', unread_count: unreadInbox.totalItems, total_count: totalInbox.totalItems } as MailboxFolder,
+          { id: 'sent', folder_name: 'Gesendet', folder_path: 'Sent', unread_count: 0, total_count: totalSent.totalItems } as MailboxFolder,
+          { id: 'trash', folder_name: 'Papierkorb', folder_path: 'Trash', unread_count: 0, total_count: totalTrash.totalItems } as MailboxFolder,
+      ];
         return folders;
       } catch (err) {
         error = err instanceof Error ? err.message : 'Failed to load folders';
@@ -179,18 +185,8 @@ export function createMailboxService() {
       isLoading = true;
       error = null;
       try {
-        const response = await fetch('/api/mail/folders', {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.statusText}`);
-        }
-
-        const result = await response.json();
-        
-        // Reload folders from DB to get updated counts
+        // Aktuell gibt es noch keine echte IMAP-Ordner Sync API im Microservice
+        // Lade einfach die aktuellen Stände aus der Datenbank
         return await this.loadFolders();
       } catch (err) {
         error = err instanceof Error ? err.message : 'Failed to sync folders';

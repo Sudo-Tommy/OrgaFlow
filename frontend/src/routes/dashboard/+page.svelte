@@ -3,8 +3,13 @@
 	import Calendar from "$lib/components/Calendar.svelte";
 	import AppointmentModal from "$lib/components/AppointmentModal.svelte";
 	import Greetings from "$lib/components/Greetings.svelte";
+	import ChatWidget from "$lib/components/ChatWidget.svelte";
+	import AppointmentRequestsWidget from "$lib/components/AppointmentRequestsWidget.svelte";
+	import AppointmentDetailModal from "$lib/components/AppointmentDetailModal.svelte";
+	import StickiesLayer from "$lib/components/StickiesLayer.svelte";
 
 	let appointmentModal: ReturnType<typeof AppointmentModal> | undefined = $state();
+	let detailModal: ReturnType<typeof AppointmentDetailModal> | undefined = $state();
 
 	// 1. Heutige Termine herausfiltern
 	let todaysAppointments = $derived.by(() => {
@@ -26,96 +31,79 @@
 	function handleNewAppointment(date?: Date) {
 		appointmentModal?.open(date);
 	}
-    import EmailComposer from '$lib/components/EmailComposer.svelte';
 </script>
 
 <div class="orga-layout-wrapper">
-    <div class="orga-layout-content p-6 md:p-8">
+    <div class="orga-layout-content">
+        <StickiesLayer />
         
         <!-- Dashboard Header -->
         <header class="orga-dashboard-header animate-enter flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
+            <div class="flex items-center gap-4">
                 <h1 class="orga-dashboard-title">Dashboard</h1>
-					</div>
-			</header>
-			
-			<!-- Dashboard Begrüßung -->
-			<div class="orga-card mb-10 w-full">
-				<Greetings />
-			</div>
-
-<div class="orga-dashboard-grid mb-10">
-	<div class="orga-card-white p-6 animate-enter delay-100 flex flex-col">
-		<h2 class="text-lg font-bold text-neutral-800 mb-4 flex items-center gap-2"><span>📅</span> Heutige Termine</h2>
-		{#if todaysAppointments.length === 0}
-			<p class="text-neutral-500 text-sm mt-2">Heute stehen keine Termine an. Lehnen Sie sich zurück!</p>
-		{:else}
-			<div class="space-y-3 mt-2 flex-1 max-h-64 overflow-y-auto custom-scrollbar pr-2">
-				{#each todaysAppointments as app}
-					<a href="/appointments/{app.id}" class="block p-3 rounded-xl border border-neutral-100 hover:border-indigo-300 bg-neutral-50 hover:bg-white transition-all group shadow-sm hover:shadow-md">
-						<div class="flex justify-between items-start mb-1">
-							<span class="text-xs font-bold {app.is_private ? 'text-rose-600' : 'text-indigo-600'}">{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</span>
-							{#if app.expand?.client?.[0]}
-								<span class="text-[10px] font-bold text-neutral-600 bg-neutral-200 px-1.5 py-0.5 rounded truncate max-w-100px">{app.expand.client[0].name_first} {app.expand.client[0].name_last}</span>
-							{/if}
-						</div>
-						<p class="text-sm font-semibold text-neutral-900 truncate">{app.description || 'Termin ohne Beschreibung'}</p>
-					</a>
-				{/each}
-			</div>
-		{/if}
-	</div>
-
-	<div class="orga-card-white p-6 animate-enter delay-200 flex flex-col">
-		<h2 class="text-lg font-bold text-neutral-800 mb-4 flex items-center gap-2"><span>💶</span> Offene Forderungen</h2>
-		{#if openInvoices.length === 0}
-			<p class="text-neutral-500 text-sm mt-2">Alle Rechnungen sind bezahlt!</p>
-		{:else}
-			<div class="flex-1 flex flex-col justify-center py-4">
-				<p class="text-3xl font-black text-rose-600 mb-1">{openInvoicesSum.toFixed(2).replace('.', ',')} €</p>
-				<p class="text-sm font-medium text-neutral-500">Aus {openInvoices.length} unbezahlten Rechnungen</p>
-			</div>
-			<a href="/invoices" class="mt-auto block text-center text-sm font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 py-2.5 rounded-xl transition-colors">Zur Rechnungsübersicht &rarr;</a>
-		{/if}
-	</div>
-
-	<div class="orga-card-white p-6 animate-enter delay-300 flex flex-col">
-		<h2 class="text-lg font-bold text-neutral-800 mb-4 flex items-center gap-2"><span>📈</span> System-Status</h2>
-		<div class="flex-1 flex flex-col justify-center space-y-4">
-			<div class="flex items-center justify-between p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-				<span class="text-sm font-bold text-emerald-900">Aktive Klienten</span>
-				<span class="text-xl font-black text-emerald-700">{activeClientsCount}</span>
-			</div>
-			<div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-100">
-				<span class="text-sm font-bold text-blue-900">Alle Termine</span>
-				<span class="text-xl font-black text-blue-700">{(orgaStore.appointments?.data || []).length}</span>
-			</div>
-		</div>
-		<a href="/clients" class="block text-center text-sm font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 py-2.5 rounded-xl transition-colors mt-4">Klienten verwalten &rarr;</a>
-	</div>
-    </div>
-
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-4 h-1/2">
-            <!-- Email Composer Bereich -->
-            <div class="animate-enter delay-200 h-1/4">
-                <EmailComposer />
+                <button onclick={() => window.dispatchEvent(new CustomEvent('add-sticky'))} class="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-200 text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center gap-1.5">
+                    <span class="text-sm">📌</span> Notizzettel
+                </button>
             </div>
-            
+        </header>
+        
+        <!-- Dashboard Begrüßung -->
+        <div class="mb-10 w-full animate-enter">
+            <Greetings />
+        </div>
+
+        <!-- Oberes Grid: Termine & Kalender -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Termine -->
+            <div class="orga-card-white p-6 animate-enter delay-100 flex flex-col lg:col-span-1 h-full">
+                <h2 class="text-lg font-bold text-neutral-800 mb-4 flex items-center gap-2"><span>📅</span> Heutige Termine</h2>
+                {#if todaysAppointments.length === 0}
+                    <p class="text-neutral-500 text-sm mt-2">Heute stehen keine Termine an. Lehnen Sie sich zurück!</p>
+                {:else}
+                    <div class="space-y-3 mt-2 flex-1 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                        {#each todaysAppointments as app}
+                            <button type="button" onclick={() => detailModal?.open(app.id)} class="w-full text-left block p-3 rounded-xl border border-neutral-100 hover:border-indigo-300 bg-neutral-50 hover:bg-white transition-all group shadow-sm hover:shadow-md">
+                                <div class="flex justify-between items-start mb-1">
+                                    <span class="text-xs font-bold {app.is_private ? 'text-rose-600' : 'text-indigo-600'}">{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</span>
+                                    {#if app.expand?.client?.[0]}
+                                        <span class="text-[10px] font-bold text-neutral-600 bg-neutral-200 px-1.5 py-0.5 rounded truncate max-w-[100px]">{app.expand.client[0].name_first} {app.expand.client[0].name_last}</span>
+                                    {/if}
+                                </div>
+                                <p class="text-sm font-semibold text-neutral-900 truncate">{app.description || 'Termin ohne Beschreibung'}</p>
+                            </button>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+
             <!-- Eingebetteter Kalender -->
-            <div class="orga-card-white overflow-hidden animate-enter delay-300 h-full flex flex-col">
-                <div class="p-6 border-b border-neutral-100 bg-neutral-50/50 flex justify-between items-center">
-                    <h2 class="text-lg font-bold text-neutral-900 flex items-center gap-2"><span>📅</span> Kalenderübersicht</h2>
+            <div class="orga-card-white overflow-hidden animate-enter delay-200 flex flex-col lg:col-span-2">
+                <div class="p-4 sm:p-6 border-b border-neutral-100 bg-neutral-50/50 flex justify-between items-center">
+                    <h2 class="text-lg font-bold text-neutral-900 flex items-center gap-2"><span>🗓️</span> Kalenderübersicht</h2>
                 </div>
-                <div class="p-4 sm:p-6 bg-white flex-1 min-h-[400px]">
+                <div class="p-0 sm:p-6 bg-white flex-1 min-h-[400px]">
                     <Calendar 
                         appointments={orgaStore.appointments?.data || []} 
                         clients={orgaStore.clients?.data || []} 
                         onNewAppointment={handleNewAppointment}
+                        isWidget={true}
                     />
                 </div>
             </div>
         </div>
+
+        <!-- Unteres Grid: Terminanfragen & Chat -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="animate-enter delay-300 h-full">
+                <AppointmentRequestsWidget />
+            </div>
+            <div class="animate-enter delay-400 h-full">
+                <ChatWidget />
+            </div>
+        </div>
+
     </div>
 </div>
 
 <AppointmentModal bind:this={appointmentModal} />
+<AppointmentDetailModal bind:this={detailModal} />

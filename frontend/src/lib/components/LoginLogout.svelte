@@ -9,13 +9,13 @@
 	let logoutDialog: HTMLDialogElement;
 
 	let isLoggedIn = $state(pb.authStore.isValid);
-	let userEmail = $state(pb.authStore.record?.email || '');
+	let userEmail = $state(pb.authStore.model?.email || '');
 	
 	// Sichere Formatierung des Vor- und Nachnamens
 	function getFullName(record: any) {
 		return record ? `${record.name_first || ''} ${record.name_last || ''}`.trim() : '';
 	}
-	let userName = $state(getFullName(pb.authStore.record));
+	let userName = $state(getFullName(pb.authStore.model));
 	let showLoginModal = $state(false);
 	let showLogoutModal = $state(false);
 
@@ -23,8 +23,8 @@
 	$effect(() => {
 		const unsubscribe = pb.authStore.onChange(() => {
 			isLoggedIn = pb.authStore.isValid;
-			userEmail = pb.authStore.record?.email || '';
-			userName = getFullName(pb.authStore.record);
+			userEmail = pb.authStore.model?.email || '';
+			userName = getFullName(pb.authStore.model);
 		});
 
 		return unsubscribe;

@@ -36,7 +36,14 @@ export function useDocumentGenerator() {
 
     let template = $derived(orgaStore.document_templates?.data.find(t => t.id === selectedTemplateId));
     let client = $derived(orgaStore.clients?.data.find(c => c.id === selectedClientId));
-    let company = $derived(orgaStore.company?.data[0]);
+    
+    // Holt gezielt die Firma des aktuell eingeloggten Nutzers (Rechnungserstellers)
+    let company = $derived.by(() => {
+        const user = pb.authStore.record;
+        if (!user || !user.company) return orgaStore.company?.data[0];
+        const userCompanyId = Array.isArray(user.company) ? user.company[0] : user.company;
+        return orgaStore.company?.data.find(c => c.id === userCompanyId) || orgaStore.company?.data[0];
+    });
 
     // --- AUTO-FILL LOGIK FÜR KLIENTEN-KONDITIONEN ---
     let lastClient = "";

@@ -3,6 +3,9 @@
 	import { page } from "$app/stores";
 	import { slide } from "svelte/transition";
 	import type { Snippet } from "svelte";
+	import { getMailboxService } from "$lib/services/mailboxService.svelte";
+	import { useRequestAdmin } from "$lib/services/requestAdminService.svelte";
+	import { onMount, onDestroy } from "svelte";
 
 	let { items = [] } = $props<{
 		items?: Array<{ label: string; href: string; icon: Snippet; roles?: string[] }>;
@@ -14,6 +17,25 @@
 	function toggleMenu() {
 		isMobileMenuOpen = !isMobileMenuOpen;
 	}
+
+	const mailboxService = getMailboxService();
+	const reqAdmin = useRequestAdmin();
+	
+	let isNotificationsOpen = $state(false);
+
+	onMount(() => {
+		// Initialer Ladevorgang für Badge-Counts im Hintergrund
+		mailboxService.loadFolders();
+		reqAdmin.init();
+	});
+
+	onDestroy(() => {
+		reqAdmin.cleanup();
+	});
+
+	let unreadMails = $derived(mailboxService.totalUnread || 0);
+	let pendingRequests = $derived(reqAdmin.requests.filter(r => r.status === 'requested').length);
+	let totalNotifications = $derived(unreadMails + pendingRequests);
 </script>
 
 <!-- Kopfzeile mit dynamischem Einbezug der Safe-Area (iPhone Notch etc.) via CSS env() -->
@@ -41,7 +63,70 @@
 			</div>
 		</div>
 		
-		<div class="flex items-center gap-4">
+		<div class="flex items-center gap-2 sm:gap-4">
+			<!-- Benachrichtigungs-Glocke -->
+			<div class="relative flex items-center">
+				<button 
+					class="p-2 text-neutral-500 hover:text-indigo-600 transition-colors relative rounded-full hover:bg-neutral-100 outline-none"
+					onclick={() => isNotificationsOpen = !isNotificationsOpen}
+					aria-label="Benachrichtigungen"
+				>
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+					</svg>
+					{#if totalNotifications > 0}
+						<span class="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+							<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+							<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+						</span>
+					{/if}
+				</button>
+
+				{#if isNotificationsOpen}
+					<!-- Backdrop zum Schließen beim Klicken ins Leere -->
+					<button class="fixed inset-0 w-full h-full cursor-default z-40" onclick={() => isNotificationsOpen = false} tabindex="-1" aria-label="Schließen"></button>
+					
+					<div class="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-white rounded-2xl shadow-xl border border-neutral-100 overflow-hidden z-50 animate-enter">
+						<div class="p-4 border-b border-neutral-100 bg-neutral-50/50 flex justify-between items-center">
+							<h3 class="font-bold text-neutral-900">Benachrichtigungen</h3>
+							{#if totalNotifications > 0}
+								<span class="text-xs font-bold text-neutral-500 bg-neutral-200/60 px-2 py-0.5 rounded-full">{totalNotifications}</span>
+							{/if}
+						</div>
+						<div class="max-h-[60vh] overflow-y-auto custom-scrollbar">
+							{#if totalNotifications === 0}
+								<div class="p-8 text-center flex flex-col items-center justify-center">
+									<span class="text-3xl mb-3 opacity-50">✨</span>
+									<p class="text-sm font-semibold text-neutral-900">Alles erledigt!</p>
+									<p class="text-xs text-neutral-500 mt-1">Du hast keine neuen Benachrichtigungen.</p>
+								</div>
+							{:else}
+								<div class="flex flex-col">
+									{#if unreadMails > 0}
+										<a href="/dashboard" onclick={() => isNotificationsOpen = false} class="p-4 border-b border-neutral-50 hover:bg-neutral-50 transition-colors flex items-start gap-3 cursor-pointer">
+											<div class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 shadow-inner">✉️</div>
+											<div>
+												<p class="text-sm font-bold text-neutral-900">{unreadMails} ungelesene E-Mail{unreadMails > 1 ? 's' : ''}</p>
+												<p class="text-xs text-neutral-500 mt-0.5">Posteingang überprüfen.</p>
+											</div>
+										</a>
+									{/if}
+									{#if pendingRequests > 0}
+										<a href="/dashboard" onclick={() => isNotificationsOpen = false} class="p-4 hover:bg-neutral-50 transition-colors flex items-start gap-3 cursor-pointer">
+											<div class="w-10 h-10 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center shrink-0 shadow-inner">📬</div>
+											<div>
+												<p class="text-sm font-bold text-neutral-900">{pendingRequests} Terminanfrage{pendingRequests > 1 ? 'n' : ''}</p>
+												<p class="text-xs text-neutral-500 mt-0.5">Neu auf dem Dashboard eingetroffen.</p>
+											</div>
+										</a>
+									{/if}
+								</div>
+							{/if}
+						</div>
+					</div>
+				{/if}
+			</div>
+
 			<LoginLogout />
 		</div>
 	</div>

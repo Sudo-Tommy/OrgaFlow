@@ -1,5 +1,6 @@
 <script lang="ts">
     import { page } from "$app/stores";
+    import { pb } from "$lib/services/pocketbase";
     import { orgaStore } from "$lib/stores/orgaStore.svelte";
     import ClientInfoCard from "$lib/components/ClientInfoCard.svelte";
     import ClientRelations from "$lib/components/ClientRelations.svelte";
@@ -9,6 +10,37 @@
     let clientId = $derived($page.params.id || '');
     let client = $derived(orgaStore.clients?.getById(clientId));
     let editModal: ReturnType<typeof ClientEditModal> | undefined = $state();
+
+    // --- Notizen Logik ---
+    let notes = $state("");
+    let isNotesSaving = $state(false);
+    let currentClientIdForNotes = $state<string | null>(null);
+
+    // Synchronisiert das Textfeld, wenn ein (anderer) Klient geladen wird
+    $effect(() => {
+        if (client && client.id !== currentClientIdForNotes) {
+            notes = client.notes || "";
+            currentClientIdForNotes = client.id;
+        }
+    });
+
+    async function saveNotes() {
+        if (!client) return;
+        isNotesSaving = true;
+        try {
+            await pb.collection('clients').update(client.id, { notes });
+            
+            // Realtime Update im Store erzwingen, für sofortiges UI-Feedback
+            const updatedClient = await pb.collection('clients').getOne(client.id, { expand: 'insurance,retirement_homes,contacts' });
+            const index = orgaStore.clients?.data.findIndex(c => c.id === client.id) ?? -1;
+            if (index !== -1 && orgaStore.clients) orgaStore.clients.data[index] = updatedClient;
+        } catch (err) {
+            console.error(err);
+            alert("Fehler beim Speichern der Notizen.");
+        } finally {
+            isNotesSaving = false;
+        }
+    }
 </script>
 
 <div class="orga-page-header animate-enter">
@@ -56,8 +88,28 @@
 {:else}
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-8 xl:gap-10 pb-12">
-        <div class="xl:col-span-1 animate-enter delay-100">
+        <div class="xl:col-span-1 space-y-6 animate-enter delay-100">
             <ClientInfoCard {client} />
+
+            <!-- Notizen Bereich -->
+            <div class="orga-card-white p-6 md:p-8">
+                <h2 class="text-lg font-bold text-neutral-900 mb-4 flex items-center gap-2 border-b border-neutral-100 pb-4">
+                    <span>📝</span> Klienten-Notizen
+                </h2>
+                <div class="flex flex-col gap-3">
+                    <textarea 
+                        bind:value={notes} 
+                        class="orga-input-clear resize-y min-h-[150px] text-sm" 
+                        placeholder="Besondere Vorkommnisse, Krankheiten oder wichtige Hinweise zu diesem Klienten..."
+                        disabled={isNotesSaving}
+                    ></textarea>
+                    <div class="flex justify-end mt-1">
+                        <button onclick={saveNotes} disabled={isNotesSaving || notes === (client.notes || '')} class="orga-button-primary py-2 px-5 text-sm">
+                            {isNotesSaving ? 'Speichert...' : 'Speichern'}
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="xl:col-span-2 animate-enter delay-200">
             <ClientRelations {clientId} />

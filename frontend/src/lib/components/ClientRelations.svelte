@@ -2,6 +2,8 @@
     import { orgaStore } from "$lib/stores/orgaStore.svelte";
     import ClientLinkContactModal from "./ClientLinkContactModal.svelte";
     import ClientLinkHomeModal from "./ClientLinkHomeModal.svelte";
+    import AppointmentModal from "./AppointmentModal.svelte";
+    import AppointmentDetailModal from "./AppointmentDetailModal.svelte";
 
     let { clientId } = $props<{ clientId: string }>();
 
@@ -16,6 +18,8 @@
 
     let linkContactModal: ReturnType<typeof ClientLinkContactModal> | undefined = $state();
     let linkHomeModal: ReturnType<typeof ClientLinkHomeModal> | undefined = $state();
+    let appointmentModal: ReturnType<typeof AppointmentModal> | undefined = $state();
+    let detailModal: ReturnType<typeof AppointmentDetailModal> | undefined = $state();
 
     // Helper um live zu prüfen, ob dieser Termin bereits in einer Rechnung auftaucht
     function isAppointmentBilled(appId: string) {
@@ -34,7 +38,7 @@
             <h3 class="text-base font-bold text-neutral-900 flex items-center gap-2">
                 <span class="w-8 h-8 flex items-center justify-center bg-indigo-100 text-indigo-600 rounded-lg shadow-inner text-sm">📅</span> Termine
             </h3>
-            <button aria-label="Termin hinzufügen" title="Neuer Termin" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-neutral-200 text-neutral-600 hover:text-indigo-600 hover:border-indigo-200 transition-colors shadow-sm">
+            <button onclick={() => appointmentModal?.open({ preselectedClient: clientId })} aria-label="Termin hinzufügen" title="Neuer Termin" class="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-neutral-200 text-neutral-600 hover:text-indigo-600 hover:border-indigo-200 transition-colors shadow-sm">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
             </button>
         </div>
@@ -47,8 +51,7 @@
             {:else}
                 <ul class="space-y-4">
                     {#each appointments as app}
-                        <!-- Sauberes Routing: Link direkt zur Termin-Bearbeitung -->
-                        <a href="/appointments/{app.id}" class="group flex flex-col gap-2 p-4 rounded-xl hover:bg-indigo-50/50 transition-colors border border-neutral-100 hover:border-indigo-200 cursor-pointer shadow-sm hover:shadow-md">
+                        <button type="button" onclick={() => detailModal?.open(app.id)} class="w-full text-left group flex flex-col gap-2 p-4 rounded-xl hover:bg-indigo-50/50 transition-colors border border-neutral-100 hover:border-indigo-200 cursor-pointer shadow-sm hover:shadow-md">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="flex items-start gap-2.5">
                                     <div class="w-2.5 h-2.5 mt-1.5 rounded-full {isAppointmentBilled(app.id) ? 'bg-emerald-400' : 'bg-amber-400'} group-hover:scale-125 transition-transform shadow-sm shrink-0"></div>
@@ -93,7 +96,7 @@
                                         {/if}
                                     </div>
                                 {/if}
-                        </a>
+                        </button>
                     {/each}
                 </ul>
             {/if}
@@ -207,3 +210,5 @@
 
 <ClientLinkContactModal bind:this={linkContactModal} client={clientData} />
 <ClientLinkHomeModal bind:this={linkHomeModal} client={clientData} />
+<AppointmentModal bind:this={appointmentModal} />
+<AppointmentDetailModal bind:this={detailModal} />

@@ -2,11 +2,37 @@
     import { useDocumentGenerator } from "$lib/services/documentGeneratorService.svelte";
     import { orgaStore } from "$lib/stores/orgaStore.svelte";
     import { pb } from "$lib/services/pocketbase";
+    import { sendEmail } from "$lib/services/emailService";
 
     let dialog: HTMLDialogElement;
     const service = useDocumentGenerator();
-    let pdfContainerRef: HTMLDivElement | null = null;
-    let timesheetPdfContainerRef: HTMLDivElement | null = null;
+    let pdfContainerRef = $state<HTMLDivElement | null>(null);
+    let timesheetPdfContainerRef = $state<HTMLDivElement | null>(null);
+
+    let generatedPdfBlob = $state<Blob | null>(null);
+    let generatedTsBlob = $state<Blob | null>(null);
+    let generatedFilename = $state("");
+    let generatedTsFilename = $state("");
+
+    let emailTo = $state("");
+    let emailSubject = $state("");
+    let emailText = $state("");
+    let isEmailSending = $state(false);
+    let emailSuccessMsg = $state("");
+
+    function getRecipientEmail() {
+        if (service.recipientType === 'client') return service.client?.email || "";
+        if (service.recipientType === 'contact') {
+            const contact = service.client?.expand?.contacts?.find((c:any) => c.id === service.recipientId);
+            return contact?.email || "";
+        }
+        if (service.recipientType === 'insurance') return service.client?.expand?.insurance?.email || "";
+        if (service.recipientType === 'home') {
+            const home = service.client?.expand?.retirement_homes?.find((h:any) => h.id === service.recipientId);
+            return home?.email || "";
+        }
+        return "";
+    }
 
     export function open(preselectedTemplateId?: string, startStep: number = 1) {
         service.reset();
@@ -14,6 +40,10 @@
         service.selectedTemplateId = preselectedTemplateId || "";
         service.selectedClientId = "";
         service.selectedAppointmentIds = [];
+        generatedPdfBlob = null;
+        generatedTsBlob = null;
+        emailSuccessMsg = "";
+        emailTo = "";
         dialog?.showModal();
     }
 
@@ -58,6 +88,88 @@
         if (service.step === 2) { service.step = 1; return; }
     }
 
+    function downloadManually() {
+        if (generatedPdfBlob) {
+            const url = URL.createObjectURL(generatedPdfBlob);
+            const aTag = document.createElement('a');
+            aTag.href = url;
+            aTag.download = generatedFilename;
+            aTag.click();
+        }
+        if (generatedTsBlob) {
+            const url = URL.createObjectURL(generatedTsBlob);
+            const aTag = document.createElement('a');
+            aTag.href = url;
+            aTag.download = generatedTsFilename;
+            aTag.click();
+        }
+    }
+
+    function blobToBase64(blob: Blob): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                if (typeof reader.result === 'string') resolve(reader.result.split(',')[1]);
+                else reject(new Error("Failed to convert blob to base64"));
+            };
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    async function sendPdfViaEmail() {
+        isEmailSending = true;
+        try {
+            const attachments = [];
+            if (generatedPdfBlob) attachments.push({ filename: generatedFilename, content: await blobToBase64(generatedPdfBlob), encoding: 'base64' });
+            if (generatedTsBlob) attachments.push({ filename: generatedTsFilename, content: await blobToBase64(generatedTsBlob), encoding: 'base64' });
+
+            const user = pb.authStore.model;
+            const userName = user ? `${user.name_first || ''} ${user.name_last || ''}`.trim() : 'Ihre Seniorenassistenz';
+            const userEmail = user?.email || 'info@ihre-seniorenassistenz.com';
+            const userPhone = user?.handy || user?.tel || '0151 57515432';
+
+            const textEmail = `${emailText.trim()}\n\n--\n${userName}\nIhre Seniorenassistenz\nDreyhauptstraße 2, 06108 Halle (Saale)\nTelefon: ${userPhone}\nE-Mail: ${userEmail}\nWeb: www.ihre-seniorenassistenz.com`;
+
+            const htmlEmail = `
+                <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #374151; max-width: 650px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    <div style="background-color: #fdf8f6; padding: 25px 30px; border-bottom: 3px solid #c66a4d;">
+                        <h1 style="color: #954028; margin: 0; font-size: 24px; letter-spacing: -0.5px;">Ihre Seniorenassistenz</h1>
+                        <p style="color: #c66a4d; margin: 4px 0 0 0; font-size: 14px; font-weight: 500;">Alltagshilfe • Betreuung • Organisation</p>
+                    </div>
+                    <div style="padding: 30px; font-size: 15px; line-height: 1.6; color: #1f2937; background-color: #ffffff;">
+                        ${emailText.trim().replace(/\n/g, '<br>')}
+                    </div>
+                    <div style="background-color: #f8fafc; padding: 25px 30px; border-top: 1px solid #e5e7eb;">
+                        <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 13px; color: #4b5563;">
+                            <tr>
+                                <td style="padding-bottom: 15px;">
+                                    <strong style="color: #111827; font-size: 16px;">${userName}</strong><br>
+                                    <span style="color: #c66a4d;">Ihre Ansprechperson</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="line-height: 1.6;">
+                                    <strong>Ihre Seniorenassistenz</strong><br>
+                                    Dreyhauptstraße 2<br>
+                                    06108 Halle (Saale)<br><br>
+                                    📞 <a href="tel:${userPhone}" style="color: #c66a4d; text-decoration: none;">${userPhone}</a><br>
+                                    ✉️ <a href="mailto:${userEmail}" style="color: #c66a4d; text-decoration: none;">${userEmail}</a><br>
+                                    🌐 <a href="https://www.ihre-seniorenassistenz.com" style="color: #c66a4d; text-decoration: none;">www.ihre-seniorenassistenz.com</a>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            await sendEmail({ to: emailTo, subject: emailSubject, text: textEmail, html: htmlEmail, attachments });
+            emailSuccessMsg = "E-Mail wurde erfolgreich mit Anhang versendet!";
+        } catch (err: any) {
+            console.error(err);
+            alert("Fehler beim Senden der E-Mail: " + err.message);
+        } finally { isEmailSending = false; }
+    }
+
     async function generate() {
         if (!pdfContainerRef) return;
         service.isLoading = true;
@@ -72,13 +184,11 @@
             const opt = {
                 margin: 0,
                 filename: filename,
-                image: { type: 'jpeg' as const, quality: 1.0 },
-                html2canvas: { scale: 4, useCORS: true, letterRendering: true },
+                image: { type: 'jpeg' as const, quality: 0.95 },
+                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
                 jsPDF: { unit: 'px', format: [794, 1123], orientation: service.template?.content_html?.orientation || 'portrait' }
             };
 
-            // WICHTIG: html2pdf verschluckt sich, wenn man zwei PDFs gleichzeitig (Promise.all) rendern will.
-            // Wir müssen sie strikt nacheinander generieren!
             const pdfBlob = await html2pdf().set(opt).from(pdfContainerRef).output('blob');
 
             let tsFilename = "";
@@ -88,8 +198,8 @@
                 const optTs = {
                     margin: 0,
                     filename: tsFilename,
-                    image: { type: 'jpeg' as const, quality: 1.0 },
-                    html2canvas: { scale: 4, useCORS: true, letterRendering: true },
+                    image: { type: 'jpeg' as const, quality: 0.95 },
+                    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
                     jsPDF: { unit: 'px', format: [794, 1123], orientation: service.timesheetTemplate.content_html?.orientation || 'portrait' }
                 };
                 tsBlob = await html2pdf().set(optTs).from(timesheetPdfContainerRef).output('blob');
@@ -98,7 +208,7 @@
             // Wenn es eine Rechnung ist, speichern wir sie als echten Datensatz im System
             if (service.isInvoice && service.invoiceData) {
                 const pbFormData = new FormData();
-                pbFormData.append('user', pb.authStore.record?.id || '');
+                pbFormData.append('user', pb.authStore.model?.id || '');
                 pbFormData.append('client', service.selectedClientId);
                 pbFormData.append('invoice_nr', service.invoiceData.invoice_nr);
                 pbFormData.append('issue_date', new Date(service.invoiceData.issue_date).toISOString());
@@ -127,12 +237,21 @@
                 await pb.collection('invoices').create(pbFormData);
                 service.successMsg = "Rechnung erfolgreich generiert und in der Datenbank gespeichert!";
             } else {
-                // Wenn es keine Rechnung ist, triggern wir einfach den Download für den Nutzer
-                html2pdf().set(opt).from(pdfContainerRef).save();
-                service.successMsg = "Dokument erfolgreich heruntergeladen!";
+                service.successMsg = "Dokument erfolgreich generiert!";
             }
             
-            setTimeout(() => { close(); service.reset(); }, 2500);
+            generatedPdfBlob = pdfBlob;
+            generatedFilename = filename;
+            if (tsBlob) {
+                generatedTsBlob = tsBlob;
+                generatedTsFilename = tsFilename;
+            }
+
+            emailTo = getRecipientEmail();
+            emailSubject = `Ihre Dokumente: ${filename.replace('.pdf', '')}`;
+            emailText = `Guten Tag,\n\nanbei erhalten Sie die gewünschten Dokumente.\n\nMit freundlichen Grüßen\nIhre Seniorenassistenz`;
+            
+            service.step = 5;
         } catch (err: any) {
             console.error(err);
             service.errorMsg = err.message || "Fehler bei der Generierung.";
@@ -153,10 +272,10 @@
             <div class="h-1.5 flex-1 rounded-full {service.step >= 2 ? 'bg-indigo-600' : 'bg-neutral-100'} transition-colors"></div>
             {#if service.requiresAppointments}<div class="h-1.5 flex-1 rounded-full {service.step >= 3 ? 'bg-indigo-600' : 'bg-neutral-100'} transition-colors"></div>{/if}
             <div class="h-1.5 flex-1 rounded-full {service.step >= 4 ? 'bg-indigo-600' : 'bg-neutral-100'} transition-colors"></div>
+            <div class="h-1.5 flex-1 rounded-full {service.step >= 5 ? 'bg-indigo-600' : 'bg-neutral-100'} transition-colors"></div>
         </div>
 
         {#if service.errorMsg}<div class="bg-red-50 text-red-600 p-4 rounded-xl mb-4 text-sm font-medium border border-red-100">{service.errorMsg}</div>{/if}
-        {#if service.successMsg}<div class="bg-emerald-50 text-emerald-600 p-4 rounded-xl mb-4 text-sm font-medium border border-emerald-100">{service.successMsg}</div>{/if}
 
         <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 mb-4">
             {#if service.step === 1}
@@ -209,12 +328,47 @@
                     {/if}
                 </div>
                 <div class="mt-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-start gap-3"><span class="text-xl">📄</span><p class="text-sm text-indigo-900">Das Dokument wird nun hochauflösend als PDF generiert. Dies kann wenige Sekunden dauern.</p></div>
+            {:else if service.step === 5}
+                <h3 class="text-lg font-bold text-neutral-800 mb-4">Fertig!</h3>
+                <div class="bg-emerald-50 border border-emerald-100 p-4 rounded-xl mb-6 flex items-start gap-3">
+                    <span class="text-xl">✅</span>
+                    <div>
+                        <p class="font-bold text-emerald-900">{service.successMsg}</p>
+                        <p class="text-sm text-emerald-700 mt-1">Sie können das Dokument nun herunterladen oder direkt per E-Mail versenden.</p>
+                    </div>
+                </div>
+
+                {#if emailSuccessMsg}
+                    <div class="bg-blue-50 border border-blue-200 p-6 rounded-xl text-center">
+                        <span class="text-3xl mb-2 block">📨</span>
+                        <p class="font-bold text-blue-900">{emailSuccessMsg}</p>
+                    </div>
+                {:else}
+                    <div class="border border-neutral-200 rounded-xl p-5 bg-neutral-50/50">
+                        <h4 class="font-bold text-neutral-800 mb-3 flex items-center gap-2"><span>✉️</span> Direkt als E-Mail versenden</h4>
+                        <div class="space-y-4">
+                            <div><label for="emailTo" class="block text-xs font-semibold text-neutral-600 mb-1">Empfänger (An)</label><input id="emailTo" type="email" bind:value={emailTo} class="orga-input-clear py-2 text-sm" disabled={isEmailSending} /></div>
+                            <div><label for="emailSubject" class="block text-xs font-semibold text-neutral-600 mb-1">Betreff</label><input id="emailSubject" type="text" bind:value={emailSubject} class="orga-input-clear py-2 text-sm" disabled={isEmailSending} /></div>
+                            <div><label for="emailText" class="block text-xs font-semibold text-neutral-600 mb-1">Nachricht</label><textarea id="emailText" bind:value={emailText} rows="4" class="orga-input-clear py-2 text-sm resize-none" disabled={isEmailSending}></textarea></div>
+                            <div class="flex flex-wrap gap-2 pt-2 mt-2 border-t border-neutral-100">
+                                <div class="flex items-center gap-2 bg-neutral-100 text-neutral-700 px-3 py-1.5 rounded-lg text-sm border border-neutral-200 shadow-sm animate-enter">
+                                    <span class="truncate max-w-[200px] font-medium">📎 {generatedFilename}</span>
+                                </div>
+                                {#if generatedTsBlob}
+                                    <div class="flex items-center gap-2 bg-neutral-100 text-neutral-700 px-3 py-1.5 rounded-lg text-sm border border-neutral-200 shadow-sm animate-enter delay-100">
+                                        <span class="truncate max-w-[200px] font-medium">📎 {generatedTsFilename}</span>
+                                    </div>
+                                {/if}
+                            </div>
+                        </div>
+                    </div>
+                {/if}
             {/if}
         </div>
 
         <div class="pt-4 flex justify-between gap-3 border-t border-neutral-100 shrink-0">
-            {#if service.step > 1}<button type="button" onclick={prev} class="orga-button-ghost py-2.5 px-6" disabled={service.isLoading}>Zurück</button>{:else}<div></div>{/if}
-            {#if service.step < 4}<button type="button" onclick={next} class="orga-button-primary py-2.5 px-6" disabled={service.isLoading}>Weiter &rarr;</button>{:else}<button type="button" onclick={generate} class="orga-button-primary py-2.5 px-8 shadow-indigo-600/30" disabled={service.isLoading}>{#if service.isLoading}<div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Generiert...{:else}PDF Generieren{/if}</button>{/if}
+            {#if service.step > 1 && service.step < 5}<button type="button" onclick={prev} class="orga-button-ghost py-2.5 px-6" disabled={service.isLoading}>Zurück</button>{:else if service.step === 5}<button type="button" onclick={downloadManually} class="orga-button-ghost py-2.5 px-6" disabled={isEmailSending}>Herunterladen</button>{:else}<div></div>{/if}
+            {#if service.step < 4}<button type="button" onclick={next} class="orga-button-primary py-2.5 px-6" disabled={service.isLoading}>Weiter &rarr;</button>{:else if service.step === 4}<button type="button" onclick={generate} class="orga-button-primary py-2.5 px-8 shadow-indigo-600/30" disabled={service.isLoading}>{#if service.isLoading}<div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Generiert...{:else}PDF Generieren{/if}</button>{:else if service.step === 5}{#if !emailSuccessMsg}<button type="button" onclick={sendPdfViaEmail} class="orga-button-primary py-2.5 px-6" disabled={isEmailSending || !emailTo}>{isEmailSending ? 'Wird gesendet...' : 'E-Mail senden ✉️'}</button>{:else}<button type="button" onclick={() => { close(); service.reset(); }} class="orga-button-primary py-2.5 px-6">Fertig</button>{/if}{/if}
         </div>
     </div>
 </dialog>

@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { MailboxFolder } from '$lib/services/mailboxService.svelte';
-  import { MailPlus, Mail, Settings, RefreshCw, Inbox } from 'lucide-svelte';
 
   interface Props {
     folders: MailboxFolder[];
@@ -32,7 +31,7 @@
         disabled={isLoading}
         class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
       >
-        <MailPlus size={18} />
+        <span class="text-base">📝</span>
         <span class="text-sm font-medium">Neue Mail</span>
       </button>
     </div>
@@ -41,7 +40,7 @@
       onclick={onConfigClick}
       class="w-full px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded flex items-center gap-2"
     >
-      <Settings size={16} />
+      <span class="text-base">⚙️</span>
       Einstellungen
     </button>
   </div>
@@ -69,7 +68,7 @@
             }`}
           >
             <div class="flex items-center gap-3 flex-1 min-w-0">
-              <Inbox size={16} class="shrink-0" />
+              <span class="text-base shrink-0">📥</span>
               <div class="min-w-0">
                 <p class="font-medium truncate">{folder.folder_name}</p>
                 <p class="text-xs text-gray-500">{folder.total_count || 0} E-Mails</p>

@@ -1,13 +1,76 @@
 <script lang="ts">
+    import { pb } from '$lib/services/pocketbase';
     import { sendEmail } from '$lib/services/emailService';
+    import { onMount } from 'svelte';
     
     let to = $state('');
+    let cc = $state('');
+    let bcc = $state('');
+    let showCcBcc = $state(false);
     let subject = $state('');
     let message = $state('');
     
     let isSending = $state(false);
     let successMsg = $state('');
     let errorMsg = $state('');
+    
+    let attachments = $state<File[]>([]);
+
+    let systemContacts = $state<{name: string, email: string}[]>([]);
+
+    onMount(async () => {
+        try {
+            const [clients, contacts, users] = await Promise.all([
+                pb.collection('clients').getFullList({ fields: 'name_first,name_last,email', requestKey: null }).catch(()=>[]),
+                pb.collection('contacts').getFullList({ fields: 'name_first,name_last,email', requestKey: null }).catch(()=>[]),
+                pb.collection('users').getFullList({ fields: 'name_first,name_last,email', requestKey: null }).catch(()=>[])
+            ]);
+
+            const all = [...clients, ...contacts, ...users]
+                .filter(record => record.email)
+                .map(record => ({
+                    name: `${record.name_first || ''} ${record.name_last || ''}`.trim() || 'Unbekannt',
+                    email: record.email
+                }));
+
+            systemContacts = Array.from(new Map(all.map(item => [item.email, item])).values());
+        } catch (error) {
+            console.error("Konnte Adressbuch nicht laden:", error);
+        }
+    });
+
+    function addRecipient(email: string) {
+        if (to) {
+            const currentEmails = to.split(',').map(e => e.trim());
+            if (!currentEmails.includes(email)) to += `, ${email}`;
+        } else {
+            to = email;
+        }
+    }
+
+    function handleFileSelect(e: Event) {
+        const input = e.target as HTMLInputElement;
+        if (input.files) {
+            attachments = [...attachments, ...Array.from(input.files)];
+        }
+        input.value = ''; // Reset für erneute Auswahl
+    }
+
+    function removeAttachment(index: number) {
+        attachments = attachments.filter((_, i) => i !== index);
+    }
+
+    function fileToBase64(file: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => {
+                const result = reader.result as string;
+                resolve(result.split(',')[1]); // Nur den Base64-Teil ohne "data:..." Präfix zurückgeben
+            };
+            reader.onerror = error => reject(error);
+        });
+    }
     
     async function handleSend(e: Event) {
         e.preventDefault();
@@ -21,17 +84,72 @@
         successMsg = '';
         
         try {
+            // 1. Daten des eingeloggten Nutzers abrufen
+            const user = pb.authStore.model;
+            const userName = user ? `${user.name_first || ''} ${user.name_last || ''}`.trim() : 'Ihre Seniorenassistenz';
+            const userEmail = user?.email || 'info@ihre-seniorenassistenz.com';
+            const userPhone = user?.handy || user?.tel || '0151 57515432';
+            
+            // 2. Wunderschöne HTML-Mail (Header, Body, Footer) zusammenbauen
+            const htmlEmail = `
+                <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #374151; max-width: 650px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    <div style="background-color: #fdf8f6; padding: 25px 30px; border-bottom: 3px solid #c66a4d;">
+                        <h1 style="color: #954028; margin: 0; font-size: 24px; letter-spacing: -0.5px;">Ihre Seniorenassistenz</h1>
+                        <p style="color: #c66a4d; margin: 4px 0 0 0; font-size: 14px; font-weight: 500;">Alltagshilfe • Betreuung • Organisation</p>
+                    </div>
+                    <div style="padding: 30px; font-size: 15px; line-height: 1.6; color: #1f2937; background-color: #ffffff;">
+                        ${message.replace(/\n/g, '<br>')}
+                    </div>
+                    <div style="background-color: #f8fafc; padding: 25px 30px; border-top: 1px solid #e5e7eb;">
+                        <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 13px; color: #4b5563;">
+                            <tr>
+                                <td style="padding-bottom: 15px;">
+                                    <strong style="color: #111827; font-size: 16px;">${userName}</strong><br>
+                                    <span style="color: #c66a4d;">Ihre Ansprechperson</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="line-height: 1.6;">
+                                    <strong>Ihre Seniorenassistenz</strong><br>
+                                    Dreyhauptstraße 2<br>
+                                    06108 Halle (Saale)<br><br>
+                                    📞 <a href="tel:${userPhone}" style="color: #c66a4d; text-decoration: none;">${userPhone}</a><br>
+                                    ✉️ <a href="mailto:${userEmail}" style="color: #c66a4d; text-decoration: none;">${userEmail}</a><br>
+                                    🌐 <a href="https://www.ihre-seniorenassistenz.com" style="color: #c66a4d; text-decoration: none;">www.ihre-seniorenassistenz.com</a>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            // 3. Fallback für einfache Text-Clients
+            const textEmail = `${message}\n\n--\n${userName}\nIhre Seniorenassistenz\nDreyhauptstraße 2, 06108 Halle (Saale)\nTelefon: ${userPhone}\nE-Mail: ${userEmail}\nWeb: www.ihre-seniorenassistenz.com`;
+
+            // 4. Anhänge vorbereiten
+            const attachmentPayload = await Promise.all(attachments.map(async (file) => ({
+                filename: file.name,
+                content: await fileToBase64(file),
+                encoding: 'base64'
+            })));
+
             await sendEmail({
                 to,
+                cc: cc || undefined,
+                bcc: bcc || undefined,
                 subject,
-                text: message,
-                // Optionale Umwandlung von Zeilenumbrüchen für HTML-Clients
-                html: message.replace(/\n/g, '<br>')
+                text: textEmail,
+                html: htmlEmail,
+                attachments: attachmentPayload.length > 0 ? attachmentPayload : undefined
             });
             successMsg = 'Ihre E-Mail wurde erfolgreich versendet!';
             to = '';
+            cc = '';
+            bcc = '';
             subject = '';
             message = '';
+            attachments = [];
+            showCcBcc = false;
             
             // Erfolgsmeldung nach 5 Sekunden ausblenden
             setTimeout(() => {
@@ -63,11 +181,48 @@
     {/if}
     
     <form onsubmit={handleSend} class="space-y-5 flex-1 flex flex-col">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="grid grid-cols-1 gap-5">
             <div>
-                <label for="to" class="block text-sm font-bold text-neutral-700 mb-1.5">Empfänger</label>
-                <input type="email" id="to" bind:value={to} class="orga-input-clear w-full" placeholder="klient@beispiel.de" required disabled={isSending} />
+                <div class="flex items-center justify-between mb-1.5">
+                    <label for="to" class="block text-sm font-bold text-neutral-700">Empfänger (Kommagetrennt für mehrere)</label>
+                    <button type="button" onclick={() => showCcBcc = !showCcBcc} class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">{showCcBcc ? '− CC / BCC ausblenden' : '+ CC / BCC hinzufügen'}</button>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="to" bind:value={to} list="contact-list" class="orga-input-clear w-full flex-1" placeholder="klient@beispiel.de, kollege@beispiel.de" required disabled={isSending} />
+                    <select 
+                        class="orga-input-clear w-auto bg-neutral-50 cursor-pointer max-w-[200px] text-sm font-medium"
+                        onchange={(e) => {
+                            const val = (e.target as HTMLSelectElement).value;
+                            if(val) addRecipient(val);
+                            (e.target as HTMLSelectElement).value = "";
+                        }}
+                        disabled={isSending}
+                    >
+                        <option value="">+ Adressbuch</option>
+                        {#each systemContacts as contact}
+                            <option value={contact.email}>{contact.name} ({contact.email})</option>
+                        {/each}
+                    </select>
+                </div>
+                <datalist id="contact-list">
+                    {#each systemContacts as contact}
+                        <option value={contact.email}>{contact.name}</option>
+                    {/each}
+                </datalist>
             </div>
+            
+            {#if showCcBcc}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 animate-enter">
+                    <div>
+                        <label for="cc" class="block text-sm font-bold text-neutral-700 mb-1.5">CC (Kopie)</label>
+                        <input type="text" id="cc" bind:value={cc} list="contact-list" class="orga-input-clear w-full" placeholder="z.B. kollege@beispiel.de" disabled={isSending} />
+                    </div>
+                    <div>
+                        <label for="bcc" class="block text-sm font-bold text-neutral-700 mb-1.5">BCC (Blindkopie)</label>
+                        <input type="text" id="bcc" bind:value={bcc} list="contact-list" class="orga-input-clear w-full" placeholder="z.B. privat@beispiel.de" disabled={isSending} />
+                    </div>
+                </div>
+            {/if}
             
             <div>
                 <label for="subject" class="block text-sm font-bold text-neutral-700 mb-1.5">Betreff</label>
@@ -78,9 +233,29 @@
         <div class="flex-1 flex flex-col">
             <label for="message" class="block text-sm font-bold text-neutral-700 mb-1.5">Nachricht</label>
             <textarea id="message" bind:value={message} class="orga-input-clear flex-1 min-h-[160px] resize-none w-full" placeholder="Guten Tag..." required disabled={isSending}></textarea>
+            
+            <!-- Dateianhänge Vorschau -->
+            {#if attachments.length > 0}
+                <div class="flex flex-wrap gap-2 mt-3">
+                    {#each attachments as file, i}
+                        <div class="flex items-center gap-2 bg-neutral-100 text-neutral-700 px-3 py-1.5 rounded-lg text-sm border border-neutral-200 shadow-sm animate-enter">
+                            <span class="truncate max-w-[200px] font-medium">📎 {file.name}</span>
+                            <button type="button" onclick={() => removeAttachment(i)} class="text-rose-500 hover:text-rose-700 font-bold ml-1" disabled={isSending} title="Anhang entfernen">✕</button>
+                        </div>
+                    {/each}
+                </div>
+            {/if}
         </div>
         
-        <div class="pt-2 flex justify-end">
+        <div class="pt-2 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+                <!-- Verstecktes Dateifeld, wird über den Button getriggert -->
+                <input type="file" id="file-upload" multiple class="hidden" onchange={handleFileSelect} disabled={isSending} />
+                <button type="button" onclick={() => document.getElementById('file-upload')?.click()} class="flex items-center gap-2 text-sm font-bold text-neutral-600 hover:text-indigo-600 transition-colors px-4 py-2.5 bg-neutral-50 hover:bg-indigo-50 border border-neutral-200 hover:border-indigo-200 rounded-xl" disabled={isSending}>
+                    <span class="text-lg">📎</span> Datei anhängen
+                </button>
+            </div>
+            
             <button type="submit" class="orga-button-primary w-full md:w-auto" disabled={isSending}>
                 {#if isSending}
                     <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

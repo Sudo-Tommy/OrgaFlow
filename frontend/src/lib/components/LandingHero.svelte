@@ -13,6 +13,6 @@
     
     <div class="flex flex-col sm:flex-row gap-4">
         <button onclick={() => scrollToSection('leistungen')} class="orga-button-primary">Unsere Leistungen entdecken</button>
-        <button onclick={() => scrollToSection('kontakt')} class="orga-button-ghost">Kontakt aufnehmen</button>
+        <button onclick={() => scrollToSection('terminanfrage')} class="orga-button-ghost">Kontakt aufnehmen</button>
     </div>
 </div>

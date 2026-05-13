@@ -46,7 +46,7 @@
         <p>Versuchen Sie, die Suchkriterien anzupassen, oder legen Sie einen neuen Klienten an.</p>
     </div>
 {:else}
-    <div class="orga-grid">
+    <div class="orga-grid grid-cols-1 sm:grid-cols-6 gap-6 animate-enter delay-200 ">
         {#each filterService.filtered as client, i (client.id)}
             <a href="/clients/{client.id}" class="orga-client-card group animate-enter overflow-hidden" style="animation-delay: {150 + (i * 50)}ms">
                 <!-- Dekorativer Hover-Blob im Hintergrund -->

@@ -10,9 +10,9 @@ export const pb = new PocketBase(pbUrl);
 // Funktion, um die PocketBase-Session am Leben zu halten
 export function keepPocketBaseAlive() {
     const interval = setInterval(async () => {
-        if (pb.authStore.isValid && pb.authStore.record) {
+        if (pb.authStore.isValid && pb.authStore.model) {
             try {
-                const collectionName = pb.authStore.record.collectionName;
+                const collectionName = pb.authStore.model.collectionName;
                 await pb.collection(collectionName).authRefresh();
             } catch (error) {
                 console.warn('Failed to refresh auth:', error);

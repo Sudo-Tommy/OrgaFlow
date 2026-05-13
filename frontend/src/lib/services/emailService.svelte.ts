@@ -1,5 +1,6 @@
 import { pb } from './pocketbase';
 import type { RecordModel } from 'pocketbase';
+import { fetchInbox, MICROSERVICE_URL } from './emailService';
 
 /**
  * Email Service
@@ -42,6 +43,18 @@ export interface EmailFilter {
   isRead?: boolean;
   fromAddress?: string;
   search?: string;
+}
+
+function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            const result = reader.result as string;
+            resolve(result.split(',')[1]);
+        };
+        reader.onerror = error => reject(error);
+    });
 }
 
 export function createEmailService() {
@@ -97,7 +110,7 @@ export function createEmailService() {
           throw new Error('User not authenticated');
         }
 
-        let filterStr = `user = "${authData.id}" && folder = "${filter.folder}"`;
+        let filterStr = `folder = "${filter.folder}"`;
         
         if (filter.isRead !== undefined) {
           filterStr += ` && is_read = ${filter.isRead}`;
@@ -109,8 +122,7 @@ export function createEmailService() {
         const records = await pb.collection('mailbox_messages').getFullList<MailboxMessage>({
           filter: filterStr,
           sort: '-date',
-          batch: pageSize,
-          page: currentPage
+          requestKey: null
         });
 
         emails = records;
@@ -135,11 +147,12 @@ export function createEmailService() {
           throw new Error('User not authenticated');
         }
 
-        const filterStr = `user = "${authData.id}" && folder = "${folder}" && (subject ~ "${query}" || body_text ~ "${query}" || from_address ~ "${query}")`;
+      const filterStr = `folder = "${folder}" && (subject ~ "${query}" || body_text ~ "${query}" || from_address ~ "${query}")`;
 
         const records = await pb.collection('mailbox_messages').getFullList<MailboxMessage>({
           filter: filterStr,
-          sort: '-date'
+          sort: '-date',
+          requestKey: null
         });
 
         emails = records;
@@ -204,16 +217,30 @@ export function createEmailService() {
       isLoading = true;
       error = null;
       try {
-        const response = await fetch('/api/mail/send', {
+        const authData = pb.authStore.model;
+        let attachmentPayload;
+        if (input.attachments && input.attachments.length > 0) {
+            attachmentPayload = await Promise.all(input.attachments.map(async (file) => ({
+                filename: file.name,
+                content: await fileToBase64(file),
+                encoding: 'base64'
+            })));
+        }
+
+        const response = await fetch(`${MICROSERVICE_URL}/send`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${pb.authStore.token}` 
+          },
           body: JSON.stringify({
             to: input.to,
             cc: input.cc,
             bcc: input.bcc,
             subject: input.subject,
-            body: input.body,
-            body_html: input.body_html
+            text: input.body,
+            html: input.body_html || input.body.replace(/\n/g, '<br>'),
+            attachments: attachmentPayload
           })
         });
 
@@ -222,6 +249,20 @@ export function createEmailService() {
         }
 
         const result = await response.json();
+        
+        // Gesendete E-Mail in der Datenbank speichern, damit sie im Ordner "Gesendet" auftaucht
+        await pb.collection('mailbox_messages').create({
+            folder: "Sent",
+            message_id: result.messageId || "sent-" + Date.now(),
+            subject: input.subject,
+            from_address: authData?.email || "Ich",
+            to_address: input.to,
+            date: new Date().toISOString(),
+            body_text: input.body,
+            body_html: input.body_html || input.body.replace(/\n/g, '<br>'),
+            is_read: true
+        });
+        
         return { success: true, messageId: result.messageId };
       } catch (err) {
         error = err instanceof Error ? err.message : 'Failed to send email';
@@ -237,14 +278,20 @@ export function createEmailService() {
       isLoading = true;
       error = null;
       try {
-        const response = await fetch('/api/mail/delete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message_id: emailId })
-        });
+        const emailToDelete = emails.find(e => e.id === emailId);
+        if (!emailToDelete) throw new Error('E-Mail nicht gefunden');
 
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.statusText}`);
+        await pb.collection('mailbox_messages').delete(emailId);
+
+        if (emailToDelete.folder === 'INBOX' && emailToDelete.message_id) {
+            await fetch(`${MICROSERVICE_URL}/delete`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${pb.authStore.token}` 
+                },
+                body: JSON.stringify({ uid: emailToDelete.message_id })
+            });
         }
 
         // Remove from local state
@@ -263,17 +310,33 @@ export function createEmailService() {
       isLoading = true;
       error = null;
       try {
-        const response = await fetch('/api/mail/sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+        const newMails = await fetchInbox();
+        
+        const existing = await pb.collection('mailbox_messages').getFullList({
+            filter: `folder = "INBOX"`,
+            fields: 'message_id',
+            requestKey: null
         });
-
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.statusText}`);
+        const existingUids = new Set(existing.map((e: any) => e.message_id));
+        
+        let added = 0;
+        for (const mail of newMails) {
+            if (!existingUids.has(mail.uid.toString())) {
+                await pb.collection('mailbox_messages').create({
+                    folder: "INBOX",
+                    message_id: mail.uid.toString(),
+                    subject: mail.subject,
+                    from_address: mail.from,
+                    to_address: mail.to,
+                    date: new Date(mail.date || Date.now()).toISOString(),
+                    body_text: mail.text,
+                    body_html: mail.html,
+                    is_read: false
+                });
+                added++;
+            }
         }
-
-        const result = await response.json();
-        return { synced_count: result.synced_count || 0 };
+        return { synced_count: added };
       } catch (err) {
         error = err instanceof Error ? err.message : 'Failed to sync emails';
         console.error('[Email] Sync error:', error);

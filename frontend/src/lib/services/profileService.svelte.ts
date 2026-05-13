@@ -34,7 +34,7 @@ export function useProfileService() {
     let isLoaded = $state(false);
 
     function load() {
-        const record = pb.authStore.record;
+        const record = pb.authStore.model;
         if (record) {
             id = record.id;
             collection = record.collectionName; // 'users' oder '_superusers'
@@ -72,11 +72,11 @@ export function useProfileService() {
             pbFormData.append("name_first", formData.name_first);
             pbFormData.append("name_last", formData.name_last);
             
-            if (formData.username && formData.username !== pb.authStore.record?.username) {
+            if (formData.username && formData.username !== pb.authStore.model?.username) {
                 pbFormData.append("username", formData.username);
             }
             
-            if (formData.email !== pb.authStore.record?.email) {
+            if (formData.email !== pb.authStore.model?.email) {
                 pbFormData.append("email", formData.email);
             }
             
@@ -99,11 +99,11 @@ export function useProfileService() {
             await pb.collection(collection).update(id, pbFormData);
             
             // Refresh UI Daten nach Speichern
-            existingAvatarUrl = pb.authStore.record?.avatar ? pb.files.getURL(pb.authStore.record, pb.authStore.record.avatar) : "";
+            existingAvatarUrl = pb.authStore.model?.avatar ? pb.files.getURL(pb.authStore.model, pb.authStore.model.avatar) : "";
             avatarFile = null;
             deleteAvatar = false;
         
-            existingSignUrl = pb.authStore.record?.sign ? pb.files.getURL(pb.authStore.record, pb.authStore.record.sign) : "";
+            existingSignUrl = pb.authStore.model?.sign ? pb.files.getURL(pb.authStore.model, pb.authStore.model.sign) : "";
         signFile = null;
         deleteSign = false;
 

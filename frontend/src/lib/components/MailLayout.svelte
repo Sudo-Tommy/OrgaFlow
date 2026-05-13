@@ -14,6 +14,7 @@
 
   let selectedEmailId = $state<string | null>(null);
   let showComposer = $state(false);
+  let replyData = $state<any>(null);
   let showConfigModal = $state(false);
   let isInitialized = $state(false);
 
@@ -31,7 +32,19 @@
       } else {
         // Load folders and sync
         await mailboxService.loadFolders();
+        
+        // E-Mails sofort initial für den ausgewählten Ordner laden
+        if (mailboxService.selectedFolderPath) {
+          await emailService.loadEmails({ folder: mailboxService.selectedFolderPath });
+        }
+        
         await emailService.syncEmails();
+        
+        // Nach dem Sync die E-Mails und Ordner nochmal aktualisieren
+        if (mailboxService.selectedFolderPath) {
+          await emailService.loadEmails({ folder: mailboxService.selectedFolderPath });
+          await mailboxService.loadFolders();
+        }
       }
       
       isInitialized = true;
@@ -86,6 +99,23 @@
     }
   }
 
+  // Handle reply
+  async function handleEmailReply(emailId: string) {
+    try {
+      const email = await emailService.getEmail(emailId);
+      if (email) {
+        replyData = {
+          to: email.from_address?.match(/<(.+)>/)?.[1] || email.from_address,
+          subject: email.subject?.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,
+          body: `\n\n\n--- Ursprüngliche Nachricht ---\nVon: ${email.from_address}\nDatum: ${new Date(email.date).toLocaleString('de-DE')}\nBetreff: ${email.subject}\n\n${email.body_text}`
+        };
+        showComposer = true;
+      }
+    } catch (err) {
+      console.error('Reply error:', err);
+    }
+  }
+
   // Handle email send
   async function handleEmailSend(input: any) {
     try {
@@ -104,7 +134,7 @@
   });
 </script>
 
-<div class="flex h-screen bg-gray-100">
+<div class="flex h-full w-full bg-white">
   <!-- Sidebar -->
   <div class="w-64 border-r border-gray-300 bg-white">
     {#if mailConfigService.isLoading}
@@ -142,6 +172,11 @@
         </div>
       </div>
     {:else}
+      {#if emailService.error || mailboxService.error}
+        <div class="bg-rose-50 border-b border-rose-200 p-3 text-sm font-semibold text-rose-700 flex items-center z-10 shadow-sm animate-enter">
+           <span>⚠️ {emailService.error || mailboxService.error}</span>
+        </div>
+      {/if}
       <!-- Mail list and detail -->
       <div class="flex-1 flex overflow-hidden">
         <!-- List -->
@@ -163,7 +198,7 @@
             <MailDetail
               emailId={selectedEmailId}
               onDelete={() => handleEmailDelete(selectedEmailId || '')}
-              onReply={() => (showComposer = true)}
+              onReply={() => handleEmailReply(selectedEmailId || '')}
             />
           {:else}
             <div class="flex items-center justify-center h-full">
@@ -177,7 +212,7 @@
 
   <!-- Composer Modal -->
   {#if showComposer}
-    <MailComposer onSend={handleEmailSend} onClose={() => (showComposer = false)} />
+    <MailComposer initialData={replyData} onSend={handleEmailSend} onClose={() => { showComposer = false; replyData = null; }} />
   {/if}
 
   <!-- Config Modal -->

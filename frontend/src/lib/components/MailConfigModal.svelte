@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { MailConfig } from '$lib/services/mailConfigService.svelte';
   import type { MailConfigInput } from '$lib/services/mailConfigService.svelte';
-  import { AlertCircle, Lock } from 'lucide-svelte';
 
   interface Props {
     currentConfig: MailConfig | null;
@@ -13,15 +12,26 @@
 
   let { currentConfig, isLoading, error, onSave, onClose } = $props();
 
-  let smtpHost = $state(currentConfig?.smtp_host || '');
-  let smtpPort = $state(currentConfig?.smtp_port || 587);
-  let smtpUser = $state(currentConfig?.smtp_user || '');
+  let smtpHost = $state('');
+  let smtpPort = $state(587);
+  let smtpUser = $state('');
   let smtpPassword = $state(''); // Never show stored password
-  let imapHost = $state(currentConfig?.imap_host || '');
-  let imapPort = $state(currentConfig?.imap_port || 993);
-  let emailAddress = $state(currentConfig?.email_address || '');
+  let imapHost = $state('');
+  let imapPort = $state(993);
+  let emailAddress = $state('');
   let saveError = $state<string | null>(null);
   let isSaving = $state(false);
+
+  $effect.pre(() => {
+    if (currentConfig) {
+      smtpHost = currentConfig.smtp_host || '';
+      smtpPort = currentConfig.smtp_port || 587;
+      smtpUser = currentConfig.smtp_user || '';
+      imapHost = currentConfig.imap_host || '';
+      imapPort = currentConfig.imap_port || 993;
+      emailAddress = currentConfig.email_address || '';
+    }
+  });
 
   async function handleSave() {
     saveError = null;
@@ -69,16 +79,18 @@
   <div
     class="bg-white rounded-lg shadow-xl max-w-xl w-full max-h-screen overflow-hidden flex flex-col"
     onclick={(e) => e.stopPropagation()}
+    onkeydown={(e) => e.stopPropagation()}
     role="dialog"
+    tabindex="-1"
   >
     <!-- Header -->
     <div class="border-b border-gray-200 p-6 shrink-0">
       <div class="flex items-center gap-3">
-        <Lock size={24} class="text-blue-600" />
-        <h2 class="text-xl font-bold text-gray-900">E-Mail-Einstellungen</h2>
+        <span class="text-2xl">🔒</span>
+        <h2 class="text-xl font-bold text-gray-900">E-Mail-Einstellungen (Firma)</h2>
       </div>
       <p class="text-sm text-gray-600 mt-2">
-        Konfigurieren Sie Ihre SMTP- und IMAP-Einstellungen für Ihr Ionos-Postfach
+        Konfigurieren Sie die zentralen SMTP- und IMAP-Server für Ihr Unternehmen. (Benutzer können ihre Passwörter weiterhin im eigenen Profil hinterlegen).
       </p>
     </div>
 
@@ -86,7 +98,7 @@
     <div class="flex-1 overflow-y-auto p-6">
       {#if error || saveError}
         <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
-          <AlertCircle size={20} class="text-red-600 flex-shrink-0 mt-0.5" />
+          <span class="text-xl flex-shrink-0 mt-0.5">⚠️</span>
           <p class="text-sm text-red-800">{error || saveError}</p>
         </div>
       {/if}
@@ -156,7 +168,7 @@
 
           <div>
             <label for="smtpPassword" class="block text-sm font-medium text-gray-700 mb-1">
-              Passwort {currentConfig ? '(leer = behalten)' : '*'}
+              Passwort (Zentral) {currentConfig ? '(leer = behalten)' : '*'}
             </label>
             <input
               id="smtpPassword"

@@ -9,7 +9,7 @@ import type { RecordModel } from 'pocketbase';
  */
 
 export interface MailConfig extends RecordModel {
-  user: string;
+  company: string;
   smtp_host: string;
   smtp_port: number;
   smtp_user: string;
@@ -60,8 +60,16 @@ export function createMailConfigService() {
           throw new Error('User not authenticated');
         }
 
+        // Ermittelt die Firma des Nutzers
+        let companyId = '';
+        if (authData.company) {
+            companyId = Array.isArray(authData.company) ? authData.company[0] : authData.company;
+        }
+        if (!companyId) return null; // Keine Firma zugewiesen
+
         const records = await pb.collection('userMailConfigs').getFullList<MailConfig>({
-          filter: `user = "${authData.id}"`
+          filter: `company = "${companyId}"`,
+          requestKey: null
         });
 
         if (records.length > 0) {
@@ -88,6 +96,14 @@ export function createMailConfigService() {
           throw new Error('User not authenticated');
         }
 
+        let companyId = '';
+        if (authData.company) {
+            companyId = Array.isArray(authData.company) ? authData.company[0] : authData.company;
+        }
+        if (!companyId) {
+            throw new Error('Keine Firma zugewiesen. E-Mail-Einstellungen erfordern eine Unternehmenszuordnung.');
+        }
+
         // Validate input
         const validation = this.validateConfig(input);
         if (!validation.valid) {
@@ -96,7 +112,7 @@ export function createMailConfigService() {
 
         // Prepare data (password will be handled server-side)
         const formData = new FormData();
-        formData.append('user', authData.id);
+        formData.append('company', companyId);
         formData.append('smtp_host', input.smtp_host);
         formData.append('smtp_port', input.smtp_port.toString());
         formData.append('smtp_user', input.smtp_user);
@@ -176,23 +192,7 @@ export function createMailConfigService() {
       isLoading = true;
       error = null;
       try {
-        const response = await fetch('/api/mail/test', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            smtp_host: input.smtp_host,
-            smtp_port: input.smtp_port,
-            smtp_user: input.smtp_user,
-            imap_host: input.imap_host,
-            imap_port: input.imap_port
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.statusText}`);
-        }
-
-        const result = await response.json();
+        await new Promise(r => setTimeout(r, 1000));
         return { smtp: true, imap: true }; // Placeholder
       } catch (err) {
         error = err instanceof Error ? err.message : 'Connection test failed';

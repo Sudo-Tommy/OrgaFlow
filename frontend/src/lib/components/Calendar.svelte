@@ -1,10 +1,23 @@
 <script lang="ts">
-    let { appointments = [], clients = [], onNewAppointment } = $props<{ appointments: any[], clients: any[], onNewAppointment?: (date: Date) => void }>();
+    import { onMount, onDestroy } from 'svelte';
+    import AppointmentDetailModal from './AppointmentDetailModal.svelte';
+    import { pb } from "$lib/services/pocketbase";
+    import { orgaStore } from "$lib/stores/orgaStore.svelte";
+    
+    let { appointments = [], clients = [], onNewAppointment, isWidget = false } = $props<{ appointments: any[], clients: any[], isWidget?: boolean, onNewAppointment?: (date: Date) => void }>();
 
     let viewMode = $state<"month" | "week">("month");
     let currentDate = $state(new Date());
     let selectedDate = $state<Date | null>(new Date());
     let selectedClientId = $state<string>("all");
+
+    // Echtzeit-Uhr für QOL-Features (Wochenansicht-Linie)
+    let now = $state(new Date());
+    let timeInterval: ReturnType<typeof setInterval>;
+    onMount(() => {
+        timeInterval = setInterval(() => now = new Date(), 60000); // Jede Minute aktualisieren
+    });
+    onDestroy(() => clearInterval(timeInterval));
 
     // Filtert die Termine basierend auf dem gewählten Klienten
     let filteredAppointments = $derived.by(() => {
@@ -91,6 +104,16 @@
         selectedDate = date;
     }
 
+    // Auto-Scroll zur aktuellen Uhrzeit in der Wochenansicht
+    let scrollContainer: HTMLElement | undefined = $state();
+    $effect(() => {
+        if (viewMode === 'week' && scrollContainer) {
+            // Scrolle auf die aktuelle Stunde minus 1,5 Stunden für den perfekten Blickwinkel
+            const targetScroll = (now.getHours() * 64) - 96;
+            scrollContainer.scrollTop = Math.max(0, targetScroll);
+        }
+    });
+
     let monthName = $derived(currentDate.toLocaleString('de-DE', { month: 'long' }));
     let year = $derived(currentDate.getFullYear());
     const weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -113,12 +136,101 @@
         }
         return Math.max(30, durationMinutes) / 60 * HOUR_HEIGHT - 2; // Mindestens 30 Min hoch, -2px für Abstand
     }
+
+    let detailModal: ReturnType<typeof AppointmentDetailModal> | undefined = $state();
+
+    // --- Drag & Drop Logik ---
+    let draggedAppId = $state<string | null>(null);
+    let isDragging = $state(false);
+    let isUpdating = $state(false);
+
+    function handleDragStart(e: DragEvent, appId: string) {
+        draggedAppId = appId;
+        isDragging = true;
+        if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', appId);
+        }
+    }
+
+    function handleDragEnd() {
+        draggedAppId = null;
+        isDragging = false;
+    }
+
+    async function updateAppointmentDate(appId: string, newDate: Date) {
+        isUpdating = true;
+        try {
+            // PocketBase erwartet UTC. toISOString wandelt das lokale Datum in UTC um.
+            await pb.collection('appointments').update(appId, { appointment: newDate.toISOString() });
+            
+            // Aktualisiere den Store, damit die UI sofort reagiert (inkl. der Relationen)
+            const updatedApp = await pb.collection('appointments').getOne(appId, { expand: 'user,client,drive_record,time_record,tasks,expenditures' });
+            if (orgaStore.appointments) {
+                const idx = orgaStore.appointments.data.findIndex(a => a.id === appId);
+                if (idx !== -1) {
+                    orgaStore.appointments.data[idx] = updatedApp;
+                }
+            }
+        } catch (err) {
+            console.error("Fehler beim Verschieben des Termins:", err);
+            alert("Der Termin konnte nicht verschoben werden.");
+        } finally {
+            isUpdating = false;
+        }
+    }
+
+    async function handleDropOnMonthDay(e: DragEvent, targetDate: Date) {
+        e.preventDefault();
+        if (!draggedAppId) return;
+        const app = orgaStore.appointments?.getById(draggedAppId);
+        draggedAppId = null;
+        isDragging = false;
+        if (!app) return;
+
+        const originalDate = new Date(app.appointment);
+        const newDate = new Date(targetDate);
+        
+        // Behalte die ursprüngliche Uhrzeit bei (lokale Zeit)
+        if (!isNaN(originalDate.getTime())) {
+            newDate.setHours(originalDate.getHours(), originalDate.getMinutes(), 0, 0);
+        } else {
+            newDate.setHours(12, 0, 0, 0);
+        }
+
+        await updateAppointmentDate(app.id, newDate);
+    }
+
+    async function handleDropOnWeekDay(e: DragEvent, targetDate: Date) {
+        e.preventDefault();
+        if (!draggedAppId) return;
+        const app = orgaStore.appointments?.getById(draggedAppId);
+        draggedAppId = null;
+        isDragging = false;
+        if (!app) return;
+
+        // Berechne die Uhrzeit anhand der Y-Position (1 Stunde = HOUR_HEIGHT)
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const y = Math.max(0, e.clientY - rect.top);
+        
+        const totalHours = y / HOUR_HEIGHT;
+        const hours = Math.floor(totalHours);
+        const minutes = Math.round((totalHours - hours) * 60);
+
+        // Auf 15-Minuten-Intervalle runden (Snap to Grid)
+        const snappedMinutes = Math.round(minutes / 15) * 15;
+
+        const newDate = new Date(targetDate);
+        newDate.setHours(hours, snappedMinutes, 0, 0);
+
+        await updateAppointmentDate(app.id, newDate);
+    }
 </script>
 
-<div class="orga-calendar-wrapper">
+<div class="orga-calendar-wrapper {isUpdating ? 'opacity-50 pointer-events-none transition-opacity' : ''}">
     <!-- Toolbar -->
-    <div class="orga-calendar-toolbar">
-        <div class="flex items-center gap-2">
+    <div class="orga-calendar-toolbar {isWidget ? 'p-3 sm:p-4' : 'p-4 md:p-6'}">
+        <div class="flex items-center gap-2 max-w-fit">
             <button onclick={today} class="px-3 py-1.5 text-sm font-bold text-neutral-600 bg-white border border-neutral-200 hover:bg-neutral-100 rounded-lg shadow-sm transition-colors">Heute</button>
             <div class="flex items-center bg-white border border-neutral-200 rounded-lg p-0.5 shadow-sm">
                 <!-- svelte-ignore a11y_consider_explicit_label -->
@@ -129,7 +241,7 @@
             </div>
         </div>
         
-        <div class="flex flex-col sm:flex-row gap-3">
+        <div class="flex flex-col sm:flex-row gap-3 mt-3 lg:mt-0">
             <!-- Ansicht-Toggle -->
             <div class="flex bg-neutral-100 p-1 rounded-lg border border-neutral-200 shadow-inner shrink-0">
                 <button onclick={() => viewMode = 'month'} class="px-3 py-1 text-xs font-bold rounded-md transition-colors {viewMode === 'month' ? 'bg-white shadow-sm text-indigo-600' : 'text-neutral-500 hover:text-neutral-700'}">Monat</button>
@@ -147,49 +259,90 @@
 
     {#if viewMode === 'month'}
         <!-- === MONATSANSICHT === -->
-        <div class="orga-calendar-header">
-            {#each weekdays as day}
-                <div class="py-2.5 text-center text-[10px] sm:text-xs font-bold text-neutral-500 uppercase tracking-wider border-r border-neutral-100 last:border-0">{day}</div>
-            {/each}
-        </div>
-
-        <div class="orga-calendar-grid">
-            {#each calendarDays as day}
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div onclick={() => selectDay(day.date)} class="orga-calendar-day group md:min-h-30 lg:min-h-35 {selectedDate && isSameDay(day.date, selectedDate) ? 'ring-2 ring-inset ring-indigo-500 z-10' : ''} {!day.isCurrentMonth ? 'opacity-50' : ''}">
-                    <div class="flex justify-between items-start w-full">
-                        <button onclick={(e) => { e.stopPropagation(); onNewAppointment?.(day.date); }} class="hidden md:flex w-6 h-6 mt-0.5 ml-0.5 items-center justify-center text-neutral-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors opacity-0 group-hover:opacity-100" title="Neuer Termin">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-                        </button>
-                        <span class="w-6 h-6 sm:w-7 sm:h-7 mx-auto sm:mx-0 sm:ml-auto flex items-center justify-center text-[10px] sm:text-xs font-bold rounded-full {isSameDay(day.date, new Date()) ? 'bg-indigo-600 text-white shadow-md' : 'text-neutral-700'}">
-                            {day.date.getDate()}
-                        </span>
-                    </div>
-                    <!-- Mobile Variante: Nur farbige Punkte -->
-                    <div class="flex md:hidden flex-wrap gap-1 justify-center sm:justify-end mt-1.5 px-0.5">
-                        {#each day.apps.slice(0, 4) as app}
-                            <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shadow-sm {app.is_private ? 'bg-rose-500' : 'bg-indigo-500'}" title={app.description || 'Termin'}></span>
-                        {/each}
-                        {#if day.apps.length > 4}
-                            <span class="text-[8px] font-bold text-neutral-400">+{day.apps.length - 4}</span>
-                        {/if}
-                    </div>
-                    <!-- Desktop Variante: Echte Terminkarten im Tages-Feld -->
-                    <div class="hidden md:flex flex-col gap-1.5 mt-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-0.5 pb-0.5">
-                        {#each day.apps as app}
-                            <a href="/appointments/{app.id}" class="block px-2 py-1.5 rounded-lg border border-transparent shadow-sm hover:shadow-md transition-all hover:-translate-y-px {app.is_private ? 'bg-rose-50 hover:border-rose-200 text-rose-800' : 'bg-indigo-50 hover:border-indigo-200 text-indigo-800'}" title={app.description}>
-                                <div class="flex items-center gap-1 mb-0.5">
-                                    <span class="font-bold text-[11px] leading-none">{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
-                                    {#if app.is_private}<span class="text-[9px]">🔒</span>{/if}
-                                </div>
-                                <div class="text-xs font-semibold truncate text-neutral-900">{app.expand?.client?.[0] ? app.expand.client[0].name_first + ' ' + app.expand.client[0].name_last : 'Kein Klient'}</div>
-                                <div class="text-[10px] truncate opacity-80 mt-0.5">{app.description || 'Termin'}</div>
-                            </a>
-                        {/each}
-                    </div>
+        <div class="{isWidget ? 'flex flex-row' : 'flex flex-col'} w-full">
+            <!-- Linke Seite: Kalender-Raster -->
+            <div class="flex-1 min-w-0 border-r {isWidget ? 'border-neutral-100' : 'border-transparent'}">
+                <div class="orga-calendar-header">
+                    {#each weekdays as day}
+                        <div class="py-2.5 text-center text-[10px] sm:text-xs font-bold text-neutral-500 uppercase tracking-wider border-r border-neutral-100 last:border-0">{day}</div>
+                    {/each}
                 </div>
-            {/each}
+
+                <div class="orga-calendar-grid">
+                    {#each calendarDays as day}
+                        <!-- svelte-ignore a11y_click_events_have_key_events -->
+                        <!-- svelte-ignore a11y_no_static_element_interactions -->
+                        <div ondrop={(e) => handleDropOnMonthDay(e, day.date)} ondragover={(e) => e.preventDefault()} onclick={() => selectDay(day.date)} class="orga-calendar-day group md:min-h-30 lg:min-h-35 {selectedDate && isSameDay(day.date, selectedDate) ? 'ring-2 ring-inset ring-indigo-500/50 z-10 bg-indigo-50/20' : ''} {!day.isCurrentMonth ? 'opacity-50 bg-neutral-50/50' : ''} {isDragging ? 'hover:ring-2 hover:ring-inset hover:ring-indigo-400' : ''}">
+                            <div class="flex justify-between items-start w-full">
+                                <button onclick={(e) => { e.stopPropagation(); onNewAppointment?.(day.date); }} class="hidden md:flex w-6 h-6 mt-0.5 ml-0.5 items-center justify-center text-neutral-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors opacity-0 group-hover:opacity-100" title="Neuer Termin">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                                </button>
+                                <span class="w-6 h-6 sm:w-7 sm:h-7 mx-auto sm:mx-0 sm:ml-auto flex items-center justify-center text-[10px] sm:text-xs font-bold rounded-full {isSameDay(day.date, now) ? 'bg-brand-600 text-white shadow-md' : 'text-neutral-700'}">
+                                    {day.date.getDate()}
+                                </span>
+                            </div>
+                            <!-- Mobile Variante: Nur farbige Punkte -->
+                            <div class="flex-wrap gap-1 justify-center sm:justify-end mt-1.5 px-0.5 {isWidget ? 'flex' : 'flex md:hidden'}">
+                                {#each day.apps.slice(0, 4) as app}
+                                    <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shadow-sm {app.is_private ? 'bg-rose-500' : 'bg-indigo-500'}" title={app.description || 'Termin'}></span>
+                                {/each}
+                                {#if day.apps.length > 4}
+                                    <span class="text-[8px] font-bold text-neutral-400">+{day.apps.length - 4}</span>
+                                {/if}
+                            </div>
+                            <!-- Desktop Variante: Echte Terminkarten im Tages-Feld -->
+                            <div class="flex-col gap-1.5 mt-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-0.5 pb-0.5 {isWidget ? 'hidden' : 'hidden md:flex'}">
+                                {#each day.apps as app}
+                                    <button type="button" draggable="true" ondragstart={(e) => handleDragStart(e, app.id)} ondragend={handleDragEnd} onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="cursor-grab active:cursor-grabbing w-full text-left block px-2 py-1.5 rounded-lg border border-transparent shadow-sm hover:shadow-md transition-all hover:-translate-y-px {app.is_private ? 'bg-rose-50 hover:border-rose-200 text-rose-800' : 'bg-indigo-50 hover:border-indigo-200 text-indigo-800'} {draggedAppId === app.id ? 'opacity-40' : ''}" title={app.description}>
+                                        <div class="flex items-center gap-1 mb-0.5">
+                                            <span class="font-bold text-[11px] leading-none">{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
+                                            {#if app.is_private}<span class="text-[9px]">🔒</span>{/if}
+                                        </div>
+                                        <div class="text-xs font-semibold truncate text-neutral-900">{app.expand?.client?.[0] ? app.expand.client[0].name_first + ' ' + app.expand.client[0].name_last : 'Kein Klient'}</div>
+                                        <div class="text-[10px] truncate opacity-80 mt-0.5">{app.description || 'Termin'}</div>
+                                    </button>
+                                {/each}
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+
+            <!-- Rechte Seite: Termine des Tages (Nur im Widget/Mobile-Modus) -->
+            {#if isWidget && selectedDate}
+                <div class="w-[140px] sm:w-[240px] md:w-[280px] shrink-0 bg-neutral-50/50 p-2 sm:p-4 flex flex-col">
+                    <div class="flex items-center justify-between mb-3 border-b border-neutral-200/60 pb-2">
+                        <h3 class="text-[11px] sm:text-sm font-bold text-neutral-900 flex items-center gap-1.5">
+                            <span>📅</span> 
+                            <span class="hidden sm:inline">{selectedDate.toLocaleDateString('de-DE', { day: '2-digit', month: 'long' })}</span>
+                            <span class="sm:hidden">{selectedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</span>
+                        </h3>
+                        <button onclick={() => onNewAppointment?.(selectedDate as Date)} class="text-indigo-600 hover:text-indigo-800 text-sm sm:text-lg font-bold transition-colors">+</button>
+                    </div>
+                    
+                    {#if selectedDayAppointments.length === 0}
+                        <p class="text-[10px] sm:text-xs text-neutral-500 italic mt-2 text-center">Keine Termine</p>
+                    {:else}
+                        <div class="flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-1 max-h-[300px] sm:max-h-[400px]">
+                            {#each selectedDayAppointments as app}
+                                <button type="button" onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="w-full text-left block bg-white p-2 sm:p-3 rounded-lg border border-neutral-200 hover:border-indigo-300 hover:shadow-md transition-all group">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <span class="text-[10px] sm:text-xs font-bold {app.is_private ? 'text-rose-600' : 'text-indigo-600'}">
+                                            {new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                        {#if app.expand?.client?.[0]}
+                                            <span class="hidden sm:inline text-[9px] font-bold text-neutral-600 bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded-md truncate max-w-[100px]">{app.expand.client[0].name_first}</span>
+                                        {/if}
+                                    </div>
+                                    <p class="text-[10px] sm:text-xs text-neutral-800 font-medium line-clamp-2">
+                                        {app.description || 'Ohne Beschreibung'}
+                                    </p>
+                                </button>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+            {/if}
         </div>
     {:else}
         <!-- === WOCHENANSICHT (Stunden-Raster) === -->
@@ -200,14 +353,14 @@
                     <!-- svelte-ignore a11y_click_events_have_key_events -->
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div onclick={() => selectDay(day.date)} class="py-2 text-center border-r border-neutral-100 last:border-0 cursor-pointer hover:bg-neutral-100 transition-colors {selectedDate && isSameDay(day.date, selectedDate) ? 'bg-indigo-50/50' : ''}">
-                        <div class="text-[10px] sm:text-xs font-bold {isSameDay(day.date, new Date()) ? 'text-indigo-500' : 'text-neutral-500'} uppercase tracking-wider">{weekdays[i]}</div>
-                        <div class="text-sm sm:text-base font-bold {isSameDay(day.date, new Date()) ? 'text-indigo-600' : 'text-neutral-900'}">{day.date.getDate()}</div>
+                        <div class="text-[10px] sm:text-xs font-bold {isSameDay(day.date, now) ? 'text-brand-500' : 'text-neutral-500'} uppercase tracking-wider">{weekdays[i]}</div>
+                        <div class="text-sm sm:text-base font-bold {isSameDay(day.date, now) ? 'text-brand-600' : 'text-neutral-900'}">{day.date.getDate()}</div>
                     </div>
                 {/each}
             </div>
         </div>
         
-        <div class="flex overflow-y-auto custom-scrollbar relative h-125 md:h-150 bg-white">
+        <div class="flex overflow-y-auto custom-scrollbar relative h-125 md:h-150 bg-white scroll-smooth" bind:this={scrollContainer}>
             <div class="w-12 sm:w-16 flex-none border-r border-neutral-100 bg-neutral-50 sticky left-0 z-20">
                 {#each Array(24) as _, hour}
                     <div class="h-16 border-b border-neutral-100 text-right pr-1 sm:pr-2 pt-1 text-[10px] sm:text-xs text-neutral-400 font-medium">{hour}:00</div>
@@ -221,18 +374,25 @@
                 </div>
                 <div class="absolute inset-0 grid grid-cols-7 z-10">
                     {#each calendarDays as day}
+                        <!-- Rote Echtzeit-Linie, wenn dieser Tag HEUTE ist -->
+                        {#if isSameDay(day.date, now)}
+                            <div class="absolute left-0 right-0 border-t-2 border-rose-500 z-30 pointer-events-none" style="top: {(now.getHours() * 64) + (now.getMinutes() / 60 * 64)}px;">
+                                <div class="absolute -left-1.5 -top-1.5 w-3 h-3 bg-rose-500 rounded-full shadow-sm"></div>
+                            </div>
+                        {/if}
+                        
                         <!-- svelte-ignore a11y_click_events_have_key_events -->
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <div onclick={() => selectDay(day.date)} class="relative border-r border-neutral-100 last:border-0 cursor-pointer hover:bg-neutral-50/30 transition-colors {selectedDate && isSameDay(day.date, selectedDate) ? 'bg-indigo-50/20' : ''}">
+                        <div ondrop={(e) => handleDropOnWeekDay(e, day.date)} ondragover={(e) => e.preventDefault()} onclick={() => selectDay(day.date)} class="relative border-r border-neutral-100 last:border-0 cursor-pointer hover:bg-neutral-50/30 transition-colors {selectedDate && isSameDay(day.date, selectedDate) ? 'bg-indigo-50/20' : ''} {isDragging ? 'hover:bg-indigo-50/50 outline-dashed outline-2 outline-indigo-200 -outline-offset-2' : ''}">
                             {#each day.apps as app}
-                                <a href="/appointments/{app.id}" class="absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded-md p-1 sm:p-1.5 text-[10px] sm:text-xs overflow-hidden transition-all border shadow-sm hover:shadow-md hover:z-20 {app.is_private ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-indigo-50 border-indigo-200 text-indigo-800'}" style="top: {getAppTop(app)}px; height: {getAppHeight(app)}px;" title={app.description}>
+                                <button type="button" draggable="true" ondragstart={(e) => handleDragStart(e, app.id)} ondragend={handleDragEnd} onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="cursor-grab active:cursor-grabbing text-left absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded-md p-1 sm:p-1.5 text-[10px] sm:text-xs overflow-hidden transition-all border shadow-sm hover:shadow-md hover:z-20 {app.is_private ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-indigo-50 border-indigo-200 text-indigo-800'} {draggedAppId === app.id ? 'opacity-40 z-50 pointer-events-none' : ''}" style="top: {getAppTop(app)}px; height: {getAppHeight(app)}px;" title={app.description}>
                                     <div class="font-bold flex items-center gap-1 mb-0.5">
                                         <span>{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
                                         {#if app.is_private}<span class="text-[8px] sm:text-[10px]">🔒</span>{/if}
                                     </div>
                                     <div class="truncate font-semibold">{app.expand?.client?.[0] ? app.expand.client[0].name_first + ' ' + app.expand.client[0].name_last : 'Kein Klient'}</div>
                                     <div class="truncate opacity-75">{app.description || 'Termin'}</div>
-                                </a>
+                                </button>
                             {/each}
                         </div>
                     {/each}
@@ -242,7 +402,7 @@
     {/if}
 
     <!-- Detail-Ansicht für den ausgewählten Tag -->
-    {#if selectedDate}
+    {#if selectedDate && !isWidget}
         <!-- Wird auf dem Desktop ausgeblendet (md:hidden), da die Termine dort ohnehin im Kalender selbst stehen -->
         <div class="p-6 bg-neutral-50/50 border-t border-neutral-100 flex-1 md:hidden">
             <div class="flex items-center justify-between mb-4">
@@ -254,7 +414,7 @@
             {:else}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {#each selectedDayAppointments as app}
-                        <a href="/appointments/{app.id}" class="block bg-white p-4 rounded-xl border border-neutral-200 hover:border-indigo-300 hover:shadow-md transition-all group">
+                        <button type="button" onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="w-full text-left block bg-white p-4 rounded-xl border border-neutral-200 hover:border-indigo-300 hover:shadow-md transition-all group">
                             <div class="flex justify-between items-start mb-2">
                                 <span class="text-sm font-bold {app.is_private ? 'text-rose-600' : 'text-indigo-600'}">{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</span>
                                 {#if app.expand?.client?.[0]}
@@ -262,10 +422,12 @@
                                 {/if}
                             </div>
                             <p class="text-sm text-neutral-800 font-medium line-clamp-2">{app.description || 'Keine Beschreibung'}</p>
-                        </a>
+                        </button>
                     {/each}
                 </div>
             {/if}
         </div>
     {/if}
 </div>
+
+<AppointmentDetailModal bind:this={detailModal} />

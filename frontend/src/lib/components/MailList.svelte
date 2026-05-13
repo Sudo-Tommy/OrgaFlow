@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { MailboxMessage } from '$lib/services/emailService.svelte';
-  import { Mail, ChevronLeft, ChevronRight } from 'lucide-svelte';
 
   interface Props {
     emails: MailboxMessage[];
@@ -68,14 +67,14 @@
           >
             <div class="flex items-start gap-3">
               {#if !email.is_read}
-                <div class="w-2 h-2 rounded-full bg-blue-600 mt-2 flex-shrink-0" />
+                <div class="w-2 h-2 rounded-full bg-blue-600 mt-2 flex-shrink-0"></div>
               {:else}
-                <div class="w-2 h-2 flex-shrink-0" />
+                <div class="w-2 h-2 flex-shrink-0"></div>
               {/if}
               <div class="flex-1 min-w-0">
                 <div class="flex items-baseline gap-2 justify-between">
-                  <p class={`text-sm truncate ${email.is_read ? 'font-normal text-gray-700' : 'font-semibold text-gray-900'}`}>
-                    {email.from_address}
+                  <p class={`text-sm truncate max-w-[200px] ${email.is_read ? 'font-normal text-gray-700' : 'font-semibold text-gray-900'}`}>
+                    {email.folder === 'Sent' ? `An: ${email.to_address?.split('<')[0] || email.to_address}` : (email.from_address?.split('<')[0] || email.from_address)}
                   </p>
                   <span class="text-xs text-gray-500 flex-shrink-0">{formatDate(email.date)}</span>
                 </div>
@@ -98,16 +97,18 @@
         onclick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
         class="p-1 hover:bg-gray-100 disabled:opacity-50 rounded"
+        aria-label="Vorherige Seite"
       >
-        <ChevronLeft size={18} />
+        <span class="text-sm">◀️</span>
       </button>
       <span class="text-sm text-gray-600">{currentPage} / {totalPages}</span>
       <button
         onclick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
         class="p-1 hover:bg-gray-100 disabled:opacity-50 rounded"
+        aria-label="Nächste Seite"
       >
-        <ChevronRight size={18} />
+        <span class="text-sm">▶️</span>
       </button>
     </div>
   {/if}

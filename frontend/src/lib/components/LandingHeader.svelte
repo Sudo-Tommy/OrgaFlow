@@ -14,6 +14,6 @@
     </nav>
 
     <div class="flex items-center gap-4">
-        <button onclick={() => scrollToSection('kontakt')} class="orga-button-ghost py-2 px-5 text-sm bg-brand-50 hover:bg-brand-100 text-brand-900 border-none shadow-sm hidden sm:flex">Anfrage stellen</button>
+        <button onclick={() => scrollToSection('terminanfrage')} class="orga-button-ghost py-2 px-5 text-sm bg-brand-50 hover:bg-brand-100 text-brand-900 border-none shadow-sm hidden sm:flex">Anfrage stellen</button>
     </div>
 </header>
