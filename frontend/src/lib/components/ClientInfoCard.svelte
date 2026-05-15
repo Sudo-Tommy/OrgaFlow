@@ -3,7 +3,8 @@
     import ClientLinkInsuranceModal from "./ClientLinkInsuranceModal.svelte";
     
     let { client } = $props<{ client: any }>();
-    let linkInsuranceModal: ReturnType<typeof ClientLinkInsuranceModal> | undefined = $state();
+    // svelte-ignore non_reactive_update
+    let linkInsuranceModal: ReturnType<typeof ClientLinkInsuranceModal>;
 
     // Robuste Formatierung, um "Invalid Date" komplett zu verhindern
     function safeFormatDate(val: string) {

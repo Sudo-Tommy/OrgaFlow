@@ -6,8 +6,11 @@
 	import { getMailboxService } from "$lib/services/mailboxService.svelte";
 	import { useRequestAdmin } from "$lib/services/requestAdminService.svelte";
 	import { onMount, onDestroy } from "svelte";
-	import logoUrl from "$lib/assets/favicon.png";
 	import { toastStore } from "$lib/services/toastService.svelte";
+	import { getEmailService } from "$lib/services/emailService.svelte";
+	import { updateStore } from "$lib/services/updateService.svelte";
+	import { pb } from "$lib/services/pocketbase";
+	import NotificationSettingsModal from "$lib/components/NotificationSettingsModal.svelte";
 
 	let { items = [] } = $props<{
 		items?: Array<{ label: string; href: string; icon: Snippet; roles?: string[] }>;
@@ -20,34 +23,114 @@
 		isMobileMenuOpen = !isMobileMenuOpen;
 	}
 
+	// Reaktive Variablen-Bindung für Svelte 5
+	let notificationModal: any = $state();
+
+	function getNotifyPrefs() {
+		try { return JSON.parse(localStorage.getItem('orga_notify_prefs') || '{"requests":true,"emails":true,"chats":true,"updates":true}'); } 
+        catch { return {requests:true,emails:true,chats:true,updates:true}; }
+	}
+
 	const mailboxService = getMailboxService();
 	const reqAdmin = useRequestAdmin();
+	const emailService = getEmailService();
 	
 	let isNotificationsOpen = $state(false);
+	let syncInterval: any;
+
+	// PWA Standby-Fix: Läd Benachrichtigungen neu, sobald das Handy aufwacht
+	function handleResume() {
+		if (document.visibilityState === 'visible' && navigator.onLine) {
+			mailboxService.loadFolders();
+			reqAdmin.init();
+			emailService.syncEmails().catch(() => {});
+			
+			const isSuperAdmin = pb.authStore.isSuperuser || pb.authStore.model?.role === 'superadmin' || pb.authStore.model?.role === 'admin';
+			if (isSuperAdmin) {
+				updateStore.check();
+			}
+		}
+	}
 
 	onMount(() => {
 		// Initialer Ladevorgang für Badge-Counts im Hintergrund
 		mailboxService.loadFolders();
 		reqAdmin.init();
+		
+		// Update-Store prüfen (Admins only)
+		const isSuperAdmin = pb.authStore.isSuperuser || pb.authStore.model?.role === 'superadmin' || pb.authStore.model?.role === 'admin';
+		if (isSuperAdmin) {
+			updateStore.check();
+		}
+
+		// Auto-Sync für neue E-Mails im Hintergrund (alle 2 Minuten)
+		syncInterval = setInterval(async () => {
+			try {
+				const res = await emailService.syncEmails();
+				if (res.synced_count > 0) {
+					// Aktualisiert den Zähler und löst die Toast-Nachricht aus!
+					mailboxService.loadFolders();
+				}
+			} catch (e) {}
+		}, 2 * 60 * 1000);
+
+		document.addEventListener('visibilitychange', handleResume);
+		window.addEventListener('focus', handleResume);
+		window.addEventListener('online', handleResume);
 	});
 
 	onDestroy(() => {
 		reqAdmin.cleanup();
+		if (syncInterval) clearInterval(syncInterval);
+		
+		document.removeEventListener('visibilitychange', handleResume);
+		window.removeEventListener('focus', handleResume);
+		window.removeEventListener('online', handleResume);
 	});
 
 	let unreadMails = $derived(mailboxService.totalUnread || 0);
 	let pendingRequests = $derived(reqAdmin.requests.filter(r => r.status === 'requested').length);
-	let totalNotifications = $derived(unreadMails + pendingRequests);
+	let totalNotifications = $derived(unreadMails + pendingRequests + (updateStore.hasUnread ? 1 : 0));
 
 	let prevUnread = $state(-1);
 	let prevPending = $state(-1);
+	let prevTotal = $state(-1);
+	let isBlinking = $state(true); // Aktiviert das Pulsieren bei neuen Benachrichtigungen
 
 	$effect(() => {
-		if (prevUnread !== -1 && unreadMails > prevUnread) toastStore.info(`Du hast ${unreadMails - prevUnread} neue E-Mail(s) erhalten!`);
+		if (prevUnread !== -1 && unreadMails > prevUnread) {
+			const newCount = unreadMails - prevUnread;
+			toastStore.info(`Du hast ${newCount} neue E-Mail(s) erhalten!`);
+			const prefs = getNotifyPrefs();
+			if (prefs.emails !== false && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+				new Notification('Neue E-Mail ✉️', {
+					body: `Sie haben ${newCount} neue Nachricht(en) im Posteingang.`,
+					icon: '/favicon.png'
+				});
+			}
+		}
 		prevUnread = unreadMails;
 		
-		if (prevPending !== -1 && pendingRequests > prevPending) toastStore.success(`Eine neue Terminanfrage ist eingetroffen!`);
+		if (prevPending !== -1 && pendingRequests > prevPending) {
+			const newCount = pendingRequests - prevPending;
+			toastStore.success(`Eine neue Terminanfrage ist eingetroffen!`);
+			const prefs = getNotifyPrefs();
+			if (prefs.requests !== false && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+				new Notification('Neue Terminanfrage 📬', {
+					body: `Sie haben ${newCount} neue Terminanfrage(n) erhalten.`,
+					icon: '/favicon.png'
+				});
+			}
+		}
 		prevPending = pendingRequests;
+
+		// Prüft, ob die GESAMT-Zahl der Benachrichtigungen gestiegen ist
+		if (prevTotal !== -1 && totalNotifications > prevTotal) {
+			isBlinking = true;
+		}
+		if (totalNotifications === 0) isBlinking = false;
+		
+		prevTotal = totalNotifications;
 	});
 </script>
 
@@ -72,7 +155,7 @@
 			
 			<!-- Logo auf Mobile anzeigen, da die Sidebar ja ausgeblendet ist -->
 			<div class="md:hidden flex items-center gap-2 font-bold tracking-tight text-neutral-900 text-xl">
-				<img src={logoUrl} alt="Logo" class="w-6 h-6 object-contain" />
+				<img src="/favicon.png" alt="Logo" class="w-6 h-6 object-contain" />
 				OrgaFlow
 			</div>
 		</div>
@@ -82,7 +165,7 @@
 			<div class="relative flex items-center">
 				<button 
 					class="p-2 text-neutral-500 hover:text-indigo-600 transition-colors relative rounded-full hover:bg-neutral-100 outline-none"
-					onclick={() => isNotificationsOpen = !isNotificationsOpen}
+					onclick={() => { isNotificationsOpen = !isNotificationsOpen; if (isNotificationsOpen) isBlinking = false; }}
 					aria-label="Benachrichtigungen"
 				>
 					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -90,7 +173,9 @@
 					</svg>
 					{#if totalNotifications > 0}
 						<span class="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
-							<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+							{#if isBlinking}
+								<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+							{/if}
 							<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
 						</span>
 					{/if}
@@ -100,7 +185,7 @@
 					<!-- Backdrop zum Schließen beim Klicken ins Leere -->
 					<button class="fixed inset-0 w-full h-full cursor-default z-40" onclick={() => isNotificationsOpen = false} tabindex="-1" aria-label="Schließen"></button>
 					
-					<div class="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-white rounded-2xl shadow-xl border border-neutral-100 overflow-hidden z-50 animate-enter">
+					<div class="fixed top-18 left-4 right-4 sm:absolute sm:left-auto sm:right-0 sm:top-full mt-2 sm:w-80 bg-white rounded-2xl shadow-xl border border-neutral-100 overflow-hidden z-50 animate-enter">
 						<div class="p-4 border-b border-neutral-100 bg-neutral-50/50 flex justify-between items-center">
 							<h3 class="font-bold text-neutral-900">Benachrichtigungen</h3>
 							{#if totalNotifications > 0}
@@ -116,6 +201,15 @@
 								</div>
 							{:else}
 								<div class="flex flex-col">
+									{#if updateStore.hasUnread}
+										<button type="button" onclick={() => { isNotificationsOpen = false; updateStore.open(); }} class="w-full text-left p-4 border-b border-neutral-50 hover:bg-neutral-50 transition-colors flex items-start gap-3 cursor-pointer">
+											<div class="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 shadow-inner text-xl">✨</div>
+											<div>
+												<p class="text-sm font-bold text-neutral-900">Neues System-Update</p>
+												<p class="text-xs text-neutral-500 mt-0.5">Erfahren Sie, was sich in OrgaFlow verändert hat.</p>
+											</div>
+										</button>
+									{/if}
 									{#if unreadMails > 0}
 										<a href="/mail" onclick={() => isNotificationsOpen = false} class="p-4 border-b border-neutral-50 hover:bg-neutral-50 transition-colors flex items-start gap-3 cursor-pointer">
 											<div class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 shadow-inner">✉️</div>
@@ -136,6 +230,12 @@
 									{/if}
 								</div>
 							{/if}
+						</div>
+						
+						<div class="p-3 border-t border-neutral-100 bg-neutral-50 flex justify-center shrink-0">
+							<button onclick={() => { isNotificationsOpen = false; notificationModal?.open?.(); }} class="text-xs font-bold text-neutral-600 hover:text-indigo-600 transition-colors flex items-center gap-1.5">
+								<span>⚙️</span> Benachrichtigungs-Einstellungen
+							</button>
 						</div>
 					</div>
 				{/if}
@@ -172,3 +272,5 @@
 	<!-- z-20 unterhalb der z-30 header -->
 	<button aria-label="Menü schließen" class="fixed inset-0 bg-neutral-900/10 backdrop-blur-sm z-20 md:hidden block" onclick={toggleMenu}></button>
 {/if}
+
+<NotificationSettingsModal bind:this={notificationModal} />

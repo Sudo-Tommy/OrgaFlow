@@ -4,6 +4,7 @@
 
     let { client } = $props<{ client: any }>();
 
+    // svelte-ignore non_reactive_update
     let dialog: HTMLDialogElement;
     let isLoading = $state(false);
     let errorMsg = $state("");
@@ -35,6 +36,13 @@
 
         try {
             await pb.collection('clients').update(client.id, { contacts });
+            
+            setTimeout(async () => {
+                const updatedClient = await pb.collection('clients').getOne(client.id, { expand: 'insurance,retirement_homes,contacts', requestKey: null }) as any;
+                const index = orgaStore.clients?.data.findIndex((c: any) => c.id === client.id) ?? -1;
+                if (index !== -1 && orgaStore.clients) orgaStore.clients.data[index] = updatedClient;
+            }, 400);
+            
             close();
         } catch (err: any) {
             console.error(err);
@@ -69,9 +77,9 @@
                 {/each}
                 {#if (orgaStore.contacts?.data || []).length === 0}<p class="text-sm text-neutral-500 p-3 italic">Keine Kontakte im System vorhanden.</p>{/if}
             </div>
-            <div class="pt-4 flex justify-end gap-3 border-t border-neutral-100">
-                <button type="button" onclick={close} class="orga-button-ghost" disabled={isLoading}>Abbrechen</button>
-                <button type="submit" class="orga-button-primary" disabled={isLoading}>{isLoading ? "Speichert..." : "Verknüpfen"}</button>
+            <div class="pt-4 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-neutral-100 mt-6">
+                <button type="button" onclick={close} class="orga-button-ghost w-full sm:w-auto py-3 sm:py-2.5" disabled={isLoading}>Abbrechen</button>
+                <button type="submit" class="orga-button-primary w-full sm:w-auto py-3 sm:py-2.5" disabled={isLoading}>{isLoading ? "Speichert..." : "Verknüpfen"}</button>
             </div>
         </form>
     </div>

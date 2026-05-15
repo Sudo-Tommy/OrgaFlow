@@ -7,6 +7,9 @@
     let stickies = $state<any[]>([]);
     let isSubscribed = false;
 
+    let innerWidth = $state(1024);
+    let isMobile = $derived(innerWidth < 768);
+
     async function loadStickies() {
         try {
             const user = pb.authStore.model;
@@ -30,7 +33,7 @@
                 isSubscribed = true;
             }
         } catch (err) {
-            console.warn("PocketBase Collection 'stickies' fehlt vermutlich noch.");
+            // Silently ignore - Collection might be empty or permissions not yet synced
         }
     }
 
@@ -114,43 +117,51 @@
     }
 </script>
 
-<div class="absolute inset-0 pointer-events-none z-30 overflow-visible">
-    {#each stickies as sticky (sticky.id)}
-        <div 
-            class="absolute w-56 shadow-lg rounded-bl-2xl rounded-br-2xl rounded-tr-2xl pointer-events-auto flex flex-col group {sticky.color || 'bg-amber-200'}"
-            style="left: {sticky.pos_x}px; top: {sticky.pos_y}px; transition: {dragId === sticky.id ? 'none' : 'box-shadow 0.2s'}; z-index: {dragId === sticky.id ? 50 : 10};"
-        >
-            <!-- Die Griffleiste (oben) -->
+<svelte:window bind:innerWidth />
+
+{#if stickies.length > 0}
+    <!-- Am PC absolut über der App liegend, auf dem Handy als horizontale Liste am oberen Bildschirmrand eingebettet -->
+    <div class="{isMobile ? 'relative flex w-full overflow-x-auto gap-4 p-4 snap-x custom-scrollbar bg-black/5 shadow-inner border-b border-black/5' : 'absolute inset-0 pointer-events-none z-30 overflow-visible'}">
+        {#each stickies as sticky (sticky.id)}
             <div 
-                role="none"
-                class="h-8 cursor-grab active:cursor-grabbing flex justify-between items-center px-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/10 rounded-tr-2xl"
-                onpointerdown={(e) => handlePointerDown(e, sticky)}
-                onpointermove={handlePointerMove}
-                onpointerup={handlePointerUp}
-                onpointercancel={handlePointerUp}
+                class="shadow-lg pointer-events-auto flex flex-col group {sticky.color || 'bg-amber-200'} {isMobile ? 'relative w-70 shrink-0 rounded-2xl snap-center' : 'absolute w-56 rounded-bl-2xl rounded-br-2xl rounded-tr-2xl'}"
+                style={isMobile ? '' : `left: ${sticky.pos_x}px; top: ${sticky.pos_y}px; transition: ${dragId === sticky.id ? 'none' : 'box-shadow 0.2s'}; z-index: ${dragId === sticky.id ? 50 : 10};`}
             >
-                <!-- Farbauswahl -->
-                <div class="flex gap-1.5 ml-1">
-                    <button aria-label="Gelb" onclick={() => changeColor(sticky, 'bg-amber-200')} class="w-3.5 h-3.5 rounded-full bg-amber-200 border border-black/10 hover:scale-110 transition-transform shadow-sm"></button>
-                    <button aria-label="Grün" onclick={() => changeColor(sticky, 'bg-emerald-200')} class="w-3.5 h-3.5 rounded-full bg-emerald-200 border border-black/10 hover:scale-110 transition-transform shadow-sm"></button>
-                    <button aria-label="Rot" onclick={() => changeColor(sticky, 'bg-rose-200')} class="w-3.5 h-3.5 rounded-full bg-rose-200 border border-black/10 hover:scale-110 transition-transform shadow-sm"></button>
-                    <button aria-label="Blau" onclick={() => changeColor(sticky, 'bg-sky-200')} class="w-3.5 h-3.5 rounded-full bg-sky-200 border border-black/10 hover:scale-110 transition-transform shadow-sm"></button>
+                <!-- Die Griffleiste (oben) -->
+                <div 
+                    role="none"
+                    class="{isMobile ? 'h-12 rounded-t-2xl opacity-100' : 'h-8 rounded-tr-2xl cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100'} flex justify-between items-center px-3 md:px-2 transition-opacity bg-black/10"
+                    onpointerdown={(e) => { if (!isMobile) handlePointerDown(e, sticky); }}
+                    onpointermove={(e) => { if (!isMobile) handlePointerMove(e); }}
+                    onpointerup={(e) => { if (!isMobile) handlePointerUp(e); }}
+                    onpointercancel={(e) => { if (!isMobile) handlePointerUp(e); }}
+                >
+                    <!-- Farbauswahl -->
+                    <div class="flex gap-2 md:gap-1.5 ml-1">
+                        <button aria-label="Gelb" onclick={() => changeColor(sticky, 'bg-amber-200')} class="w-5 h-5 md:w-3.5 md:h-3.5 rounded-full bg-amber-200 border border-black/10 hover:scale-110 transition-transform shadow-sm"></button>
+                        <button aria-label="Grün" onclick={() => changeColor(sticky, 'bg-emerald-200')} class="w-5 h-5 md:w-3.5 md:h-3.5 rounded-full bg-emerald-200 border border-black/10 hover:scale-110 transition-transform shadow-sm"></button>
+                        <button aria-label="Rot" onclick={() => changeColor(sticky, 'bg-rose-200')} class="w-5 h-5 md:w-3.5 md:h-3.5 rounded-full bg-rose-200 border border-black/10 hover:scale-110 transition-transform shadow-sm"></button>
+                        <button aria-label="Blau" onclick={() => changeColor(sticky, 'bg-sky-200')} class="w-5 h-5 md:w-3.5 md:h-3.5 rounded-full bg-sky-200 border border-black/10 hover:scale-110 transition-transform shadow-sm"></button>
+                    </div>
+                    <!-- Löschen Button -->
+                    <button onclick={() => pb.collection('stickies').delete(sticky.id)} class="text-black/40 hover:text-rose-600 font-bold p-2 md:p-1 rounded-md hover:bg-black/5 transition-colors text-xl md:text-base leading-none">✕</button>
                 </div>
-                <!-- Löschen Button -->
-                <button onclick={() => pb.collection('stickies').delete(sticky.id)} class="text-black/40 hover:text-rose-600 font-bold p-1 rounded-md hover:bg-black/5 transition-colors">✕</button>
+                
+                <!-- Textfeld -->
+                <textarea 
+                    bind:value={sticky.content} 
+                    oninput={() => handleContentChange(sticky)}
+                    class="w-full {isMobile ? 'min-h-48 text-base p-5 pt-3' : 'min-h-35 text-sm p-4 pt-2'} bg-transparent resize-none focus:outline-none text-neutral-800 font-medium leading-relaxed custom-scrollbar placeholder:text-black/40 placeholder:italic"
+                    placeholder="Notiz eintragen..."
+                    spellcheck="false"
+                ></textarea>
+                
+                <!-- Optisches Eselsohr oben links (Nur auf Desktop) -->
+                {#if !isMobile}
+                    <div class="absolute top-0 left-0 w-4 h-4 bg-black/10 rounded-br-lg shadow-sm" style="clip-path: polygon(0 0, 100% 100%, 0 100%);"></div>
+                {/if}
             </div>
-            
-            <!-- Textfeld -->
-            <textarea 
-                bind:value={sticky.content} 
-                oninput={() => handleContentChange(sticky)}
-                class="w-full min-h-35 bg-transparent resize-none p-4 pt-2 focus:outline-none text-neutral-800 font-medium leading-relaxed custom-scrollbar placeholder:text-black/40 placeholder:italic"
-                placeholder="Notiz eintragen..."
-                spellcheck="false"
-            ></textarea>
-            
-            <!-- Optisches Eselsohr oben links -->
-            <div class="absolute top-0 left-0 w-4 h-4 bg-black/10 rounded-br-lg shadow-sm" style="clip-path: polygon(0 0, 100% 100%, 0 100%);"></div>
-        </div>
-    {/each}
-</div>
+        {/each}
+    </div>
+    {#if isMobile}<div class="w-full h-4"></div>{/if}
+{/if}

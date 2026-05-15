@@ -1,4 +1,5 @@
 <script lang="ts">
+    // svelte-ignore non_reactive_update
     let dialog: HTMLDialogElement;
 
     export function open() {
@@ -19,7 +20,7 @@
         <h2 class="text-3xl font-bold text-brand-950 mb-6">Kostenübernahme durch die Pflegekasse</h2>
         <div class="space-y-4 text-neutral-700 leading-relaxed text-lg">
             <p><strong>Gute Neuigkeiten:</strong> In den allermeisten Fällen müssen Sie für unsere Leistungen keinen einzigen Cent aus eigener Tasche bezahlen!</p>
-            <p>Sobald bei Ihnen oder Ihrem Angehörigen ein <strong>Pflegegrad (1 bis 5)</strong> festgestellt wurde, steht Ihnen monatlich der sogenannte Entlastungsbetrag in Höhe von <strong>125 Euro</strong> zu (§ 45b SGB XI).</p>
+            <p>Sobald bei Ihnen oder Ihrem Angehörigen ein <strong>Pflegegrad (1 bis 5)</strong> festgestellt wurde, steht Ihnen monatlich der sogenannte Entlastungsbetrag in Höhe von <strong>131 Euro</strong> zu (§ 45b SGB XI).</p>
             <p>Da wir ein anerkannter Dienstleister sind, können wir unsere Leistungen direkt mit Ihrer Pflegekasse abrechnen. Sie müssen nicht in Vorkasse gehen und haben keinen lästigen Papierkram damit.</p>
             <p>Zusätzlich gibt es die Möglichkeit der <strong>Verhinderungspflege</strong>, falls pflegende Angehörige einmal verhindert sind oder eine Auszeit brauchen. Auch hier beraten wir Sie gerne zu Ihren Ansprüchen.</p>
             <div class="bg-amber-50 border border-amber-100 p-6 rounded-2xl mt-6 shadow-sm">
@@ -28,7 +29,7 @@
             </div>
         </div>
         <div class="mt-10 flex justify-end">
-            <button onclick={close} class="orga-button-primary">Verstanden, danke!</button>
+            <button onclick={close} class="orga-button-primary w-full sm:w-auto">Verstanden, danke!</button>
         </div>
     </div>
 </dialog>

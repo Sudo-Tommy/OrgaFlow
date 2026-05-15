@@ -2,6 +2,7 @@
     import LandingLegalModal from "$lib/components/LandingLegalModal.svelte";
     
     const year = new Date().getFullYear();
+    // svelte-ignore non_reactive_update
     let legalModal: ReturnType<typeof LandingLegalModal>;
 </script>
 
@@ -47,6 +48,9 @@
             <ul class="space-y-3">
                 <li>
                     <button onclick={() => legalModal.open()} class="hover:text-white transition-colors">Impressum & Datenschutz</button>
+                </li>
+                <li>
+                    <a href="/portal" class="hover:text-white transition-colors">Zum Klienten-Portal 🔐</a>
                 </li>
             </ul>
         </div>

@@ -4,6 +4,7 @@
     import { onMount, onDestroy, tick } from 'svelte';
     import { toastStore } from "$lib/services/toastService.svelte";
     import { confirmStore } from "$lib/services/confirmService.svelte";
+    import NotificationSettingsModal from "$lib/components/NotificationSettingsModal.svelte";
 
     const chat = useChat();
     let chatContainer: HTMLElement;
@@ -22,6 +23,9 @@
     let recordingTime = $state(0);
     let recordingInterval: any;
 
+    // Reaktive Variablen-Bindung für Svelte 5
+    let notificationModal: any = $state();
+
     // Re-Init Funktion: Erkennt Standby-Aufwachen oder Netzwechsel
     function handleResume() {
         if (document.visibilityState === 'visible' && navigator.onLine) {
@@ -30,7 +34,7 @@
     }
 
     onMount(() => { 
-        chat.init(); 
+        chat.init();
         document.addEventListener('visibilitychange', handleResume);
         window.addEventListener('focus', handleResume);
         window.addEventListener('online', handleResume);
@@ -159,27 +163,39 @@
 
 <div class="orga-card-white flex flex-col overflow-hidden border border-neutral-200 relative" style="height: 600px;">
     <!-- Header -->
-    <div class="bg-brand-800 text-white p-4 flex items-center gap-4 z-10 shadow-md">
-        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-xl">💬</div>
-        <div>
-            <h2 class="font-bold text-lg leading-tight">Team Chat & Support</h2>
-            <p class="text-xs text-brand-100 flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full bg-emerald-400"></span> System online
-            </p>
+    <div class="bg-brand-800 text-white p-4 flex items-center justify-between z-10 shadow-md">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-xl">💬</div>
+            <div>
+                <h2 class="font-bold text-lg leading-tight">Team Chat & Support</h2>
+                <p class="text-xs text-brand-100 flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span> System online
+                </p>
+            </div>
         </div>
+        <button type="button" onclick={() => notificationModal?.open?.()} class="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-xl" title="Benachrichtigungen verwalten">🔔</button>
     </div>
 
     <!-- Chat History / Messages -->
     <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-brand-50" bind:this={chatContainer}>
         {#each chat.messages as msg}
-            {@const isMe = msg.user === chat.currentUserId}
+            {@const rawUser = typeof msg.user === 'string' && msg.user.startsWith('[') ? JSON.parse(msg.user) : msg.user}
+            {@const senderId = Array.isArray(rawUser) ? rawUser[0] : rawUser}
+            {@const isMe = senderId === chat.currentUserId}
             {@const isBugReport = msg.text ? msg.text.includes('🚨 [BUG REPORT]') : false}
             
+            {@const rawWhisper = typeof msg.whispered_user === 'string' && msg.whispered_user.startsWith('[') ? JSON.parse(msg.whispered_user) : msg.whispered_user}
+            {@const whisperId = Array.isArray(rawWhisper) ? rawWhisper[0] : rawWhisper}
+
+            <!-- Fallback auf chat.users (falls realtime expand fehlt) oder auf "Support" (falls Absender ein Superuser ist) -->
+            {@const expandUser = (Array.isArray(msg.expand?.user) ? msg.expand.user[0] : msg.expand?.user) || chat.users.find(u => u.id === senderId) || { name_first: 'System/Support' }}
+            {@const expandWhisper = (Array.isArray(msg.expand?.whispered_user) ? msg.expand.whispered_user[0] : msg.expand?.whispered_user) || chat.users.find(u => u.id === whisperId)}
+
             <div class="flex flex-col {isMe ? 'items-end' : 'items-start'} animate-enter relative group/msg">
                 <!-- Flüstern Hinweis -->
                 {#if msg.whispered}
                     <span class="text-[10px] font-bold text-neutral-500 bg-neutral-200/60 px-2 py-0.5 rounded-full mb-1">
-                        🤫 Geflüstert {isMe ? `an ${msg.expand?.whispered_user?.name_first || 'Support'}` : 'an dich'}
+                        🤫 Geflüstert {isMe ? `an ${expandWhisper?.name_first || 'Support'}` : 'an dich'}
                     </span>
                 {/if}
                 
@@ -197,7 +213,7 @@
 
                     <!-- Absender Name (nur bei anderen) -->
                     {#if !isMe}
-                        <div class="text-xs font-bold text-emerald-700 mb-1">{msg.expand?.user?.name_first || 'Unbekannt'}</div>
+                        <div class="text-xs font-bold text-emerald-700 mb-1">{expandUser?.name_first || 'System/Support'}</div>
                     {/if}
 
                     <!-- Dateianhang -->
@@ -241,11 +257,11 @@
         
         <!-- Obere Kontroll-Leiste (Optionen) -->
         <div class="flex items-center gap-3 mb-3 px-1">
-         <button type="button" onclick={() => isBug = !isBug} class="text-xs font-bold px-3 py-1.5 rounded-full transition-colors border {isBug ? 'bg-rose-500 text-white border-rose-600 shadow-inner' : 'bg-white text-neutral-600 border-neutral-300 hover:bg-neutral-100'}">
+         <button type="button" onclick={() => isBug = !isBug} class="text-xs font-bold px-4 sm:px-3 py-3 sm:py-1.5 rounded-full transition-colors border shrink-0 whitespace-nowrap {isBug ? 'bg-rose-500 text-white border-rose-600 shadow-inner' : 'bg-white text-neutral-600 border-neutral-300 hover:bg-neutral-100'}">
             🚨 Bug melden
             </button>
             
-            <select bind:value={whisperTo} class="text-xs font-bold px-3 py-1.5 rounded-full border border-neutral-300 bg-white text-neutral-600 focus:outline-none focus:border-brand-500 cursor-pointer w-full">
+            <select bind:value={whisperTo} class="text-xs font-bold px-4 sm:px-3 py-3 sm:py-1.5 rounded-full border border-neutral-300 bg-white text-neutral-600 focus:outline-none focus:border-brand-500 cursor-pointer w-full">
                 <option value="">Offen für alle</option>
                 {#each chat.users as u}
                     {#if u.id !== chat.currentUserId}
@@ -305,3 +321,5 @@
          </form>
     </div>
 </div>
+
+<NotificationSettingsModal bind:this={notificationModal} />

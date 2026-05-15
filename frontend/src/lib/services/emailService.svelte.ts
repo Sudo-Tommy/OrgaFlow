@@ -1,6 +1,7 @@
 import { pb } from './pocketbase';
 import type { RecordModel } from 'pocketbase';
-import { fetchInbox, MICROSERVICE_URL } from './emailService';
+import { fetchInbox, MICROSERVICE_URL, markEmailAsRead as markImapRead } from './emailService';
+import { getMailboxService } from './mailboxService.svelte';
 
 /**
  * Email Service
@@ -188,6 +189,12 @@ export function createEmailService() {
       isLoading = true;
       error = null;
       try {
+        const emailToMark = emails.find(e => e.id === emailId);
+        if (emailToMark && emailToMark.message_id && isRead) {
+            // 1. IMAP Server informieren (E-Mail Anbieter), dass Mail gelesen wurde
+            await markImapRead(emailToMark.message_id);
+        }
+
         const formData = new FormData();
         formData.append('is_read', isRead.toString());
 
@@ -199,7 +206,15 @@ export function createEmailService() {
         // Update in local state
         const index = emails.findIndex(e => e.id === emailId);
         if (index !== -1) {
+          const wasRead = emails[index].is_read;
           emails[index] = updated;
+          
+          // Wenn sich der Status geändert hat, Glöckchen-Badge aktualisieren!
+          if (wasRead !== isRead) {
+              getMailboxService().loadFolders();
+          }
+        } else {
+          getMailboxService().loadFolders();
         }
 
         return updated;

@@ -2,6 +2,7 @@
     import { getLegalContent } from "$lib/services/landingContentService";
     
     const content = getLegalContent();
+    // svelte-ignore non_reactive_update
     let dialog: HTMLDialogElement;
 
     // Öffentliche Funktionen, damit der Footer das Modal steuern kann
@@ -36,7 +37,7 @@
         </div>
         
         <div class="mt-10 flex justify-end">
-            <button onclick={close} class="orga-button-ghost">Schließen</button>
+            <button onclick={close} class="orga-button-ghost w-full sm:w-auto">Schließen</button>
         </div>
     </div>
 </dialog>

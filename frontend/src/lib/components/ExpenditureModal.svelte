@@ -4,6 +4,7 @@
 
     let { appointment } = $props<{ appointment: any }>();
     
+    // svelte-ignore non_reactive_update
     let dialog: HTMLDialogElement;
     let isLoading = $state(false);
     let errorMsg = $state("");
@@ -56,13 +57,15 @@
             }
 
             // Store Update erzwingen
-            const updatedApp = await pb.collection<any>('appointments').getOne(appointment.id, { 
-                expand: 'user,client,drive_record,time_record,tasks,expenditures' 
-            });
-            const index = orgaStore.appointments?.data.findIndex(a => a.id === appointment.id) ?? -1;
-            if (index !== -1 && orgaStore.appointments) {
-                orgaStore.appointments.data[index] = updatedApp;
-            }
+            setTimeout(async () => {
+                const updatedApp = await pb.collection('appointments').getOne(appointment.id, { 
+                    expand: 'user,client,drive_record,time_record,tasks,expenditures', requestKey: null
+                }) as any;
+                const index = orgaStore.appointments?.data.findIndex(a => a.id === appointment.id) ?? -1;
+                if (index !== -1 && orgaStore.appointments) {
+                    orgaStore.appointments.data[index] = updatedApp;
+                }
+            }, 400);
 
             close();
         } catch (err: any) {
@@ -88,9 +91,9 @@
         <form onsubmit={onSubmit} class="space-y-4">
             <div><label for="exp-titel" class="block text-sm font-semibold text-neutral-700 mb-1.5">Titel / Zweck</label><input id="exp-titel" type="text" bind:value={titel} class="orga-input-clear" placeholder="z.B. Apothekeneinkauf" required disabled={isLoading} /></div>
             <div><label for="exp-sum" class="block text-sm font-semibold text-neutral-700 mb-1.5">Betrag in €</label><input id="exp-sum" type="number" step="0.01" bind:value={sum} class="orga-input-clear" placeholder="z.B. 14.50" required disabled={isLoading} /></div>
-            <div class="pt-4 flex justify-end gap-3 border-t border-neutral-100">
-                <button type="button" onclick={close} class="orga-button-ghost" disabled={isLoading}>Abbrechen</button>
-                <button type="submit" class="orga-button-primary" disabled={isLoading}>{isLoading ? "Speichert..." : (editId ? "Änderungen speichern" : "Hinzufügen")}</button>
+            <div class="pt-4 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-neutral-100 mt-6">
+                <button type="button" onclick={close} class="orga-button-ghost w-full sm:w-auto py-3 sm:py-2.5" disabled={isLoading}>Abbrechen</button>
+                <button type="submit" class="orga-button-primary w-full sm:w-auto py-3 sm:py-2.5" disabled={isLoading}>{isLoading ? "Speichert..." : (editId ? "Änderungen speichern" : "Hinzufügen")}</button>
             </div>
         </form>
     </div>

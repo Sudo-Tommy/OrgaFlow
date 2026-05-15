@@ -1,6 +1,7 @@
 <script lang="ts">
     import LandingAppointmentModal from "./LandingAppointmentModal.svelte";
-    let modal: ReturnType<typeof LandingAppointmentModal> | undefined = $state();
+    // svelte-ignore non_reactive_update
+    let modal: ReturnType<typeof LandingAppointmentModal>;
 </script>
 
 <div id="terminanfrage" class="w-full max-w-4xl mx-auto px-4 py-20">

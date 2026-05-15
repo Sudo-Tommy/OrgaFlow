@@ -9,12 +9,14 @@
     "dev": "node index.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "imapflow": "^1.0.14",
     "mailparser": "^3.9.8",
     "nodemailer": "^6.9.7",
-    "pocketbase": "^0.21.1"
+    "pocketbase": "^0.21.1",
+    "web-push": "^3.6.7"
   }
 }

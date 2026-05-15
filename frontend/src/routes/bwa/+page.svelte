@@ -10,9 +10,9 @@
         <h1 class="orga-page-title">BWA & Statistik</h1>
         <p class="orga-page-subtitle">Ihre betriebswirtschaftliche Auswertung, Umsätze und Leistungszahlen.</p>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex items-center justify-between sm:justify-start gap-3 mt-4 sm:mt-0 w-full sm:w-auto">
         <label for="year-select" class="text-sm font-semibold text-neutral-600">Geschäftsjahr:</label>
-        <select id="year-select" bind:value={bwa.selectedYear} class="orga-input-clear py-2 w-32 cursor-pointer font-bold text-indigo-700 bg-white">
+        <select id="year-select" bind:value={bwa.selectedYear} class="orga-input-clear py-3 sm:py-2 w-full sm:w-32 cursor-pointer font-bold text-indigo-700 bg-white">
             {#each bwa.availableYears as year}
                 <option value={year}>{year}</option>
             {/each}

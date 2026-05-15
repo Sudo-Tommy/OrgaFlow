@@ -9,7 +9,8 @@
 
     const reqService = useRequestAdmin();
     let showAll = $state(false);
-    let replyModal: ReturnType<typeof RequestReplyModal> | undefined = $state();
+    // svelte-ignore non_reactive_update
+    let replyModal: ReturnType<typeof RequestReplyModal>;
 
     onMount(() => reqService.init());
     onDestroy(() => reqService.cleanup());
@@ -135,15 +136,15 @@
                                 {/if}
                             </div>
                             
-                            <div class="flex items-center gap-2 w-full sm:w-auto">
+                            <div class="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
                                 {#if req.status === 'requested'}
-                                    <button onclick={() => handleStatus(req.id, 'denied')} class="px-3 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200">Ablehnen</button>
-                                    <button onclick={() => handlePropose(req.id)} class="px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200">Vorschlag</button>
-                                    <button onclick={() => handleStatus(req.id, 'accepted')} class="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors border border-emerald-300">Annehmen</button>
+                                    <button onclick={() => handleStatus(req.id, 'denied')} class="flex-1 sm:flex-none px-2 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200 text-center whitespace-nowrap">Ablehnen</button>
+                                    <button onclick={() => handlePropose(req.id)} class="flex-1 sm:flex-none px-2 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 text-center whitespace-nowrap">Vorschlag</button>
+                                    <button onclick={() => handleStatus(req.id, 'accepted')} class="flex-1 sm:flex-none px-2 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors border border-emerald-300 text-center whitespace-nowrap">Annehmen</button>
                                 {:else}
-                                    <button onclick={() => handleStatus(req.id, 'requested')} class="px-2 py-1.5 text-xs font-bold text-neutral-500 hover:text-neutral-700 transition-colors">Zurücksetzen</button>
+                                    <button onclick={() => handleStatus(req.id, 'requested')} class="flex-1 sm:flex-none px-2 py-1.5 text-xs font-bold text-neutral-500 hover:text-neutral-700 transition-colors text-center whitespace-nowrap">Zurücksetzen</button>
                                 {/if}
-                                <button onclick={() => handleDelete(req.id)} class="p-1.5 text-neutral-400 hover:text-rose-500 transition-colors" title="Löschen"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                                <button onclick={() => handleDelete(req.id)} class="p-1.5 text-neutral-400 hover:text-rose-500 transition-colors shrink-0" title="Löschen"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
                             </div>
                         </div>
                     </div>

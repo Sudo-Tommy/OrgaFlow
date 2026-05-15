@@ -8,9 +8,12 @@
 	import AppointmentDetailModal from "$lib/components/AppointmentDetailModal.svelte";
 	import StickiesLayer from "$lib/components/StickiesLayer.svelte";
 	import { pb } from "$lib/services/pocketbase";
+	import BirthdayTimeline from "$lib/components/BirthdayTimeline.svelte";
 
-	let appointmentModal: ReturnType<typeof AppointmentModal> | undefined = $state();
-	let detailModal: ReturnType<typeof AppointmentDetailModal> | undefined = $state();
+	// svelte-ignore non_reactive_update
+	let appointmentModal: ReturnType<typeof AppointmentModal>;
+	// svelte-ignore non_reactive_update
+	let detailModal: ReturnType<typeof AppointmentDetailModal>;
 
 	// 1. Heutige Termine herausfiltern
 	let todaysAppointments = $derived.by(() => {
@@ -55,6 +58,11 @@
             <Greetings />
         </div>
 
+        <!-- Geburtstag-Zeitstrahl -->
+        <div class="mb-8 w-full animate-enter delay-75">
+            <BirthdayTimeline />
+        </div>
+
         <!-- Oberes Grid: Termine & Kalender -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             <!-- Termine -->
@@ -65,18 +73,27 @@
                 {:else}
                     <div class="space-y-3 mt-2 flex-1 max-h-100 overflow-y-auto custom-scrollbar pr-2">
                         {#each todaysAppointments as app}
-                            <button type="button" onclick={() => detailModal?.open(app.id)} class="w-full text-left block p-3 rounded-xl border border-neutral-100 hover:border-indigo-300 bg-neutral-50 hover:bg-white transition-all group shadow-sm hover:shadow-md">
-                                <div class="flex justify-between items-start mb-1">
-                                    <span class="text-xs font-bold {app.is_private ? 'text-rose-600' : 'text-indigo-600'}">{new Date(app.appointment as string).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</span>
-                                    {#if app.expand?.client?.[0]}
-                                        <span class="text-[10px] font-bold text-neutral-600 bg-neutral-200 px-1.5 py-0.5 rounded truncate max-w-25">{app.expand.client[0].name_first} {app.expand.client[0].name_last}</span>
-                                    {/if}
-                                    {#if isSuperAdmin && app.expand?.user}
-                                        <span class="text-[10px] font-bold text-neutral-500 bg-neutral-200 border border-neutral-300 px-1.5 py-0.5 rounded truncate max-w-25 shadow-sm" title="{app.expand.user.name_first} {app.expand.user.name_last}">👤 {app.expand.user.name_first}</span>
-                                    {/if}
-                                </div>
-                                <p class="text-sm font-semibold text-neutral-900 truncate">{app.description || 'Termin ohne Beschreibung'}</p>
-                            </button>
+                            {#if app.description?.includes('[BLOCK]')}
+                                <button type="button" onclick={() => detailModal?.open(app.id)} class="w-full text-left block p-3 rounded-xl border border-neutral-200 bg-neutral-100 hover:bg-neutral-200 transition-all shadow-sm hover:shadow-md">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <span class="text-xs font-bold text-neutral-600">Ganztägig blockiert</span>
+                                    </div>
+                                    <p class="text-sm font-semibold text-neutral-900 truncate">🚫 {app.description.replace('[BLOCK]', '').trim() || 'Urlaub / Abwesend'}</p>
+                                </button>
+                            {:else}
+                                <button type="button" onclick={() => detailModal?.open(app.id)} class="w-full text-left block p-3 rounded-xl border border-neutral-100 hover:border-indigo-300 bg-neutral-50 hover:bg-white transition-all group shadow-sm hover:shadow-md">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <span class="text-xs font-bold {app.is_private ? 'text-rose-600' : 'text-indigo-600'}">{new Date(app.appointment as string).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</span>
+                                        {#if app.expand?.client?.[0]}
+                                            <span class="text-[10px] font-bold text-neutral-600 bg-neutral-200 px-1.5 py-0.5 rounded truncate max-w-25">{app.expand.client[0].name_first} {app.expand.client[0].name_last}</span>
+                                        {/if}
+                                        {#if isSuperAdmin && app.expand?.user}
+                                            <span class="text-[10px] font-bold text-neutral-500 bg-neutral-200 border border-neutral-300 px-1.5 py-0.5 rounded truncate max-w-25 shadow-sm" title="{app.expand.user.name_first} {app.expand.user.name_last}">👤 {app.expand.user.name_first}</span>
+                                        {/if}
+                                    </div>
+                                    <p class="text-sm font-semibold text-neutral-900 truncate">{app.description || 'Termin ohne Beschreibung'}</p>
+                                </button>
+                            {/if}
                         {/each}
                     </div>
                 {/if}

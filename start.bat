@@ -156,6 +156,21 @@ if exist "frontend\build" (
 )
 echo.
 echo Build und Kopiervorgang erfolgreich!
+echo.
+echo ==========================================
+echo Starte Live-Server nach Build neu...
+taskkill /F /FI "WINDOWTITLE eq OrgaFlow PB (LIVE)*" /T >nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq OrgaFlow Mailer (LIVE)*" /T >nul 2>&1
+cd /d "%NGINX_DIR%"
+nginx.exe -s quit >nul 2>&1
+taskkill /F /IM nginx.exe >nul 2>&1
+cd /d "%PROJECT_ROOT%"
+start "OrgaFlow PB (LIVE)" cmd /k "cd backend && pocketbase.exe serve --http=127.0.0.1:8090"
+start "OrgaFlow Mailer (LIVE)" cmd /k "cd microservice && node index.js"
+cd /d "%NGINX_DIR%"
+start "" nginx.exe
+cd /d "%PROJECT_ROOT%"
+echo Alle Live-Server erfolgreich neu gestartet!
 pause
 goto menu
 
@@ -216,6 +231,8 @@ goto menu
 :increment_version
 set /a BUILD_VER+=1
 echo !BUILD_VER! > "%VERSION_FILE%"
+:: Kopiere die version.txt direkt in den statischen Frontend-Ordner, damit Svelte sie ueber /version.txt laden kann
+copy /Y "%VERSION_FILE%" "%PROJECT_ROOT%frontend\static\version.txt" >nul
 set "APP_VERSION=1.0.!BUILD_VER!"
 echo Version wurde auf !APP_VERSION! erhoeht!
 exit /b

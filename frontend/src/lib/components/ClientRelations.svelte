@@ -19,10 +19,14 @@
     let retirementHomes = $derived(clientData?.expand?.retirement_homes || []);
     let documents = $derived((orgaStore.document_templates?.data || []).filter((d: any) => d.client === clientId));
 
-    let linkContactModal: ReturnType<typeof ClientLinkContactModal> | undefined = $state();
-    let linkHomeModal: ReturnType<typeof ClientLinkHomeModal> | undefined = $state();
-    let appointmentModal: ReturnType<typeof AppointmentModal> | undefined = $state();
-    let detailModal: ReturnType<typeof AppointmentDetailModal> | undefined = $state();
+    // svelte-ignore non_reactive_update
+    let linkContactModal: ReturnType<typeof ClientLinkContactModal>;
+    // svelte-ignore non_reactive_update
+    let linkHomeModal: ReturnType<typeof ClientLinkHomeModal>;
+    // svelte-ignore non_reactive_update
+    let appointmentModal: ReturnType<typeof AppointmentModal>;
+    // svelte-ignore non_reactive_update
+    let detailModal: ReturnType<typeof AppointmentDetailModal>;
     
     let fileInput: HTMLInputElement;
     let isUploading = $state(false);
@@ -47,9 +51,11 @@
             
             await pb.collection('clients').update(clientId, formData);
             
-            const updatedClient = await pb.collection<any>('clients').getOne(clientId, { expand: 'insurance,retirement_homes,contacts' });
-            const index = orgaStore.clients?.data.findIndex((c: any) => c.id === clientId) ?? -1;
-            if (index !== -1 && orgaStore.clients) orgaStore.clients.data[index] = updatedClient;
+            setTimeout(async () => {
+                const updatedClient = await pb.collection('clients').getOne(clientId, { expand: 'insurance,retirement_homes,contacts', requestKey: null }) as any;
+                const index = orgaStore.clients?.data.findIndex((c: any) => c.id === clientId) ?? -1;
+                if (index !== -1 && orgaStore.clients) orgaStore.clients.data[index] = updatedClient;
+            }, 400);
             
             toastStore.success(`${input.files.length} Dokument(e) erfolgreich hochgeladen.`);
         } catch (err) {
@@ -69,9 +75,11 @@
             for (const existing of existingFiles) { if (existing !== filename) formData.append('documents', existing); }
             if (existingFiles.length === 1 && existingFiles[0] === filename) formData.append('documents', '');
             await pb.collection('clients').update(clientId, formData);
-            const updatedClient = await pb.collection<any>('clients').getOne(clientId, { expand: 'insurance,retirement_homes,contacts' });
-            const index = orgaStore.clients?.data.findIndex((c: any) => c.id === clientId) ?? -1;
-            if (index !== -1 && orgaStore.clients) orgaStore.clients.data[index] = updatedClient;
+            setTimeout(async () => {
+                const updatedClient = await pb.collection('clients').getOne(clientId, { expand: 'insurance,retirement_homes,contacts', requestKey: null }) as any;
+                const index = orgaStore.clients?.data.findIndex((c: any) => c.id === clientId) ?? -1;
+                if (index !== -1 && orgaStore.clients) orgaStore.clients.data[index] = updatedClient;
+            }, 400);
             toastStore.info("Dokument wurde gelöscht.");
         } catch (err) { console.error(err); toastStore.error("Fehler beim Löschen des Dokuments."); }
     }

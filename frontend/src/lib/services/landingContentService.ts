@@ -104,7 +104,7 @@ export function getFaqs() {
         {
             question: "Übernimmt die Pflegekasse die Kosten?",
             answerLines: [
-                "<strong>In vielen Fällen: Ja!</strong> Haben Sie bereits einen Pflegegrad (1 bis 5)? Dann winken Ihnen monatlich 125 Euro <i>Entlastungsbetrag</i> (§ 45b SGB XI).",
+                "<strong>In vielen Fällen: Ja!</strong> Haben Sie bereits einen Pflegegrad (1 bis 5)? Dann winken Ihnen monatlich 131 Euro <i>Entlastungsbetrag</i> (§ 45b SGB XI).",
                 "Sofern unsere Leistungen anerkannt sind, rechnen wir oft direkt mit der Kasse ab. Rufen Sie uns einfach an, wir klären das gerne (und ja, wir rufen auch bei der Kasse an, wenn Sie die Warteschleifen-Musik nicht mehr hören können)."
             ]
         },

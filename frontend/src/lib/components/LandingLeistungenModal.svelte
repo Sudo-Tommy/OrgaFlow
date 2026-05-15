@@ -2,6 +2,7 @@
     import { getServices } from "$lib/services/landingContentService";
     
     const services = getServices();
+    // svelte-ignore non_reactive_update
     let dialog: HTMLDialogElement;
 
     export function open() {

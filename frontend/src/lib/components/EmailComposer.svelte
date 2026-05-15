@@ -17,6 +17,8 @@
     let attachments = $state<File[]>([]);
 
     let systemContacts = $state<{name: string, email: string}[]>([]);
+    
+    let isSuperAdmin = $derived(pb.authStore.isSuperuser || pb.authStore.model?.role === 'superadmin');
 
     onMount(async () => {
         try {
@@ -48,6 +50,20 @@
         }
     }
 
+    function addAllToBcc() {
+        showCcBcc = true;
+        const allEmails = systemContacts.map(c => c.email).filter(e => e);
+        const currentBcc = bcc ? bcc.split(',').map(e => e.trim()).filter(e => e) : [];
+        const combined = Array.from(new Set([...currentBcc, ...allEmails]));
+        bcc = combined.join(', ');
+        
+        const myEmail = pb.authStore.model?.email || '';
+        if (!to && myEmail) to = myEmail;
+        
+        successMsg = `${allEmails.length} Empfänger wurden sicher als Blindkopie (BCC) eingefügt!`;
+        setTimeout(() => { successMsg = ''; }, 5000);
+    }
+
     function handleFileSelect(e: Event) {
         const input = e.target as HTMLInputElement;
         if (input.files) {
@@ -74,8 +90,8 @@
     
     async function handleSend(e: Event) {
         e.preventDefault();
-        if (!to || !subject || !message) {
-            errorMsg = 'Bitte füllen Sie alle Felder aus.';
+        if ((!to && !cc && !bcc) || !subject || !message) {
+            errorMsg = 'Bitte geben Sie einen Empfänger, Betreff und eine Nachricht an.';
             return;
         }
         
@@ -188,9 +204,9 @@
                     <button type="button" onclick={() => showCcBcc = !showCcBcc} class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">{showCcBcc ? '− CC / BCC ausblenden' : '+ CC / BCC hinzufügen'}</button>
                 </div>
                 <div class="flex gap-2">
-                    <input type="text" id="to" bind:value={to} list="contact-list" class="orga-input-clear w-full flex-1" placeholder="klient@beispiel.de, kollege@beispiel.de" required disabled={isSending} />
+                <input type="text" id="to" bind:value={to} list="contact-list" class="orga-input-clear w-full flex-1 py-3 sm:py-2" placeholder="klient@beispiel.de, kollege@beispiel.de" disabled={isSending} />
                     <select 
-                        class="orga-input-clear w-auto bg-neutral-50 cursor-pointer max-w-50 text-sm font-medium"
+                        class="orga-input-clear w-auto bg-neutral-50 cursor-pointer max-w-50 text-sm font-medium py-3 sm:py-2"
                         onchange={(e) => {
                             const val = (e.target as HTMLSelectElement).value;
                             if(val) addRecipient(val);
@@ -203,6 +219,11 @@
                             <option value={contact.email}>{contact.name} ({contact.email})</option>
                         {/each}
                     </select>
+                {#if isSuperAdmin}
+                    <button type="button" onclick={addAllToBcc} class="orga-button-ghost py-3 sm:py-2 px-3 text-xs bg-indigo-50 text-indigo-700 border-indigo-200 shadow-sm whitespace-nowrap hover:bg-indigo-100 transition-colors" disabled={isSending} title="Rundmail an alle (BCC)">
+                        📢 An Alle
+                    </button>
+                {/if}
                 </div>
                 <datalist id="contact-list">
                     {#each systemContacts as contact}
@@ -215,24 +236,24 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5 animate-enter">
                     <div>
                         <label for="cc" class="block text-sm font-bold text-neutral-700 mb-1.5">CC (Kopie)</label>
-                        <input type="text" id="cc" bind:value={cc} list="contact-list" class="orga-input-clear w-full" placeholder="z.B. kollege@beispiel.de" disabled={isSending} />
+                        <input type="text" id="cc" bind:value={cc} list="contact-list" class="orga-input-clear w-full py-3 sm:py-2" placeholder="z.B. kollege@beispiel.de" disabled={isSending} />
                     </div>
                     <div>
                         <label for="bcc" class="block text-sm font-bold text-neutral-700 mb-1.5">BCC (Blindkopie)</label>
-                        <input type="text" id="bcc" bind:value={bcc} list="contact-list" class="orga-input-clear w-full" placeholder="z.B. privat@beispiel.de" disabled={isSending} />
+                        <input type="text" id="bcc" bind:value={bcc} list="contact-list" class="orga-input-clear w-full py-3 sm:py-2" placeholder="z.B. privat@beispiel.de" disabled={isSending} />
                     </div>
                 </div>
             {/if}
             
             <div>
                 <label for="subject" class="block text-sm font-bold text-neutral-700 mb-1.5">Betreff</label>
-                <input type="text" id="subject" bind:value={subject} class="orga-input-clear w-full" placeholder="Terminbestätigung..." required disabled={isSending} />
+                <input type="text" id="subject" bind:value={subject} class="orga-input-clear w-full py-3 sm:py-2" placeholder="Terminbestätigung..." required disabled={isSending} />
             </div>
         </div>
         
         <div class="flex-1 flex flex-col">
             <label for="message" class="block text-sm font-bold text-neutral-700 mb-1.5">Nachricht</label>
-            <textarea id="message" bind:value={message} class="orga-input-clear flex-1 min-h-40 resize-none w-full" placeholder="Guten Tag..." required disabled={isSending}></textarea>
+            <textarea id="message" bind:value={message} class="orga-input-clear flex-1 min-h-40 resize-none w-full py-3 sm:py-2" placeholder="Guten Tag..." required disabled={isSending}></textarea>
             
             <!-- Dateianhänge Vorschau -->
             {#if attachments.length > 0}

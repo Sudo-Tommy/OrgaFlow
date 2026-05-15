@@ -5,30 +5,62 @@
     import CompanyAddressCard from "$lib/components/company/CompanyAddressCard.svelte";
     import CompanyBankCard from "$lib/components/company/CompanyBankCard.svelte";
     import { pb } from "$lib/services/pocketbase";
+    import { onMount } from "svelte";
 
     const companyService = useCompanyService();
 
-    // Lade exakt den Firmeneintrag, der dem eingeloggten Nutzer zugewiesen ist
+    // pb.authStore ist nicht nativ reaktiv in Svelte. Wir zwingen Svelte zum Update!
+    let user = $state(pb.authStore.record || pb.authStore.model);
+    
+    onMount(() => {
+        return pb.authStore.onChange(() => {
+            user = pb.authStore.record || pb.authStore.model;
+        });
+    });
+
+    let isReadOnly = $derived(pb.authStore.isSuperuser ? false : (user?.role !== 'superadmin' && user?.role !== 'admin'));
+
+    let availableCompanies = $derived.by(() => {
+        let all = orgaStore.company?.data || [];
+        
+        // Sortiere alphabetisch nach Stadt für eine deterministische Reihenfolge
+        all = [...all].sort((a, b) => (a.city || '').localeCompare(b.city || ''));
+        
+        if (pb.authStore.isSuperuser || user?.role === 'superadmin') return all;
+        if (!user?.company) return [];
+        
+        let rawComp = user.company;
+        if (typeof rawComp === 'string' && rawComp.startsWith('[')) { try { rawComp = JSON.parse(rawComp); } catch {} }
+        const userCompIds = Array.isArray(rawComp) ? rawComp : (rawComp ? [rawComp] : []);
+        return all.filter((c: any) => userCompIds.includes(c.id));
+    });
+    let selectedCompanyId = $state("");
+
     $effect(() => {
-        if (!orgaStore.company?.isLoading && !companyService.isLoaded) {
-            const user = pb.authStore.model;
-            let userCompanyId = '';
+        if (!orgaStore.company?.isLoading && availableCompanies.length > 0 && !selectedCompanyId) {
+            let initialId = '';
             
-            if (user?.company) {
-                userCompanyId = Array.isArray(user.company) ? user.company[0] : user.company;
+            let rawComp = user?.company;
+            if (typeof rawComp === 'string' && rawComp.startsWith('[')) { try { rawComp = JSON.parse(rawComp); } catch {} }
+            
+            if (rawComp && rawComp.length > 0) {
+                initialId = Array.isArray(rawComp) ? rawComp[0] : rawComp;
+            } else if (user?.role === 'superadmin' || pb.authStore.isSuperuser) {
+                initialId = availableCompanies[0].id;
             }
             
-            let record = null;
-            if (userCompanyId) {
-                record = orgaStore.company?.data?.find((c: any) => c.id === userCompanyId);
+            if (initialId) {
+                selectedCompanyId = initialId;
             }
-            
-            // Fallback: Falls ein Superadmin noch keine Zuweisung hat, lade den ersten Eintrag
-            if (!record && (user?.role === 'superadmin' || pb.authStore.isSuperuser)) {
-                record = orgaStore.company?.data?.[0];
+        }
+    });
+
+    $effect(() => {
+        if (selectedCompanyId) {
+            const record = availableCompanies.find((c: any) => c.id === selectedCompanyId);
+            if (record && record.id !== companyService.id) {
+                companyService.load(record);
             }
-            
-            if (record) companyService.load(record);
         }
     });
 </script>
@@ -39,11 +71,18 @@
             <h1 class="orga-page-title">Firmendaten</h1>
             <p class="orga-page-subtitle">Verwalten Sie hier die Stammdaten, Adresse und Bankverbindung Ihres Unternehmens.</p>
         </div>
-        <div class="flex items-center gap-4">
+        <div class="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 mt-4 sm:mt-0 w-full sm:w-auto">
+            {#if availableCompanies.length > 1}
+                <select bind:value={selectedCompanyId} class="orga-input-clear py-3 sm:py-2 text-sm font-bold text-indigo-700 cursor-pointer shadow-sm border-indigo-200 bg-indigo-50/50 w-full sm:w-auto">
+                    {#each availableCompanies as comp}
+                        <option value={comp.id}>{comp.city} {comp.name ? `(${comp.name})` : ''}</option>
+                    {/each}
+                </select>
+            {/if}
             {#if companyService.successMsg}
                 <span class="text-sm font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">{companyService.successMsg}</span>
             {/if}
-            <button type="submit" disabled={companyService.isLoading || !companyService.isLoaded} class="orga-button-primary shadow-indigo-600/20">
+            <button type="submit" disabled={companyService.isLoading || !companyService.isLoaded || isReadOnly} class="orga-button-primary shadow-indigo-600/20 w-full sm:w-auto justify-center py-3 sm:py-2.5">
                 <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
                 {companyService.isLoading ? 'Speichert...' : 'Änderungen speichern'}
             </button>
@@ -57,8 +96,8 @@
             <div class="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-sm font-medium border border-red-100 animate-enter">{companyService.errorMsg}</div>
         {/if}
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-8 pb-12 animate-enter delay-100">
-            <div class="xl:col-span-1"><CompanyContactCard bind:logoFile={companyService.logoFile} bind:deleteLogo={companyService.deleteLogo} formData={companyService.formData} existingLogoUrl={companyService.existingLogoUrl} isLoading={companyService.isLoading} /></div>
-            <div class="xl:col-span-2 space-y-8"><CompanyAddressCard formData={companyService.formData} isLoading={companyService.isLoading} /><CompanyBankCard formData={companyService.formData} isLoading={companyService.isLoading} /></div>
+            <div class="xl:col-span-1"><CompanyContactCard bind:logoFile={companyService.logoFile} bind:deleteLogo={companyService.deleteLogo} formData={companyService.formData} existingLogoUrl={companyService.existingLogoUrl} isLoading={companyService.isLoading || isReadOnly} /></div>
+            <div class="xl:col-span-2 space-y-8"><CompanyAddressCard formData={companyService.formData} isLoading={companyService.isLoading || isReadOnly} /><CompanyBankCard formData={companyService.formData} isLoading={companyService.isLoading || isReadOnly} /></div>
         </div>
     {/if}
 </form>

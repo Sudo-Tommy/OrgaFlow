@@ -5,6 +5,7 @@
     import { sendEmail } from "$lib/services/emailService";
     import { toastStore } from "$lib/services/toastService.svelte";
 
+    // svelte-ignore non_reactive_update
     let dialog: HTMLDialogElement;
     const service = useDocumentGenerator();
     let pdfContainerRef = $state<HTMLDivElement | null>(null);
@@ -206,17 +207,18 @@
                 tsBlob = await html2pdf().set(optTs).from(timesheetPdfContainerRef).output('blob');
             }
 
-            // Wenn es eine Rechnung ist, speichern wir sie als echten Datensatz im System
-            if (service.isInvoice && service.invoiceData) {
+            // Wenn es eine Rechnung ODER ein reiner Arbeitszeitnachweis ist, im System hinterlegen
+            if ((service.isInvoice && service.invoiceData) || service.template?.type?.toLowerCase() === 'arbeitszeitnachweis') {
                 const pbFormData = new FormData();
                 pbFormData.append('user', pb.authStore.model?.id || '');
                 pbFormData.append('client', service.selectedClientId);
-                pbFormData.append('invoice_nr', service.invoiceData.invoice_nr);
-                pbFormData.append('issue_date', new Date(service.invoiceData.issue_date).toISOString());
-                pbFormData.append('status', 'Entwurf');
-                const due = new Date(service.invoiceData.issue_date); due.setDate(due.getDate() + 14);
-                pbFormData.append('due_date', due.toISOString());
-                // FIX: Sende leeren String, falls "0" in PocketBase noch nicht im Select erlaubt ist
+                
+                if (service.isInvoice && service.invoiceData) {
+                    pbFormData.append('invoice_nr', service.invoiceData.invoice_nr);
+                    pbFormData.append('issue_date', new Date(service.invoiceData.issue_date).toISOString());
+                    pbFormData.append('status', 'Entwurf');
+                    const due = new Date(service.invoiceData.issue_date); due.setDate(due.getDate() + 14);
+                    pbFormData.append('due_date', due.toISOString());
                 pbFormData.append('tax_rate', service.taxRate === "0" ? "" : service.taxRate);
                 pbFormData.append('netto', service.invoiceData.netto.toString());
                 pbFormData.append('tax_sum', service.invoiceData.tax_sum.toString());
@@ -224,6 +226,13 @@
                 pbFormData.append('hourly_wage', service.hourlyWage.toString());
                 pbFormData.append('travel_expanses_rate', service.kmRate.toString());
                 pbFormData.append('table_positions', JSON.stringify(service.invoiceData.positions));
+                } else {
+                    // Eigenständiger Arbeitszeitnachweis
+                    pbFormData.append('invoice_nr', 'Zeitnachweis');
+                    pbFormData.append('issue_date', new Date().toISOString());
+                    pbFormData.append('status', 'Eingereicht'); // Direkt für den Klienten freigeben
+                    pbFormData.append('brutto', '0');
+                }
                 
                 service.selectedAppointmentIds.forEach(id => pbFormData.append('appointments', id));
                 if (service.company?.id) pbFormData.append('company', service.company.id);
@@ -236,7 +245,7 @@
                 }
 
                 await pb.collection('invoices').create(pbFormData);
-                service.successMsg = "Rechnung erfolgreich generiert und in der Datenbank gespeichert!";
+                service.successMsg = "Dokument erfolgreich generiert und für das Portal gespeichert!";
             } else {
                 service.successMsg = "Dokument erfolgreich generiert!";
             }
@@ -367,9 +376,9 @@
             {/if}
         </div>
 
-        <div class="pt-4 flex justify-between gap-3 border-t border-neutral-100 shrink-0">
-            {#if service.step > 1 && service.step < 5}<button type="button" onclick={prev} class="orga-button-ghost py-2.5 px-6" disabled={service.isLoading}>Zurück</button>{:else if service.step === 5}<button type="button" onclick={downloadManually} class="orga-button-ghost py-2.5 px-6" disabled={isEmailSending}>Herunterladen</button>{:else}<div></div>{/if}
-            {#if service.step < 4}<button type="button" onclick={next} class="orga-button-primary py-2.5 px-6" disabled={service.isLoading}>Weiter &rarr;</button>{:else if service.step === 4}<button type="button" onclick={generate} class="orga-button-primary py-2.5 px-8 shadow-indigo-600/30" disabled={service.isLoading}>{#if service.isLoading}<div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Generiert...{:else}PDF Generieren{/if}</button>{:else if service.step === 5}{#if !emailSuccessMsg}<button type="button" onclick={sendPdfViaEmail} class="orga-button-primary py-2.5 px-6" disabled={isEmailSending || !emailTo}>{isEmailSending ? 'Wird gesendet...' : 'E-Mail senden ✉️'}</button>{:else}<button type="button" onclick={() => { close(); service.reset(); }} class="orga-button-primary py-2.5 px-6">Fertig</button>{/if}{/if}
+        <div class="pt-4 flex flex-col-reverse sm:flex-row justify-between gap-3 border-t border-neutral-100 shrink-0 mt-2">
+            {#if service.step > 1 && service.step < 5}<button type="button" onclick={prev} class="orga-button-ghost w-full sm:w-auto py-3 sm:py-2.5 px-6" disabled={service.isLoading}>Zurück</button>{:else if service.step === 5}<button type="button" onclick={downloadManually} class="orga-button-ghost w-full sm:w-auto py-3 sm:py-2.5 px-6" disabled={isEmailSending}>Herunterladen</button>{:else}<div class="hidden sm:block"></div>{/if}
+            {#if service.step < 4}<button type="button" onclick={next} class="orga-button-primary w-full sm:w-auto py-3 sm:py-2.5 px-6" disabled={service.isLoading}>Weiter &rarr;</button>{:else if service.step === 4}<button type="button" onclick={generate} class="orga-button-primary w-full sm:w-auto py-3 sm:py-2.5 px-8 shadow-indigo-600/30" disabled={service.isLoading}>{#if service.isLoading}<div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Generiert...{:else}PDF Generieren{/if}</button>{:else if service.step === 5}{#if !emailSuccessMsg}<button type="button" onclick={sendPdfViaEmail} class="orga-button-primary w-full sm:w-auto py-3 sm:py-2.5 px-6" disabled={isEmailSending || !emailTo}>{isEmailSending ? 'Wird gesendet...' : 'E-Mail senden ✉️'}</button>{:else}<button type="button" onclick={() => { close(); service.reset(); }} class="orga-button-primary w-full sm:w-auto py-3 sm:py-2.5 px-6">Fertig</button>{/if}{/if}
         </div>
     </div>
 </dialog>

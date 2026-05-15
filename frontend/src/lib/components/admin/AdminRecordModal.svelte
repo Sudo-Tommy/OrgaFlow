@@ -1,6 +1,7 @@
 <script lang="ts">
     let { onSave } = $props<{ onSave: (col: string, id: string | null, data: any) => Promise<void> }>();
 
+    // svelte-ignore non_reactive_update
     let dialog: HTMLDialogElement;
     let isLoading = $state(false);
     let errorMsg = $state("");
@@ -71,7 +72,7 @@
         <form onsubmit={onSubmit} class="flex-1 flex flex-col min-h-0 overflow-hidden">
             <label for="json-editor" class="text-sm font-semibold text-neutral-700 mb-2 flex justify-between items-end"><span>Raw JSON Data <span class="text-red-500">*</span></span> <span class="text-xs text-neutral-400 font-normal">IDs, Arrays oder Strings eintragen</span></label>
             <textarea id="json-editor" bind:value={jsonContent} class="flex-1 font-mono text-[13px] sm:text-sm leading-relaxed resize-none custom-scrollbar p-5 rounded-2xl bg-neutral-950 text-emerald-400 border-2 border-neutral-800 shadow-inner focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all" spellcheck="false"></textarea>
-            <div class="pt-5 mt-4 border-t border-neutral-100 flex justify-end gap-3 shrink-0"><button type="button" onclick={close} class="orga-button-ghost" disabled={isLoading}>Abbrechen</button><button type="submit" class="orga-button-primary bg-neutral-900 hover:bg-neutral-800 shadow-neutral-900/20" disabled={isLoading}>{isLoading ? "Speichert..." : "Direkt in DB schreiben"}</button></div>
+            <div class="pt-5 mt-4 border-t border-neutral-100 flex flex-col-reverse sm:flex-row justify-end gap-3 shrink-0"><button type="button" onclick={close} class="orga-button-ghost w-full sm:w-auto py-3 sm:py-2.5" disabled={isLoading}>Abbrechen</button><button type="submit" class="orga-button-primary bg-neutral-900 hover:bg-neutral-800 shadow-neutral-900/20 w-full sm:w-auto py-3 sm:py-2.5" disabled={isLoading}>{isLoading ? "Speichert..." : "Direkt in DB schreiben"}</button></div>
         </form>
     </div>
 </dialog>

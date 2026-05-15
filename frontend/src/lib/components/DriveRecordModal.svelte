@@ -4,6 +4,7 @@
 
     let { appointment } = $props<{ appointment: any }>();
     
+    // svelte-ignore non_reactive_update
     let dialog: HTMLDialogElement;
     let isLoading = $state(false);
     let errorMsg = $state("");
@@ -61,13 +62,15 @@
             }
 
             // Termin-Record aktualisieren für UI-Live-Sync
-            const updatedApp = await pb.collection('appointments').getOne(appointment.id, { 
-                expand: 'user,client,drive_record,time_record,tasks,expenditures' 
-            }) as any;
-            const index = orgaStore.appointments?.data.findIndex(a => a.id === appointment.id) ?? -1;
-            if (index !== -1 && orgaStore.appointments) {
-                orgaStore.appointments.data[index] = updatedApp;
-            }
+            setTimeout(async () => {
+                const updatedApp = await pb.collection('appointments').getOne(appointment.id, { 
+                    expand: 'user,client,drive_record,time_record,tasks,expenditures', requestKey: null
+                }) as any;
+                const index = orgaStore.appointments?.data.findIndex(a => a.id === appointment.id) ?? -1;
+                if (index !== -1 && orgaStore.appointments) {
+                    orgaStore.appointments.data[index] = updatedApp;
+                }
+            }, 400);
 
             close();
         } catch (err: any) {
@@ -93,9 +96,9 @@
         <form onsubmit={onSubmit} class="space-y-4">
             <div><label for="drive-type" class="block text-sm font-semibold text-neutral-700 mb-1.5">Art der Fahrt</label><select id="drive-type" bind:value={type} class="orga-input-clear" required disabled={isLoading}><option value="Anfahrt">Anfahrt (zu Klient / von Klient)</option><option value="Auftragsfahrt">Auftragsfahrt (z.B. Einkauf)</option></select></div>
             <div class="grid grid-cols-2 gap-4"><div><label for="drive-km" class="block text-sm font-semibold text-neutral-700 mb-1.5">Gefahrene Kilometer</label><input id="drive-km" type="number" step="0.1" bind:value={km} class="orga-input-clear" placeholder="z.B. 15.5" disabled={isLoading} /></div><div><label for="drive-lump" class="block text-sm font-semibold text-neutral-700 mb-1.5">Pauschale in €</label><input id="drive-lump" type="number" step="0.01" bind:value={lump_sum} class="orga-input-clear" placeholder="z.B. 5.00" disabled={isLoading} /></div></div>
-            <div class="pt-4 flex justify-end gap-3 border-t border-neutral-100">
-                <button type="button" onclick={close} class="orga-button-ghost" disabled={isLoading}>Abbrechen</button>
-                <button type="submit" class="orga-button-primary" disabled={isLoading}>{isLoading ? "Speichert..." : (editId ? "Änderungen speichern" : "Fahrt sichern")}</button>
+            <div class="pt-4 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-neutral-100 mt-6">
+                <button type="button" onclick={close} class="orga-button-ghost w-full sm:w-auto py-3 sm:py-2.5" disabled={isLoading}>Abbrechen</button>
+                <button type="submit" class="orga-button-primary w-full sm:w-auto py-3 sm:py-2.5" disabled={isLoading}>{isLoading ? "Speichert..." : (editId ? "Änderungen speichern" : "Fahrt sichern")}</button>
             </div>
         </form>
     </div>

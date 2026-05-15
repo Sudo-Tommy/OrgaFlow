@@ -2,6 +2,7 @@
     import { pb } from "$lib/services/pocketbase";
     import { orgaStore } from "$lib/stores/orgaStore.svelte";
 
+    // svelte-ignore non_reactive_update
     let dialog: HTMLDialogElement;
     let isLoading = $state(false);
     let errorMsg = $state("");
@@ -49,7 +50,7 @@
             
         } else {
             editId = null;
-            const d = data instanceof Date ? new Date(data) : new Date();
+            const d = (data && data.date) ? new Date(data.date) : (data instanceof Date ? new Date(data) : new Date());
             if (data instanceof Date || !data || data.preselectedClient) {
                 d.setHours(new Date().getHours() + 1, 0, 0, 0);
             }
@@ -57,7 +58,7 @@
             // Felder nur beim Erstellen eines neuen Termins zurücksetzen
             description = "";
             is_private = false;
-            is_blocked = false;
+            is_blocked = data?.is_blocked || false;
             selectedClientId = data?.preselectedClient || "";
             selectedUserId = pb.authStore.model?.id || "";
         }
@@ -81,6 +82,7 @@
 
         let finalDesc = description.trim();
         if (is_blocked) {
+            if (!finalDesc) finalDesc = "Urlaub / Abwesend";
             finalDesc = `[BLOCK] ${finalDesc}`;
         }
 
@@ -124,32 +126,41 @@
         {#if errorMsg}<div class="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-sm font-medium border border-red-100">{errorMsg}</div>{/if}
         <form onsubmit={onSubmit} class="space-y-4">
             <div>
-                <label for="app-date" class="block text-sm font-semibold text-neutral-700 mb-1.5">Datum & Uhrzeit</label>
-                <input id="app-date" type="datetime-local" bind:value={appointmentDate} class="orga-input-clear" required disabled={isLoading} />
-            </div>
-            <div>
-                <label for="app-client" class="block text-sm font-semibold text-neutral-700 mb-1.5">Klient (optional)</label>
-                <select id="app-client" bind:value={selectedClientId} class="orga-input-clear cursor-pointer" disabled={isLoading}>
-                    <option value="">Kein Klient (z.B. Bürotätigkeit)</option>
-                    {#each orgaStore.clients?.data || [] as client (client.id)}
-                        <option value={client.id}>{client.name_first} {client.name_last}</option>
-                    {/each}
-                </select>
-                <!-- Subtiler Hinweis auf Klienten-Notizen -->
-                {#if selectedClientRecord?.notes}
-                    <div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2 shadow-sm animate-enter">
-                        <span class="text-amber-500 text-lg leading-none mt-0.5">💡</span>
-                        <div>
-                            <p class="text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-0.5">Klienten-Notizen / Hinweise</p>
-                            <p class="text-xs text-amber-900 font-medium whitespace-pre-wrap leading-relaxed">{selectedClientRecord.notes}</p>
-                        </div>
-                    </div>
+                <label for="app-date" class="block text-sm font-semibold text-neutral-700 mb-1.5">{is_blocked ? 'Datum (Ganztägig)' : 'Datum & Uhrzeit'}</label>
+                {#if is_blocked}
+                    <input id="app-date-only" type="date" value={appointmentDate.split('T')[0]} oninput={(e) => appointmentDate = e.currentTarget.value + 'T12:00'} class="orga-input-clear" required disabled={isLoading} />
+                {:else}
+                    <input id="app-date" type="datetime-local" bind:value={appointmentDate} class="orga-input-clear" required disabled={isLoading} />
                 {/if}
             </div>
-            {#if isSuperAdmin}
+            {#if !is_blocked}
+                <div>
+                    <label for="app-client" class="block text-sm font-semibold text-neutral-700 mb-1.5">Klient (optional)</label>
+                    <select id="app-client" bind:value={selectedClientId} class="orga-input-clear cursor-pointer" disabled={isLoading}>
+                        <option value="">Kein Klient (z.B. Bürotätigkeit)</option>
+                        {#each orgaStore.clients?.data || [] as client (client.id)}
+                            <option value={client.id}>{client.name_first} {client.name_last}</option>
+                        {/each}
+                    </select>
+                    <!-- Subtiler Hinweis auf Klienten-Notizen -->
+                    {#if selectedClientRecord?.notes}
+                        <div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2 shadow-sm animate-enter">
+                            <span class="text-amber-500 text-lg leading-none mt-0.5">💡</span>
+                            <div>
+                                <p class="text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-0.5">Klienten-Notizen / Hinweise</p>
+                                <p class="text-xs text-amber-900 font-medium whitespace-pre-wrap leading-relaxed">{selectedClientRecord.notes}</p>
+                            </div>
+                        </div>
+                    {/if}
+                </div>
+            {/if}
+            {#if isSuperAdmin && !is_blocked}
                 <div>
                     <label for="app-user" class="block text-sm font-semibold text-neutral-700 mb-1.5">Zuständiger Mitarbeiter</label>
                     <select id="app-user" bind:value={selectedUserId} class="orga-input-clear cursor-pointer" disabled={isLoading}>
+                    {#if users.length === 0 && selectedUserId}
+                        <option value={selectedUserId}>Lädt Mitarbeiter...</option>
+                    {/if}
                         {#each users as u (u.id)}
                             <option value={u.id}>{u.name_first} {u.name_last}</option>
                         {/each}
@@ -157,8 +168,8 @@
                 </div>
             {/if}
             <div>
-                <label for="app-desc" class="block text-sm font-semibold text-neutral-700 mb-1.5">Beschreibung / Titel</label>
-                <input id="app-desc" type="text" bind:value={description} class="orga-input-clear" placeholder="z.B. Arztbesuch Begleitung" required disabled={isLoading} />
+                <label for="app-desc" class="block text-sm font-semibold text-neutral-700 mb-1.5">Beschreibung / Titel {is_blocked ? '(optional)' : ''}</label>
+                <input id="app-desc" type="text" bind:value={description} class="orga-input-clear" placeholder={is_blocked ? "z.B. Urlaub / Abwesend" : "z.B. Arztbesuch Begleitung"} required={!is_blocked} disabled={isLoading} />
             </div>
             
 
@@ -197,9 +208,9 @@
                     <input id="app-block" type="checkbox" bind:checked={is_blocked} class="sr-only" disabled={isLoading} />
                 </label>
             </div>
-            <div class="pt-4 flex justify-end gap-3 border-t border-neutral-100">
-                <button type="button" onclick={close} class="orga-button-ghost" disabled={isLoading}>Abbrechen</button>
-                <button type="submit" class="orga-button-primary" disabled={isLoading}>{isLoading ? "Speichert..." : (editId ? "Speichern" : "Termin erstellen")}</button>
+            <div class="pt-4 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-neutral-100 mt-6">
+                <button type="button" onclick={close} class="orga-button-ghost w-full sm:w-auto py-3 sm:py-2.5" disabled={isLoading}>Abbrechen</button>
+                <button type="submit" class="orga-button-primary w-full sm:w-auto py-3 sm:py-2.5" disabled={isLoading}>{isLoading ? "Speichert..." : (editId ? "Speichern" : "Termin erstellen")}</button>
             </div>
         </form>
     </div>

@@ -10,6 +10,7 @@
 	import AppTopNav from "$lib/components/AppTopNav.svelte";
 	import ToastLayer from "$lib/components/ToastLayer.svelte";
 	import ConfirmLayer from "$lib/components/ConfirmLayer.svelte";
+	import UpdateLogModal from "$lib/components/UpdateLogModal.svelte";
 
 	let { children } = $props();
 
@@ -20,7 +21,7 @@
 	});
 
 	// Reaktive Bestimmung der Sichtbarkeit (verfügbar im gesamten Layout)
-	let isPublicPage = $derived($page.url.pathname === '/' || $page.url.pathname.startsWith('/login'));
+	let isPublicPage = $derived($page.url.pathname === '/' || $page.url.pathname.startsWith('/login') || $page.url.pathname.startsWith('/portal'));
 
 	// --- Auth Guard (Routenschutz) ---
 	$effect(() => {
@@ -49,6 +50,43 @@
 				store.init();
 			});
 		}
+	});
+
+	// --- Automatischer, zeitgesteuerter Negativ-Modus ---
+	$effect(() => {
+		function checkTimeAndApplyTheme() {
+			// Prüfen, ob der Nutzer manuell eingegriffen hat
+			const manualTheme = localStorage.getItem('theme_preference');
+			if (manualTheme === 'dark') {
+				document.documentElement.classList.add('theme-negative');
+				return;
+			} else if (manualTheme === 'light') {
+				document.documentElement.classList.remove('theme-negative');
+				return;
+			}
+
+			const hour = new Date().getHours();
+			
+			// Nachtmodus zwischen 19:00 Uhr abends und 06:59 Uhr morgens
+			const isNight = hour >= 19 || hour < 7;
+			
+			if (isNight) {
+				document.documentElement.classList.add('theme-negative');
+			} else {
+				document.documentElement.classList.remove('theme-negative');
+			}
+		}
+
+		checkTimeAndApplyTheme(); // Sofort beim Laden ausführen
+		const interval = setInterval(checkTimeAndApplyTheme, 60000); // Jede Minute prüfen
+		
+		// Listener für unseren manuellen Umschalt-Button
+		window.addEventListener('theme-changed', checkTimeAndApplyTheme);
+
+		return () => {
+			clearInterval(interval);
+			window.removeEventListener('theme-changed', checkTimeAndApplyTheme);
+		};
 	});
 
 	// --- Navigation Setup ---
@@ -126,3 +164,4 @@
 
 <ToastLayer />
 <ConfirmLayer />
+<UpdateLogModal />

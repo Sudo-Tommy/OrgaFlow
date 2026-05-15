@@ -73,6 +73,24 @@
 
 /* 3. Basis-HTML/Body Setup für perfekte Lesbarkeit auf allen Geräten */
 @layer base {
+    html {
+        /* Weicher, eleganter 3-Sekunden-Übergang beim Umschalten */
+        transition: filter 3s ease-in-out;
+    }
+
+    /* --- DER NEGATIV-NACHTMODUS --- */
+    html.theme-negative {
+        /* Weiches Dunkelgrau statt tiefem Schwarz (invert 0.9). 
+           Brightness, Contrast und ein Hauch Sepia sorgen für den sanften Lichtschein! */
+        filter: invert(0.9) hue-rotate(180deg) brightness(1.05) contrast(0.95) sepia(0.1);
+    }
+
+    /* Bilder, Logos und Unterschriften (Canvas) vor dem Röntgen-Effekt schützen */
+    html.theme-negative img, html.theme-negative video, html.theme-negative canvas, html.theme-negative iframe {
+        /* Bilder zurückdrehen und Kontrast leicht erhöhen, um den dämpfenden Filter auszugleichen */
+        filter: invert(1) hue-rotate(180deg) contrast(1.15);
+    }
+
     html, body {
         /* Dunkler Hintergrund für den App-Rahmen, scharfe Schrift (antialiased) */
         @apply antialiased min-h-screen;
@@ -86,6 +104,9 @@
         
         /* Schicke Markierungsfarbe (wenn man Text mit der Maus markiert) */
         @apply selection:bg-brand-500 selection:text-white;
+
+            /* Verhindert das ungewollte Heranzoomen beim schnellen Doppeltippen auf Smartphones */
+            touch-action: manipulation;
     }
 
     /* Standard-Scrollbar global (elegant und schmal) */
@@ -98,6 +119,13 @@
     }
     ::-webkit-scrollbar-thumb {
         @apply bg-neutral-700 rounded-full hover:bg-neutral-500 transition-colors;
+    }
+
+    /* Fix für iOS PWA (Homescreen): Zwingt das Handy dazu, Textfelder immer auswählbar zu machen und die Tastatur zu öffnen */
+    input, textarea, select, [contenteditable="true"] {
+        -webkit-user-select: auto !important;
+        user-select: auto !important;
+        touch-action: auto !important;
     }
 }
 

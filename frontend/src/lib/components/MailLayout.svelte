@@ -86,6 +86,12 @@
   function handleEmailSelect(emailId: string) {
     selectedEmailId = emailId;
     mobileDetailOpen = true;
+
+    // E-Mail sofort im Moment des Anklickens als gelesen markieren
+    const email = emailService.emails.find(e => e.id === emailId);
+    if (email && !email.is_read) {
+      emailService.markAsRead(emailId, true).catch(console.error);
+    }
   }
 
   // Handle email delete

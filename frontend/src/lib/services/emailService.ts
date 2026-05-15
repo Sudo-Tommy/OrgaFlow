@@ -22,6 +22,7 @@ export interface EmailMessage {
     date: string;
     text: string;
     html: string;
+    is_read?: boolean;
 }
 
 /**
@@ -54,6 +55,29 @@ export async function fetchInbox(): Promise<EmailMessage[]> {
     }
 
     return result.data;
+}
+
+/**
+ * Markiert eine E-Mail als gelesen.
+ */
+export async function markEmailAsRead(uid: string): Promise<boolean> {
+    if (!pb.authStore.isValid) return false;
+
+    try {
+        const response = await fetch(`${MICROSERVICE_URL}/mark-read`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${pb.authStore.token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ uid })
+        });
+        const result = await response.json();
+        return result.success;
+    } catch (err) {
+        console.error("Fehler beim Markieren als gelesen:", err);
+        return false;
+    }
 }
 
 /**

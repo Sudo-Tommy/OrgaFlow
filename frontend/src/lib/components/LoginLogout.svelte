@@ -5,7 +5,9 @@
 
 	let { subtle = false, iconOnly = false } = $props<{ subtle?: boolean, iconOnly?: boolean }>();
 
+	// svelte-ignore non_reactive_update
 	let loginDialog: HTMLDialogElement;
+	// svelte-ignore non_reactive_update
 	let logoutDialog: HTMLDialogElement;
 
 	let isLoggedIn = $state(pb.authStore.isValid);
@@ -58,6 +60,9 @@
 	}
 
 	export function handleLogout() {
+		// Beendet alle laufenden Realtime-Verbindungen, BEVOR der AuthStore geleert wird!
+		// Verhindert den PocketBase 403 "authorization don't match" und "unexpected EOF" Fehler beim Logout.
+		pb.realtime.unsubscribe();
 		pb.authStore.clear();
 		showLogoutModal = false;
 		// Der Layout-Guard leitet automatisch zu /login

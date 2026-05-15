@@ -2,7 +2,9 @@
     import { submitAppointmentRequest } from "$lib/services/appointmentRequestService";
     import { pb } from "$lib/services/pocketbase";
     import { onMount } from "svelte";
+    import { env } from '$env/dynamic/public';
 
+    // svelte-ignore non_reactive_update
     let dialog: HTMLDialogElement;
     
     let isLoading = $state(false);
@@ -69,17 +71,30 @@
         occupiedDates = [];
         occupiedTimesByDate = {};
         try {
-            // Da die Landingpage öffentlich ist, haben wir keine Rechte auf die eigentlichen 'appointments'.
-            // Wir nutzen ausschließlich die öffentliche View 'public_busy_days', die das Backend bereitstellt.
-            const res: any[] = await pb.collection('public_busy_days').getFullList({ 
-                filter: `company ~ "${compId}" || company ?= "${compId}"`, 
-                requestKey: null 
+            // Termindaten aus der View laden
+            const res = await pb.collection('public_busy_days').getFullList({ requestKey: null });
+            
+            // Frontend-Filterung: Trennt Standorte messerscharf anhand der Firma des zugewiesenen Mitarbeiters
+            const filteredRes = res.filter((r: any) => {
+                let c = r.company;
+                if (!c) return false;
+                
+                if (typeof c === 'string') {
+                    if (c.startsWith('[')) { 
+                        try { c = JSON.parse(c); } catch { return false; } 
+                    } else {
+                        return c === compId || c.includes(compId);
+                    }
+                }
+                
+                if (Array.isArray(c)) return c.includes(compId);
+                return false;
             });
             
             const counts: Record<string, number> = {};
             const times: Record<string, string[]> = {};
             
-            res.forEach((r: any) => {
+            filteredRes.forEach((r: any) => {
                 if (r.appointment) {
                     // ISO-String parsen und sauber in die deutsche, lokale Zeitzone verschieben
                     const dObj = new Date(r.appointment.replace(' ', 'T'));
@@ -169,6 +184,31 @@ Adresse: ${street || '-'}, ${zip_city || '-'}`;
                 contact_method: contactMethod
             });
             
+            // --- E-Mail Benachrichtigung an info@ihre-seniorenassistenz.com senden ---
+            try {
+                const comp = companies.find(c => c.id === company_id);
+                const compName = comp ? `${comp.city} ${comp.name ? `(${comp.name})` : ''}` : 'Unbekannt';
+                
+                // Dynamischer API-Wächter für lokale und Live-Tests
+                const apiBaseUrl = import.meta.env.DEV ? 'http://localhost:3000/portal' : '/api/emails/portal';
+                
+                await fetch(`${apiBaseUrl}/notify-request`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: sender_name,
+                        email: email,
+                        phone: phone,
+                        requestText: request_text,
+                        date: new Date(formattedDate).toLocaleDateString('de-DE'),
+                        time: time,
+                        companyName: compName
+                    })
+                });
+            } catch (notifyErr) {
+                console.warn("E-Mail Benachrichtigung konnte nicht gesendet werden:", notifyErr);
+            }
+
             successMsg = "Vielen Dank! Ihre Anfrage wurde erfolgreich übermittelt. Wir melden uns in Kürze.";
             
             // Reset
@@ -202,7 +242,7 @@ Adresse: ${street || '-'}, ${zip_city || '-'}`;
                     <span class="text-4xl block mb-4">✅</span>
                     <h3 class="text-xl font-bold mb-2">Anfrage erfolgreich!</h3>
                     <p class="font-medium">{successMsg}</p>
-                    <button type="button" onclick={close} class="mt-6 orga-button-primary">Schließen</button>
+                    <button type="button" onclick={close} class="mt-6 orga-button-primary w-full sm:w-auto mx-auto">Schließen</button>
                 </div>
             {:else}
                 {#if errorMsg}
@@ -267,7 +307,7 @@ Adresse: ${street || '-'}, ${zip_city || '-'}`;
                                 <label for="req-time" class="block text-sm font-bold text-brand-900 mb-2">Uhrzeit (optional)</label>
                                 <input id="req-time" type="time" bind:value={time} class="orga-input-clear bg-white text-sm shadow-sm" disabled={isLoading} />
                                 {#if selectedDate}
-                                    {@const selDateStr = new Date(selectedDate.getTime() - selectedDate.getTimezoneOffset() * 60000).toISOString().split('T')[0]}
+                                    {@const selDateStr = new Date(selectedDate!.getTime() - selectedDate!.getTimezoneOffset() * 60000).toISOString().split('T')[0]}
                                     {@const selTimes = occupiedTimesByDate[selDateStr] || []}
                                     {#if selTimes.length > 0}
                                         <div class="mt-3 p-2.5 bg-rose-50 border border-rose-100 rounded-lg text-xs text-rose-700 leading-tight shadow-sm flex items-start gap-2">

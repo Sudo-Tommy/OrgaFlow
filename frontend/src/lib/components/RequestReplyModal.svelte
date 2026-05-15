@@ -5,8 +5,10 @@
     import { orgaStore } from "$lib/stores/orgaStore.svelte";
     import AppointmentDetailModal from "./AppointmentDetailModal.svelte";
 
+    // svelte-ignore non_reactive_update
     let dialog: HTMLDialogElement;
-    let detailModal: ReturnType<typeof AppointmentDetailModal> | undefined = $state();
+    // svelte-ignore non_reactive_update
+    let detailModal: ReturnType<typeof AppointmentDetailModal>;
     let request = $state<any>(null);
     let status = $state<'accepted' | 'denied' | 'propose'>('accepted');
     
@@ -51,22 +53,20 @@
     let companyApps = $derived.by(() => {
         const apps = orgaStore.appointments?.data || [];
         if (!request?.company) return apps;
-        
-        // Finde die aktuelle Firma im Store, um ihre zugewiesenen Klienten zu prüfen
-        const comp = orgaStore.company?.data?.find((c: any) => c.id === request.company);
-        const companyClientIds = comp?.clients || [];
 
         return apps.filter((a: any) => {
-            // 1. Klienten-Zugehörigkeit hat Vorrang (Trennt Termine messerscharf nach Standort)
-            let cId = Array.isArray(a.client) ? a.client[0] : a.client;
-            if (cId) {
-                return companyClientIds.includes(cId); // Gehört der Klient zur gewählten Firma?
-            }
-            
-            // 2. Fallback auf User-Firma (Für interne Block-Termine ohne Klienten)
+            // Termine strikt nach der Firma des zugewiesenen Mitarbeiters filtern
             const uCompId = a.expand?.user?.company;
             if (!uCompId) return false;
-            return (Array.isArray(uCompId) ? uCompId.includes(request.company) : uCompId === request.company);
+            
+            if (Array.isArray(uCompId)) return uCompId.includes(request.company);
+            if (typeof uCompId === 'string') {
+                if (uCompId.startsWith('[')) {
+                    try { return JSON.parse(uCompId).includes(request.company); } catch {}
+                }
+                return uCompId === request.company || uCompId.includes(request.company);
+            }
+            return false;
         });
     });
 
@@ -324,7 +324,10 @@
                                     {@const dateStr = new Date(day.date.getTime() - day.date.getTimezoneOffset() * 60000).toISOString().split('T')[0]}
                                     {@const isOccupied = occupiedDates.includes(dateStr)}
                                     {@const dayTimes = occupiedTimesByDate[dateStr] || []}
-                                    <button type="button" disabled={isPast || isOccupied} onclick={() => { selectedDate = day.date; propDate = dateStr; }} class="aspect-square flex flex-col items-center justify-start pt-1 rounded-lg text-xs font-bold transition-all border shadow-sm {isPast && !isOccupied && dayTimes.length === 0 ? 'opacity-30 cursor-not-allowed bg-neutral-50/50 border-neutral-100' : (isOccupied ? 'bg-rose-50 text-rose-400 border-rose-200/50 cursor-not-allowed' : 'bg-white cursor-pointer hover:bg-brand-50 hover:text-brand-800 hover:border-brand-300')} {!day.isCurrentMonth && !isOccupied && !isPast ? 'text-neutral-400' : (!isOccupied && !isPast ? 'text-neutral-700' : '')} {selectedDate && day.date.getTime() === selectedDate.getTime() && !isOccupied ? 'bg-brand-600! text-white! border-brand-700! shadow-md scale-105' : ''}">
+                                    <button type="button" disabled={isPast || isOccupied} onclick={() => { selectedDate = day.date; propDate = dateStr; }} class="aspect-square flex flex-col items-center justify-start pt-1 rounded-lg text-xs font-bold transition-all border shadow-sm {
+                                        isPast ? 'opacity-40 cursor-not-allowed bg-neutral-100 border-neutral-200 text-neutral-400' : 
+                                        (isOccupied ? 'bg-rose-50 text-rose-400 border-rose-200/50 cursor-not-allowed' : 'bg-white cursor-pointer hover:bg-brand-50 hover:text-brand-800 hover:border-brand-300 text-neutral-700')
+                                    } {!day.isCurrentMonth && !isOccupied && !isPast ? 'opacity-60 text-neutral-500' : ''} {selectedDate && day.date.getTime() === selectedDate.getTime() && !isOccupied && !isPast ? 'bg-brand-600! text-white! border-brand-700! shadow-md scale-105' : ''}">
                                         <span class={isOccupied ? 'line-through decoration-rose-400 decoration-2' : ''}>{day.date.getDate()}</span>
                                         {#if isOccupied}
                                             <span class="text-[7px] font-black uppercase tracking-normal mt-0.5 text-rose-500 truncate max-w-full px-0.5 leading-none">Belegt</span>
@@ -350,7 +353,7 @@
                                 <input id="prop-time" type="time" bind:value={propTime} class="orga-input-clear py-2 text-sm bg-white border-blue-200" required disabled={isEmailSending} />
                             </div>
                             {#if selectedDate}
-                                {@const selDateStr = new Date(selectedDate.getTime() - selectedDate.getTimezoneOffset() * 60000).toISOString().split('T')[0]}
+                                {@const selDateStr = new Date(selectedDate!.getTime() - selectedDate!.getTimezoneOffset() * 60000).toISOString().split('T')[0]}
                                 {@const dayApps = companyApps.filter((a: any) => {
                                     if (!a.appointment) return false;
                                     const dObj = new Date(a.appointment as string);
@@ -406,9 +409,9 @@
                 </div>
             {/if}
 
-            <div class="pt-4 flex justify-end gap-3 border-t border-neutral-100 mt-6">
-                <button type="button" onclick={close} class="orga-button-ghost" disabled={isEmailSending}>Abbrechen</button>
-                <button type="submit" class="orga-button-primary shadow-brand-600/20" disabled={isEmailSending}>
+            <div class="pt-4 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-neutral-100 mt-6">
+                <button type="button" onclick={close} class="orga-button-ghost w-full sm:w-auto py-3 sm:py-2.5" disabled={isEmailSending}>Abbrechen</button>
+                <button type="submit" class="orga-button-primary shadow-brand-600/20 w-full sm:w-auto py-3 sm:py-2.5" disabled={isEmailSending}>
                     {isEmailSending ? 'Wird gesendet...' : 'E-Mail senden ✉️'}
                 </button>
             </div>

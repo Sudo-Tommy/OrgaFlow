@@ -38,6 +38,7 @@
 				autocomplete="username"
 				required
 				disabled={isLoading}
+				style="-webkit-user-select: text !important; user-select: text !important;"
 			/>
 		</div>
 
@@ -52,10 +53,11 @@
 				autocomplete="current-password"
 				required 
 				disabled={isLoading} 
+				style="-webkit-user-select: text !important; user-select: text !important;"
 			/>
 		</div>
 
-		<button type="submit" class="orga-button-primary mt-2" disabled={isLoading}>
+		<button type="submit" class="orga-button-primary w-full mt-2" disabled={isLoading}>
 			{isLoading ? "Wird angemeldet..." : "Anmelden"}
 		</button>
 	</form>

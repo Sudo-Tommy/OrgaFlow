@@ -11,8 +11,10 @@
     const invoicesStore = orgaStore.invoices;
     const filterService = useInvoiceFilter(() => invoicesStore?.data || []);
 
-    let generatorModal: ReturnType<typeof DocumentGeneratorModal> | undefined = $state();
-    let emailModal: ReturnType<typeof InvoiceEmailModal> | undefined = $state();
+    // svelte-ignore non_reactive_update
+    let generatorModal: ReturnType<typeof DocumentGeneratorModal>;
+    // svelte-ignore non_reactive_update
+    let emailModal: ReturnType<typeof InvoiceEmailModal>;
 
     // Funktion für das direkte Aktualisieren des Status aus der Übersicht heraus
     async function updateStatus(id: string, newStatus: string) {
@@ -107,7 +109,7 @@
         <h1 class="orga-page-title">Rechnungen</h1>
         <p class="orga-page-subtitle">Verwalten Sie hier alle generierten Rechnungen, Einnahmen und deren Status.</p>
     </div>
-    <button onclick={openGenerator} class="orga-button-primary inline-flex">
+    <button onclick={openGenerator} class="orga-button-primary inline-flex w-full sm:w-auto justify-center py-3 sm:py-2.5 mt-4 sm:mt-0">
         <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
         Neue Rechnung
     </button>
@@ -121,12 +123,12 @@
             type="text" 
             bind:value={filterService.searchQuery} 
             placeholder="Nach Rechnungsnummer oder Klient suchen..." 
-            class="orga-input-clear"
+            class="orga-input-clear py-3 sm:py-2.5"
         />
     </div>
     <div class="w-full md:w-64 shrink-0">
         <label for="status-filter" class="sr-only">Status</label>
-        <select id="status-filter" bind:value={filterService.statusFilter} class="orga-input-clear cursor-pointer">
+        <select id="status-filter" bind:value={filterService.statusFilter} class="orga-input-clear py-3 sm:py-2.5 cursor-pointer">
             <option value="all">Alle Status anzeigen</option>
             <option value="Entwurf">Entwurf</option>
             <option value="Eingereicht">Eingereicht</option>
@@ -179,7 +181,11 @@
                                     </div>
                                 </td>
                                 <td class="p-4 text-right">
-                                    <span class="font-black text-indigo-700 text-lg">{inv.brutto ? inv.brutto.toFixed(2).replace('.', ',') : '0,00'} €</span>
+                                    {#if inv.brutto > 0}
+                                        <span class="font-black text-indigo-700 text-lg">{inv.brutto.toFixed(2).replace('.', ',')} €</span>
+                                    {:else}
+                                        <span class="font-bold text-neutral-400 text-sm">Nachweis</span>
+                                    {/if}
                                 </td>
                                 <td class="p-4 text-center">
                                     <select 
@@ -204,7 +210,7 @@
                                         {/if}
                                         
                                         {#if getPdfUrl(inv, 1)}
-                                            <button type="button" onclick={() => downloadPdf(inv, 1, 'Zeitnachweis')} class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-neutral-600 bg-white border border-neutral-200 hover:bg-neutral-100 hover:text-neutral-900 rounded-lg transition-colors shadow-sm" title="Zeitnachweis herunterladen">
+                                            <button type="button" onclick={() => downloadPdf(inv, 1, 'Zeitnachweis')} class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-neutral-600 bg-white border border-neutral-200 hover:bg-neutral-100 hover:text-neutral-900 rounded-lg transition-colors shadow-sm" title="Zweites Dokument (z.B. Zeitnachweis) herunterladen">
                                                 <span>⏱️</span> <span class="hidden 2xl:inline">Zeiten</span>
                                             </button>
                                         {/if}
@@ -235,7 +241,11 @@
                                 <span class="font-bold text-neutral-900">{inv.invoice_nr || 'RE-Unbekannt'}</span>
                                 <span class="text-xs text-neutral-500 block mt-0.5">{inv.issue_date ? new Date(inv.issue_date).toLocaleDateString('de-DE') : '-'}</span>
                             </div>
-                            <span class="font-black text-indigo-700 text-lg">{inv.brutto ? inv.brutto.toFixed(2).replace('.', ',') : '0,00'} €</span>
+                            {#if inv.brutto > 0}
+                                <span class="font-black text-indigo-700 text-lg">{inv.brutto.toFixed(2).replace('.', ',')} €</span>
+                            {:else}
+                                <span class="font-bold text-neutral-400 text-sm">Nachweis</span>
+                            {/if}
                         </div>
                         
                         <div class="flex items-center gap-3">

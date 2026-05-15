@@ -1,16 +1,25 @@
 <script lang="ts">
     import { toastStore } from "$lib/services/toastService.svelte";
     import { fly, fade } from "svelte/transition";
+    import { onMount } from "svelte";
+
+    let popoverEl: HTMLElement;
+    
+    onMount(() => {
+        if (popoverEl && typeof popoverEl.showPopover === 'function') {
+            popoverEl.showPopover();
+        }
+    });
 </script>
 
-<div class="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-9999 flex flex-col gap-4 pointer-events-none">
+<div bind:this={popoverEl} popover="manual" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-8 sm:bottom-8 z-9999 flex flex-col items-center sm:items-end gap-4 pointer-events-none bg-transparent border-none m-0 p-0 overflow-visible w-auto h-auto outline-none">
     {#each toastStore.toasts as toast (toast.id)}
         <!-- Der ECHTE Kawaii-Toast! 🍞 -->
         <div 
             in:fly={{ y: 50, duration: 600, opacity: 0, easing: (t) => --t * t * t + 1 }} 
             out:fade={{ duration: 200 }}
-            class="pointer-events-auto relative flex flex-col items-center justify-center p-6 pt-10 pb-6 
-                   rounded-4xl rounded-t-[3.5rem] border-[6px] sm:border-8 w-[90vw] sm:w-72 shadow-2xl 
+            class="pointer-events-auto relative flex flex-col items-center justify-center p-6 pt-10 pb-6
+                   rounded-4xl rounded-t-[3.5rem] border-[6px] sm:border-8 w-full max-w-sm sm:w-72 shadow-2xl 
                    transform transition-transform hover:scale-105 cursor-pointer overflow-hidden
                    {toast.type === 'error' ? 'bg-[#D2A679] border-[#6D4222] text-[#4A2C16]' : 'bg-[#FDEBD0] border-[#D98A44] text-[#8C5220]'}"
             onclick={() => toastStore.remove(toast.id)}

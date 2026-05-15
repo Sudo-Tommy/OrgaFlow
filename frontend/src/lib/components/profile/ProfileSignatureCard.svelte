@@ -95,7 +95,7 @@
         {/if}
 
         <div class="pt-4 flex justify-end">
-            <button type="submit" disabled={isLoading} class="orga-button-primary w-full sm:w-auto shadow-indigo-600/20">{isLoading ? 'Speichert...' : 'Unterschrift speichern'}</button>
+            <button type="submit" disabled={isLoading} class="orga-button-primary w-full sm:w-auto shadow-indigo-600/20 py-3 sm:py-2.5">{isLoading ? 'Speichert...' : 'Unterschrift speichern'}</button>
         </div>
     </form>
 </div>

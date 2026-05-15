@@ -151,7 +151,8 @@
         return Math.max(30, durationMinutes) / 60 * HOUR_HEIGHT - 2; // Mindestens 30 Min hoch, -2px für Abstand
     }
 
-    let detailModal: ReturnType<typeof AppointmentDetailModal> | undefined = $state();
+    // svelte-ignore non_reactive_update
+    let detailModal: ReturnType<typeof AppointmentDetailModal>;
 
     // --- Drag & Drop Logik ---
     let draggedAppId = $state<string | null>(null);
@@ -316,17 +317,26 @@
                             <!-- Desktop Variante: Echte Terminkarten im Tages-Feld -->
                             <div class="flex-col gap-1.5 mt-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-0.5 pb-0.5 {isWidget ? 'hidden' : 'hidden md:flex'}">
                                 {#each day.apps as app}
-                                    <button type="button" draggable="true" ondragstart={(e) => handleDragStart(e, app.id)} ondragend={handleDragEnd} onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="cursor-grab active:cursor-grabbing w-full text-left block px-2 py-1.5 rounded-lg border border-transparent shadow-sm hover:shadow-md transition-all hover:-translate-y-px {app.is_private ? 'bg-rose-50 hover:border-rose-200 text-rose-800' : 'bg-indigo-50 hover:border-indigo-200 text-indigo-800'} {draggedAppId === app.id ? 'opacity-40' : ''}" title={app.description}>
-                                        <div class="flex items-center gap-1 mb-0.5">
-                                            <span class="font-bold text-[11px] leading-none">{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
-                                            {#if app.is_private}<span class="text-[9px]">🔒</span>{/if}
-                                            {#if isSuperAdmin && app.expand?.user}
-                                                <span class="text-[9px] font-bold text-neutral-500 bg-neutral-200/50 border border-neutral-200 px-1 py-0.5 rounded truncate max-w-15" title="{app.expand.user.name_first} {app.expand.user.name_last}">👤 {app.expand.user.name_first}</span>
+                                    {#if app.description?.includes('[BLOCK]')}
+                                        <button type="button" onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="w-full text-left block px-2 py-1.5 rounded-lg bg-neutral-100 border border-neutral-200 text-neutral-600 shadow-sm hover:shadow-md transition-all">
+                                            <div class="font-bold text-[11px] flex items-center gap-1">🚫 Blockiert</div>
+                                            {#if app.description.replace('[BLOCK]', '').trim()}
+                                                <div class="text-[10px] truncate opacity-80 mt-0.5">{app.description.replace('[BLOCK]', '').trim()}</div>
                                             {/if}
-                                        </div>
-                                        <div class="text-xs font-semibold truncate text-neutral-900">{app.expand?.client?.[0] ? app.expand.client[0].name_first + ' ' + app.expand.client[0].name_last : 'Kein Klient'}</div>
-                                        <div class="text-[10px] truncate opacity-80 mt-0.5">{app.description || 'Termin'}</div>
-                                    </button>
+                                        </button>
+                                    {:else}
+                                        <button type="button" draggable="true" ondragstart={(e) => handleDragStart(e, app.id)} ondragend={handleDragEnd} onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="cursor-grab active:cursor-grabbing w-full text-left block px-2 py-1.5 rounded-lg border border-transparent shadow-sm hover:shadow-md transition-all hover:-translate-y-px {app.is_private ? 'bg-rose-50 hover:border-rose-200 text-rose-800' : 'bg-indigo-50 hover:border-indigo-200 text-indigo-800'} {draggedAppId === app.id ? 'opacity-40' : ''}" title={app.description}>
+                                            <div class="flex items-center gap-1 mb-0.5">
+                                                <span class="font-bold text-[11px] leading-none">{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                {#if app.is_private}<span class="text-[9px]">🔒</span>{/if}
+                                                {#if isSuperAdmin && app.expand?.user}
+                                                    <span class="text-[9px] font-bold text-neutral-500 bg-neutral-200/50 border border-neutral-200 px-1 py-0.5 rounded truncate max-w-15" title="{app.expand.user.name_first} {app.expand.user.name_last}">👤 {app.expand.user.name_first}</span>
+                                                {/if}
+                                            </div>
+                                            <div class="text-xs font-semibold truncate text-neutral-900">{app.expand?.client?.[0] ? app.expand.client[0].name_first + ' ' + app.expand.client[0].name_last : 'Kein Klient'}</div>
+                                            <div class="text-[10px] truncate opacity-80 mt-0.5">{app.description || 'Termin'}</div>
+                                        </button>
+                                    {/if}
                                 {/each}
                             </div>
                         </div>
@@ -351,22 +361,31 @@
                     {:else}
                         <div class="flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-1 max-h-75 sm:max-h-100">
                             {#each selectedDayAppointments as app}
-                                <button type="button" onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="w-full text-left block bg-white p-2 sm:p-3 rounded-lg border border-neutral-200 hover:border-indigo-300 hover:shadow-md transition-all group">
-                                    <div class="flex justify-between items-start mb-1">
-                                        <span class="text-[10px] sm:text-xs font-bold {app.is_private ? 'text-rose-600' : 'text-indigo-600'}">
-                                            {new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
-                                        {#if app.expand?.client?.[0]}
-                                            <span class="hidden sm:inline text-[9px] font-bold text-neutral-600 bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded-md truncate max-w-25">{app.expand.client[0].name_first}</span>
-                                        {/if}
-                                        {#if isSuperAdmin && app.expand?.user}
-                                            <span class="hidden sm:inline text-[9px] font-bold text-neutral-500 bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded-md truncate max-w-25" title="{app.expand.user.name_first} {app.expand.user.name_last}">👤 {app.expand.user.name_first}</span>
-                                        {/if}
-                                    </div>
-                                    <p class="text-[10px] sm:text-xs text-neutral-800 font-medium line-clamp-2">
-                                        {app.description || 'Ohne Beschreibung'}
-                                    </p>
-                                </button>
+                                    {#if app.description?.includes('[BLOCK]')}
+                                        <button type="button" onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="w-full text-left block bg-neutral-100 p-2 sm:p-3 rounded-lg border border-neutral-200 hover:border-neutral-300 hover:shadow-md transition-all group">
+                                            <div class="flex justify-between items-start mb-1">
+                                                <span class="text-[10px] sm:text-xs font-bold text-neutral-600">Ganztägig</span>
+                                            </div>
+                                            <p class="text-[10px] sm:text-xs text-neutral-800 font-medium line-clamp-2">🚫 {app.description.replace('[BLOCK]', '').trim() || 'Blockiert'}</p>
+                                        </button>
+                                    {:else}
+                                        <button type="button" onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="w-full text-left block bg-white p-2 sm:p-3 rounded-lg border border-neutral-200 hover:border-indigo-300 hover:shadow-md transition-all group">
+                                            <div class="flex justify-between items-start mb-1">
+                                                <span class="text-[10px] sm:text-xs font-bold {app.is_private ? 'text-rose-600' : 'text-indigo-600'}">
+                                                    {new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                                {#if app.expand?.client?.[0]}
+                                                    <span class="hidden sm:inline text-[9px] font-bold text-neutral-600 bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded-md truncate max-w-25">{app.expand.client[0].name_first}</span>
+                                                {/if}
+                                                {#if isSuperAdmin && app.expand?.user}
+                                                    <span class="hidden sm:inline text-[9px] font-bold text-neutral-500 bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded-md truncate max-w-25" title="{app.expand.user.name_first} {app.expand.user.name_last}">👤 {app.expand.user.name_first}</span>
+                                                {/if}
+                                            </div>
+                                            <p class="text-[10px] sm:text-xs text-neutral-800 font-medium line-clamp-2">
+                                                {app.description || 'Ohne Beschreibung'}
+                                            </p>
+                                        </button>
+                                    {/if}
                             {/each}
                         </div>
                     {/if}
@@ -414,17 +433,24 @@
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
                         <div ondrop={(e) => handleDropOnWeekDay(e, day.date)} ondragover={(e) => e.preventDefault()} onclick={() => selectDay(day.date)} class="relative border-r border-neutral-100 last:border-0 cursor-pointer hover:bg-neutral-50/30 transition-colors {selectedDate && isSameDay(day.date, selectedDate) ? 'bg-indigo-50/20' : ''} {isDragging ? 'hover:bg-indigo-50/50 outline-dashed outline-2 outline-indigo-200 -outline-offset-2' : ''}">
                             {#each day.apps as app}
-                                <button type="button" draggable="true" ondragstart={(e) => handleDragStart(e, app.id)} ondragend={handleDragEnd} onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="cursor-grab active:cursor-grabbing text-left absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded-md p-1 sm:p-1.5 text-[10px] sm:text-xs overflow-hidden transition-all border shadow-sm hover:shadow-md hover:z-20 {app.is_private ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-indigo-50 border-indigo-200 text-indigo-800'} {draggedAppId === app.id ? 'opacity-40 z-50 pointer-events-none' : ''}" style="top: {getAppTop(app)}px; height: {getAppHeight(app)}px;" title={app.description}>
-                                    <div class="font-bold flex items-center gap-1 mb-0.5">
-                                        <span>{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
-                                        {#if app.is_private}<span class="text-[8px] sm:text-[10px]">🔒</span>{/if}
-                                        {#if isSuperAdmin && app.expand?.user}
-                                            <span class="text-[8px] font-bold text-neutral-500 bg-neutral-200/50 border border-neutral-200 px-1 py-0.5 rounded truncate max-w-12.5" title="{app.expand.user.name_first} {app.expand.user.name_last}">👤 {app.expand.user.name_first}</span>
-                                        {/if}
-                                    </div>
-                                    <div class="truncate font-semibold">{app.expand?.client?.[0] ? app.expand.client[0].name_first + ' ' + app.expand.client[0].name_last : 'Kein Klient'}</div>
-                                    <div class="truncate opacity-75">{app.description || 'Termin'}</div>
-                                </button>
+                                    {#if app.description?.includes('[BLOCK]')}
+                                        <button type="button" onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="text-left absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded-md p-1 sm:p-1.5 text-[10px] sm:text-xs overflow-hidden transition-all border shadow-sm hover:shadow-md hover:z-20 bg-neutral-100 border-neutral-200 text-neutral-700" style="top: {getAppTop(app)}px; height: {getAppHeight(app)}px;" title={app.description}>
+                                            <div class="font-bold flex items-center gap-1 mb-0.5">🚫 Blockiert</div>
+                                            <div class="truncate opacity-75">{app.description.replace('[BLOCK]', '').trim()}</div>
+                                        </button>
+                                    {:else}
+                                        <button type="button" draggable="true" ondragstart={(e) => handleDragStart(e, app.id)} ondragend={handleDragEnd} onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="cursor-grab active:cursor-grabbing text-left absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded-md p-1 sm:p-1.5 text-[10px] sm:text-xs overflow-hidden transition-all border shadow-sm hover:shadow-md hover:z-20 {app.is_private ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-indigo-50 border-indigo-200 text-indigo-800'} {draggedAppId === app.id ? 'opacity-40 z-50 pointer-events-none' : ''}" style="top: {getAppTop(app)}px; height: {getAppHeight(app)}px;" title={app.description}>
+                                            <div class="font-bold flex items-center gap-1 mb-0.5">
+                                                <span>{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                {#if app.is_private}<span class="text-[8px] sm:text-[10px]">🔒</span>{/if}
+                                                {#if isSuperAdmin && app.expand?.user}
+                                                    <span class="text-[8px] font-bold text-neutral-500 bg-neutral-200/50 border border-neutral-200 px-1 py-0.5 rounded truncate max-w-12.5" title="{app.expand.user.name_first} {app.expand.user.name_last}">👤 {app.expand.user.name_first}</span>
+                                                {/if}
+                                            </div>
+                                            <div class="truncate font-semibold">{app.expand?.client?.[0] ? app.expand.client[0].name_first + ' ' + app.expand.client[0].name_last : 'Kein Klient'}</div>
+                                            <div class="truncate opacity-75">{app.description || 'Termin'}</div>
+                                        </button>
+                                    {/if}
                             {/each}
                         </div>
                     {/each}
@@ -446,18 +472,27 @@
             {:else}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {#each selectedDayAppointments as app}
-                        <button type="button" onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="w-full text-left block bg-white p-4 rounded-xl border border-neutral-200 hover:border-indigo-300 hover:shadow-md transition-all group">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="text-sm font-bold {app.is_private ? 'text-rose-600' : 'text-indigo-600'}">{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</span>
-                                {#if app.expand?.client?.[0]}
-                                    <span class="text-xs font-bold text-neutral-600 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md truncate max-w-37.5">{app.expand.client[0].name_first} {app.expand.client[0].name_last}</span>
-                                {/if}
-                                {#if isSuperAdmin && app.expand?.user}
-                                    <span class="text-xs font-bold text-neutral-500 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md truncate max-w-37.5" title="{app.expand.user.name_first} {app.expand.user.name_last}">👤 {app.expand.user.name_first}</span>
-                                {/if}
-                            </div>
-                            <p class="text-sm text-neutral-800 font-medium line-clamp-2">{app.description || 'Keine Beschreibung'}</p>
-                        </button>
+                            {#if app.description?.includes('[BLOCK]')}
+                                <button type="button" onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="w-full text-left block bg-neutral-100 p-4 rounded-xl border border-neutral-200 hover:border-neutral-300 hover:shadow-md transition-all group">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <span class="text-sm font-bold text-neutral-600">Ganztägig blockiert</span>
+                                    </div>
+                                    <p class="text-sm text-neutral-800 font-medium line-clamp-2">🚫 {app.description.replace('[BLOCK]', '').trim() || 'Urlaub / Blockiert'}</p>
+                                </button>
+                            {:else}
+                                <button type="button" onclick={(e) => { e.stopPropagation(); detailModal?.open(app.id); }} class="w-full text-left block bg-white p-4 rounded-xl border border-neutral-200 hover:border-indigo-300 hover:shadow-md transition-all group">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <span class="text-sm font-bold {app.is_private ? 'text-rose-600' : 'text-indigo-600'}">{new Date(app.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</span>
+                                        {#if app.expand?.client?.[0]}
+                                            <span class="text-xs font-bold text-neutral-600 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md truncate max-w-37.5">{app.expand.client[0].name_first} {app.expand.client[0].name_last}</span>
+                                        {/if}
+                                        {#if isSuperAdmin && app.expand?.user}
+                                            <span class="text-xs font-bold text-neutral-500 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md truncate max-w-37.5" title="{app.expand.user.name_first} {app.expand.user.name_last}">👤 {app.expand.user.name_first}</span>
+                                        {/if}
+                                    </div>
+                                    <p class="text-sm text-neutral-800 font-medium line-clamp-2">{app.description || 'Keine Beschreibung'}</p>
+                                </button>
+                            {/if}
                     {/each}
                 </div>
             {/if}

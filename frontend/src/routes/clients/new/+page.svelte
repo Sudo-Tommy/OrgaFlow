@@ -2,6 +2,7 @@
     import { goto } from "$app/navigation";
     import { pb } from "$lib/services/pocketbase";
     import { orgaStore } from "$lib/stores/orgaStore.svelte";
+    import { toastStore } from "$lib/services/toastService.svelte";
 
     let isLoading = $state(false);
     let errorMsg = $state("");
@@ -136,8 +137,9 @@
 
             const newClient = await pb.collection('clients').create(pbFormData);
             
-            // Nach erfolgreicher Anlage direkt zur Detailansicht wechseln
-            goto(`/clients/${newClient.id}`);
+            // Nach erfolgreicher Anlage direkt zur Übersicht wechseln
+            toastStore.success("Klient erfolgreich angelegt!");
+            goto(`/clients`);
         } catch (err: any) {
             console.error(err);
             errorMsg = err.message || "Fehler beim Anlegen.";
@@ -248,9 +250,9 @@
             </div>
         </div>
 
-        <div class="flex justify-end gap-3 pt-4 border-t border-neutral-100">
-            <a href="/clients" class="orga-button-ghost {isLoading ? 'pointer-events-none opacity-50' : ''}">Abbrechen</a>
-            <button type="submit" class="orga-button-primary" disabled={isLoading}>{isLoading ? "Speichert..." : "Klient anlegen"}</button>
+        <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-neutral-100 mt-6">
+            <a href="/clients" class="orga-button-ghost w-full sm:w-auto text-center py-3 sm:py-2.5 {isLoading ? 'pointer-events-none opacity-50' : ''}">Abbrechen</a>
+            <button type="submit" class="orga-button-primary w-full sm:w-auto py-3 sm:py-2.5" disabled={isLoading}>{isLoading ? "Speichert..." : "Klient anlegen"}</button>
         </div>
     </form>
 </div>

@@ -2,6 +2,7 @@
     import { pb } from "$lib/services/pocketbase";
     import { sendEmail } from "$lib/services/emailService";
 
+    // svelte-ignore non_reactive_update
     let dialog: HTMLDialogElement;
     let invoice = $state<any>(null);
     
@@ -20,7 +21,7 @@
         emailTo = client?.email || "";
         
         emailSubject = `Ihre Dokumente (Ref: ${invoice?.invoice_nr || 'Neu'})`;
-        emailText = `Guten Tag${client?.name_last ? ` ${client.salutation === 'Herr' ? 'Herr' : (client.salutation === 'Frau' ? 'Frau' : '')} ${client.name_last}` : ''},\n\nanbei erhalten Sie Ihre Rechnung sowie ggf. zugehörige Arbeitszeitnachweise als PDF-Dokument.\n\nMit freundlichen Grüßen\nIhre Seniorenassistenz`;
+        emailText = `Guten Tag${client?.name_last ? ` ${client.salutation === 'Herr' ? 'Herr' : (client.salutation === 'Frau' ? 'Frau' : '')} ${client.name_last}` : ''},\n\nanbei erhalten Sie Ihre Rechnung sowie ggf. zugehörige Arbeitszeitnachweise als PDF-Dokument.\n\nIhre Rechnungen und Dokumente können Sie ab sofort auch jederzeit sicher in unserem neuen Klienten-Portal einsehen:\n👉 https://www.ihre-seniorenassistenz.com/portal\n\nMit freundlichen Grüßen\nIhre Seniorenassistenz`;
         
         successMsg = "";
         errorMsg = "";
@@ -83,7 +84,7 @@
                         <p style="color: #c66a4d; margin: 4px 0 0 0; font-size: 14px; font-weight: 500;">Alltagshilfe • Betreuung • Organisation</p>
                     </div>
                     <div style="padding: 30px; font-size: 15px; line-height: 1.6; color: #1f2937; background-color: #ffffff;">
-                        ${emailText.trim().replace(/\n/g, '<br>')}
+                        ${emailText.trim().replace(/\n/g, '<br>').replace('👉 https://www.ihre-seniorenassistenz.com/portal', '<br><a href="https://www.ihre-seniorenassistenz.com/portal" style="display: inline-block; background-color: #c66a4d; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 10px; margin-bottom: 10px;">Zum Klienten-Portal</a>')}
                     </div>
                     <div style="background-color: #f8fafc; padding: 25px 30px; border-top: 1px solid #e5e7eb;">
                         <table width="100%" cellpadding="0" cellspacing="0" style="font-size: 13px; color: #4b5563;">
@@ -176,9 +177,9 @@
             </div>
                 {/if}
 
-            <div class="pt-4 flex justify-end gap-3 border-t border-neutral-100 mt-6">
-                <button type="button" onclick={close} class="orga-button-ghost" disabled={isEmailSending}>Abbrechen</button>
-                <button type="submit" class="orga-button-primary shadow-indigo-600/20" disabled={isEmailSending || !!successMsg || !invoice?.pdf?.length}>
+            <div class="pt-4 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-neutral-100 mt-6">
+                <button type="button" onclick={close} class="orga-button-ghost w-full sm:w-auto py-3 sm:py-2.5" disabled={isEmailSending}>Abbrechen</button>
+                <button type="submit" class="orga-button-primary shadow-indigo-600/20 w-full sm:w-auto py-3 sm:py-2.5" disabled={isEmailSending || !!successMsg || !invoice?.pdf?.length}>
                     {isEmailSending ? 'Wird gesendet...' : 'E-Mail senden ✉️'}
                 </button>
             </div>

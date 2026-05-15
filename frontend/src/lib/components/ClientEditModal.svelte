@@ -194,6 +194,13 @@
             }
 
             await pb.collection('clients').update(client.id, pbFormData);
+            
+            setTimeout(async () => {
+                const updatedClient = await pb.collection('clients').getOne(client.id, { expand: 'insurance,retirement_homes,contacts', requestKey: null }) as any;
+                const index = orgaStore.clients?.data.findIndex((c: any) => c.id === client.id) ?? -1;
+                if (index !== -1 && orgaStore.clients) orgaStore.clients.data[index] = updatedClient;
+            }, 400);
+            
             close();
         } catch (err: any) {
             console.error(err);
@@ -311,9 +318,9 @@
                 {/if}
             </div>
 
-            <div class="flex justify-end gap-3 pt-4 border-t border-neutral-100">
-                <button type="button" onclick={close} class="orga-button-ghost" disabled={isLoading}>Abbrechen</button>
-                <button type="submit" class="orga-button-primary" disabled={isLoading}>{isLoading ? "Speichert..." : "Änderungen speichern"}</button>
+            <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-neutral-100 mt-6">
+                <button type="button" onclick={close} class="orga-button-ghost w-full sm:w-auto py-3 sm:py-2.5" disabled={isLoading}>Abbrechen</button>
+                <button type="submit" class="orga-button-primary w-full sm:w-auto py-3 sm:py-2.5" disabled={isLoading}>{isLoading ? "Speichert..." : "Änderungen speichern"}</button>
             </div>
         </form>
     </div>

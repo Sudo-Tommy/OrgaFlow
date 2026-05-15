@@ -112,7 +112,7 @@
     }
 </script>
 
-<div class="orga-layout-wrapper text-neutral-900 h-[calc(100vh-theme(spacing.24))] pb-4 px-4 sm:px-6 md:px-8">
+<div class="orga-layout-wrapper text-neutral-900 h-[calc(100vh-(--spacing(24)))] pb-4 px-4 sm:px-6 md:px-8">
     <div class="w-full h-full bg-white rounded-3xl border border-neutral-200 shadow-sm flex overflow-hidden">
         
         <!-- 1. SPALTE: Ordner-Navigation -->
@@ -140,7 +140,7 @@
         </div>
 
         <!-- 2. SPALTE: Nachrichtenliste -->
-        <div class="w-1/3 min-w-[280px] max-w-[400px] border-r border-neutral-100 flex flex-col bg-white shrink-0">
+        <div class="w-1/3 min-w-70 max-w-100 border-r border-neutral-100 flex flex-col bg-white shrink-0">
             <div class="p-4 border-b border-neutral-100 bg-white sticky top-0 flex items-center justify-between">
                 <h2 class="font-bold text-lg text-neutral-900">{selectedFolder === 'INBOX' ? 'Posteingang' : selectedFolder}</h2>
                 <button onclick={loadMessages} class="text-neutral-400 hover:text-indigo-600 transition-colors" title="Aktualisieren">↻</button>

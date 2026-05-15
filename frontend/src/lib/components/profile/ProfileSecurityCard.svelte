@@ -19,7 +19,7 @@
         </div>
         
         <div class="pt-4 flex justify-end">
-            <button type="submit" disabled={isLoading || passwordData.password !== passwordData.passwordConfirm || !passwordData.oldPassword} class="orga-button-primary w-full sm:w-auto shadow-rose-600/20 bg-neutral-900 hover:bg-neutral-800">
+            <button type="submit" disabled={isLoading || passwordData.password !== passwordData.passwordConfirm || !passwordData.oldPassword} class="orga-button-primary w-full sm:w-auto shadow-rose-600/20 bg-neutral-900 hover:bg-neutral-800 py-3 sm:py-2.5">
                 {isLoading ? 'Speichert...' : 'Passwort ändern'}
             </button>
         </div>

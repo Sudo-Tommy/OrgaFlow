@@ -1,12 +1,31 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import type { Snippet } from 'svelte';
+	import ChatWidget from "$lib/components/ChatWidget.svelte";
+	import { onMount } from "svelte";
+	import { updateStore } from "$lib/services/updateService.svelte";
 
 	let { items } = $props<{
 		items: Array<{ label: string; href: string; icon: Snippet; roles?: string[] }>;
 	}>();
 
 	let currentPath = $derived($page.url.pathname);
+	// svelte-ignore non_reactive_update
+	let supportModal: HTMLDialogElement;
+	let appVersion = $state("v1.0.0 Alpha");
+
+	onMount(async () => {
+		try {
+			// Versucht die aktuelle Version aus der generierten version.txt zu laden
+			const res = await fetch('/version.txt');
+			if (res.ok) {
+				const ver = await res.text();
+				appVersion = `v1.0.${ver.trim()} Alpha`;
+			}
+		} catch (e) {
+			// Fallback (bleibt bei 1.0.0, falls Datei nicht gefunden wird)
+		}
+	});
 </script>
 
 <aside class="w-64 bg-neutral-950 text-neutral-400 flex-col border-r border-neutral-900 hidden md:flex h-full shadow-2xl relative overflow-hidden">
@@ -43,8 +62,20 @@
 	<!-- Footer Bereich -->
 	<div class="p-4 border-t border-neutral-900/80 bg-neutral-950/50 z-10">
 		<div class="flex items-center justify-between px-2 py-2 text-xs text-neutral-500 font-medium">
-			<span>v1.0.0 Alpha</span>
-			<a href="/support" class="hover:text-indigo-400 cursor-pointer transition-colors">Hilfe & Support</a>
+			<button type="button" onclick={() => updateStore.open()} class="hover:text-amber-400 font-bold cursor-pointer transition-colors" title="Update-Verlauf anzeigen">{appVersion}</button>
+			<button type="button" onclick={() => supportModal?.showModal()} class="hover:text-indigo-400 cursor-pointer transition-colors">Hilfe & Support</button>
 		</div>
 	</div>
 </aside>
+
+<!-- Support / Bug-Report Modal -->
+<dialog bind:this={supportModal} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-lg mx-auto my-auto rounded-3xl" onclick={(e) => { if (e.target === supportModal) supportModal?.close(); }}>
+	<div class="bg-white rounded-3xl w-full relative overflow-hidden shadow-2xl">
+		<!-- Schließen-Button mit halbtransparentem hellem Design für den dunklen Chat-Header -->
+		<button aria-label="Schließen" onclick={() => supportModal?.close()} class="absolute top-4 right-4 w-8 h-8 bg-white/20 hover:bg-white/40 text-white rounded-full flex items-center justify-center transition-colors z-20 shadow-sm">
+			<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+		</button>
+		<!-- Unser fertiges ChatWidget wird hier direkt eingebettet -->
+		<ChatWidget />
+	</div>
+</dialog>

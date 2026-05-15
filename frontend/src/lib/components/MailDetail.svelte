@@ -19,9 +19,6 @@
     isLoading = true;
     try {
       email = await emailService.getEmail(emailId);
-      if (email && !email.is_read) {
-        await emailService.markAsRead(emailId, true);
-      }
     } catch (err) {
       console.error('[Mail Detail] Load error:', err);
     } finally {

@@ -6,7 +6,8 @@
     import { confirmStore } from "$lib/services/confirmService.svelte";
 
     let searchQuery = $state("");
-    let generatorModal: ReturnType<typeof DocumentGeneratorModal> | undefined = $state();
+    // svelte-ignore non_reactive_update
+    let generatorModal: ReturnType<typeof DocumentGeneratorModal>;
     
     let documents = $derived.by(() => {
         const allDocs = orgaStore.document_templates?.data || [];
@@ -44,11 +45,11 @@
         <h1 class="orga-page-title">Vorlagenverwaltung</h1>
         <p class="orga-page-subtitle">Erstellen und verwalten Sie hier Master-Vorlagen für Rechnungen, Formulare und Briefe.</p>
     </div>
-    <div class="flex gap-3 items-center">
-        <button onclick={() => generatorModal?.open()} class="orga-button-primary bg-neutral-900 hover:bg-neutral-800 shadow-neutral-900/20 inline-flex">
+    <div class="flex flex-col sm:flex-row gap-3 items-center w-full sm:w-auto mt-4 sm:mt-0">
+        <button onclick={() => generatorModal?.open()} class="orga-button-primary bg-neutral-900 hover:bg-neutral-800 shadow-neutral-900/20 inline-flex w-full sm:w-auto justify-center py-3 sm:py-2.5">
             Dokument generieren
         </button>
-        <a href="/documents/new" class="orga-button-ghost inline-flex">
+        <a href="/documents/new" class="orga-button-ghost inline-flex w-full sm:w-auto justify-center py-3 sm:py-2.5">
             + Neue Vorlage
         </a>
     </div>
@@ -57,7 +58,7 @@
 <div class="orga-filter-bar animate-enter delay-100">
     <div class="flex-1">
         <label for="search-docs" class="sr-only">Vorlagen durchsuchen</label>
-        <input id="search-docs" type="text" bind:value={searchQuery} placeholder="Nach Titel suchen..." class="orga-input-clear" />
+    <input id="search-docs" type="text" bind:value={searchQuery} placeholder="Nach Titel suchen..." class="orga-input-clear py-3 sm:py-2.5" />
     </div>
 </div>
 

@@ -2,6 +2,7 @@
     import { pb } from "$lib/services/pocketbase";
     import { confirmStore } from "$lib/services/confirmService.svelte";
 
+    // svelte-ignore non_reactive_update
     let dialog: HTMLDialogElement;
     let isLoading = $state(false);
     let errorMsg = $state("");
@@ -134,15 +135,15 @@
                 <textarea id="contact-notes" bind:value={notes} class="orga-input-clear resize-none" rows="2" disabled={isLoading}></textarea>
             </div>
 
-            <div class="pt-4 flex justify-between items-center border-t border-neutral-100 mt-6">
+            <div class="pt-4 flex flex-col sm:flex-row justify-between items-center border-t border-neutral-100 mt-6 gap-3">
                 {#if editId}
-                    <button type="button" onclick={onDelete} class="text-sm font-bold text-red-500 hover:text-red-700 transition-colors" disabled={isLoading}>Löschen</button>
+                    <button type="button" onclick={onDelete} class="w-full sm:w-auto py-3 sm:py-2.5 text-sm font-bold text-red-500 bg-red-50 sm:bg-transparent hover:bg-red-100 sm:hover:bg-transparent hover:text-red-700 rounded-lg sm:rounded-none transition-colors" disabled={isLoading}>Löschen</button>
                 {:else}
-                    <div></div>
+                    <div class="hidden sm:block"></div>
                 {/if}
-                <div class="flex gap-3">
-                    <button type="button" onclick={close} class="orga-button-ghost" disabled={isLoading}>Abbrechen</button>
-                    <button type="submit" class="orga-button-primary" disabled={isLoading}>{isLoading ? "Speichert..." : "Speichern"}</button>
+                <div class="flex flex-col-reverse sm:flex-row gap-3 w-full sm:w-auto">
+                    <button type="button" onclick={close} class="orga-button-ghost w-full sm:w-auto py-3 sm:py-2.5" disabled={isLoading}>Abbrechen</button>
+                    <button type="submit" class="orga-button-primary w-full sm:w-auto py-3 sm:py-2.5" disabled={isLoading}>{isLoading ? "Speichert..." : "Speichern"}</button>
                 </div>
             </div>
         </form>

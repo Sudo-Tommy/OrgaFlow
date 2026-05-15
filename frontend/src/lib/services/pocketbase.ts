@@ -13,7 +13,10 @@ export function keepPocketBaseAlive() {
         if (pb.authStore.isValid && pb.authStore.model) {
             try {
                 const collectionName = pb.authStore.model.collectionName;
-                await pb.collection(collectionName).authRefresh();
+                // Erweitere den Refresh um 'company', damit die Firmen-Daten im State erhalten bleiben
+                await pb.collection(collectionName).authRefresh({
+                    expand: 'company'
+                });
             } catch (error) {
                 console.warn('Failed to refresh auth:', error);
             }

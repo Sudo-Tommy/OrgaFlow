@@ -4,6 +4,7 @@
     import DriveRecordModal from "$lib/components/DriveRecordModal.svelte";
     import ExpenditureModal from "$lib/components/ExpenditureModal.svelte";
     import AppointmentModal from "$lib/components/AppointmentModal.svelte";
+    import AppointmentReminderModal from "$lib/components/AppointmentReminderModal.svelte";
     import { toastStore } from "$lib/services/toastService.svelte";
     import { confirmStore } from "$lib/services/confirmService.svelte";
 
@@ -12,6 +13,7 @@
     let appointment = $derived(appId ? orgaStore.appointments?.getById(appId) : null);
 
     let client = $derived(appointment?.expand?.client?.[0] || null);
+    let fullClient = $derived(client ? orgaStore.clients?.getById(client.id) : null);
     let timeRecords = $derived(appointment?.expand?.time_record || []);
     let driveRecords = $derived(appointment?.expand?.drive_record || []);
     let tasks = $derived(appointment?.expand?.tasks || []);
@@ -31,16 +33,22 @@
     let totalKm = $derived(driveRecords.reduce((sum: number, r: any) => sum + (r.km || 0), 0));
     let totalExpenditure = $derived(expenditures.reduce((sum: number, e: any) => sum + (e.sum || 0), 0));
 
-    let driveModal: ReturnType<typeof DriveRecordModal> | undefined = $state();
-    let expenditureModal: ReturnType<typeof ExpenditureModal> | undefined = $state();
-    let editModal: ReturnType<typeof AppointmentModal> | undefined = $state();
+    /** @type {ReturnType<typeof DriveRecordModal>} */
+    let driveModal = $state() as any;
+    /** @type {ReturnType<typeof ExpenditureModal>} */
+    let expenditureModal = $state() as any;
+    /** @type {ReturnType<typeof AppointmentModal>} */
+    let editModal = $state() as any;
+    /** @type {ReturnType<typeof AppointmentReminderModal>} */
+    let reminderModal = $state() as any;
 
     let isTimeLoading = $state(false);
     let editTimeId = $state<string | null>(null);
     let timeStart = $state("");
     let timeEnd = $state("");
 
-    let taskDialog: HTMLDialogElement | undefined = $state();
+    // svelte-ignore non_reactive_update
+    let taskDialog: HTMLDialogElement;
     let newTaskTitle = $state("");
     let newTaskDescription = $state("");
     let isTaskLoading = $state(false);
@@ -88,9 +96,11 @@
 
     async function updateAppointmentStore() {
         if (!appointment) return;
-        const updatedApp = await pb.collection('appointments').getOne(appointment.id, { expand: 'user,client,drive_record,time_record,tasks,expenditures' }) as any;
-        const index = orgaStore.appointments?.data.findIndex(a => a.id === appointment!.id) ?? -1;
-        if (index !== -1 && orgaStore.appointments) orgaStore.appointments.data[index] = updatedApp;
+        setTimeout(async () => {
+            const updatedApp = await pb.collection('appointments').getOne(appointment.id, { expand: 'user,client,drive_record,time_record,tasks,expenditures', requestKey: null }) as any;
+            const index = orgaStore.appointments?.data.findIndex(a => a.id === appointment!.id) ?? -1;
+            if (index !== -1 && orgaStore.appointments) orgaStore.appointments.data[index] = updatedApp;
+        }, 400);
     }
 
     async function saveTime() {
@@ -157,24 +167,27 @@
 <dialog bind:this={dialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-5xl mx-auto my-auto rounded-3xl" onclick={(e) => { if (e.target === dialog) close(); }}>
     <div class="bg-brand-50 rounded-3xl w-full max-h-[90vh] flex flex-col relative overflow-hidden shadow-2xl">
         
-        <div class="bg-white px-6 py-5 border-b border-neutral-100 flex items-center justify-between shrink-0 sticky top-0 z-20">
-            <div class="flex items-center gap-4">
-                <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shadow-sm">📅</div>
-                <div>
-                    <h2 class="text-xl font-bold text-neutral-900 flex items-center gap-2">Termin-Details {#if appointment?.is_private}<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-rose-100 text-rose-700">Privat</span>{/if}</h2>
-                    <p class="text-xs text-neutral-500 font-medium">
-                        {appointment?.appointment ? new Date(appointment.appointment).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) : ''} 
+        <div class="bg-white px-4 sm:px-6 py-4 sm:py-5 border-b border-neutral-100 flex flex-col sm:flex-row sm:items-center justify-between shrink-0 sticky top-0 z-20 gap-3">
+            <div class="flex items-center gap-3 sm:gap-4 min-w-0 pr-8 sm:pr-0">
+                <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 hidden sm:flex items-center justify-center font-bold shadow-sm shrink-0">📅</div>
+                <div class="min-w-0">
+                    <h2 class="text-lg sm:text-xl font-bold text-neutral-900 flex items-center gap-2 truncate">
+                        Termin-Details {#if appointment?.is_private}<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-rose-100 text-rose-700 shrink-0">Privat</span>{/if}
+                    </h2>
+                    <p class="text-[10px] sm:text-xs text-neutral-500 font-medium truncate">
+                        {appointment?.appointment ? new Date(appointment.appointment).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) : ''} 
                         {appointment?.appointment ? `um ${new Date(appointment.appointment).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr` : ''}
                     </p>
                 </div>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1 sm:gap-2 shrink-0 self-end sm:self-auto">
                 {#if appointment}
-                    <button onclick={() => editModal?.open(appointment)} class="p-2 text-neutral-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Termin bearbeiten"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
-                    <button onclick={deleteAppointment} class="p-2 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Termin löschen"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                    <button onclick={() => reminderModal?.open(appointment, fullClient)} class="p-1.5 sm:p-2 text-neutral-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors bg-neutral-100 sm:bg-transparent" title="Termin-Erinnerung senden"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg></button>
+                    <button onclick={() => editModal?.open(appointment)} class="p-1.5 sm:p-2 text-neutral-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors bg-neutral-100 sm:bg-transparent" title="Termin bearbeiten"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                    <button onclick={deleteAppointment} class="p-1.5 sm:p-2 text-neutral-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors bg-neutral-100 sm:bg-transparent" title="Termin löschen"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                 {/if}
-                <div class="w-px h-6 bg-neutral-200 mx-1"></div>
-                <button aria-label="Schließen" onclick={close} class="w-8 h-8 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-full flex items-center justify-center transition-colors"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                <div class="w-px h-6 bg-neutral-200 mx-0 sm:mx-1 hidden sm:block"></div>
+                <button aria-label="Schließen" onclick={close} class="absolute top-4 right-4 sm:relative sm:top-0 sm:right-0 w-8 h-8 sm:w-8 sm:h-8 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-full flex items-center justify-center transition-colors shadow-sm sm:shadow-none"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
         </div>
 
@@ -193,7 +206,7 @@
                                  <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-sm shadow-inner">{(client.name_first?.charAt(0) || '')}{(client.name_last?.charAt(0) || '')}</div>
                                  <div>
                                      <p class="text-sm font-bold text-neutral-900 leading-tight">{client.name_first} {client.name_last}</p>
-                                     <a href="/clients/{client.id}" onclick={close} class="text-indigo-600 hover:text-indigo-800 text-xs font-semibold transition-colors">Akte öffnen &rarr;</a>
+                                    <a href="/clients" onclick={close} class="text-indigo-600 hover:text-indigo-800 text-xs font-semibold transition-colors">Zur Übersicht &rarr;</a>
                                  </div>
                              </div>
                          </div>
@@ -210,12 +223,12 @@
                             <div class="flex items-center justify-between mb-4 border-b border-neutral-100 pb-2"><h3 class="text-sm font-bold text-neutral-900 flex items-center gap-2"><span class="text-indigo-600">⏱️</span> Zeiterfassung</h3></div>
                             <div class="mb-5 bg-neutral-50 p-4 rounded-xl border border-neutral-100 shadow-sm">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                                    <div><label for="timeStart" class="block text-xs font-semibold text-neutral-600 mb-1">Startzeit</label><input id="timeStart" type="time" bind:value={timeStart} class="orga-input-clear py-1.5 text-sm" disabled={isTimeLoading} /></div>
-                                    <div><label for="timeEnd" class="block text-xs font-semibold text-neutral-600 mb-1">Endzeit</label><input id="timeEnd" type="time" bind:value={timeEnd} class="orga-input-clear py-1.5 text-sm" disabled={isTimeLoading} /></div>
+                                    <div><label for="timeStart" class="block text-xs font-semibold text-neutral-600 mb-1">Startzeit</label><input id="timeStart" type="time" bind:value={timeStart} class="orga-input-clear py-3 sm:py-1.5 text-sm" disabled={isTimeLoading} /></div>
+                                    <div><label for="timeEnd" class="block text-xs font-semibold text-neutral-600 mb-1">Endzeit</label><input id="timeEnd" type="time" bind:value={timeEnd} class="orga-input-clear py-3 sm:py-1.5 text-sm" disabled={isTimeLoading} /></div>
                                 </div>
                                 <div class="flex justify-end gap-2">
-                                    {#if editTimeId || timeStart || timeEnd}<button type="button" onclick={cancelTimeEdit} class="orga-button-ghost py-1.5 px-3 text-xs" disabled={isTimeLoading}>Abbrechen</button>{/if}
-                                    <button type="button" onclick={saveTime} disabled={isTimeLoading || !timeStart} class="orga-button-primary py-1.5 px-4 text-xs shadow-indigo-600/20">{isTimeLoading ? 'Speichert...' : (editTimeId ? 'Speichern' : 'Zeit hinzufügen')}</button>
+                                    {#if editTimeId || timeStart || timeEnd}<button type="button" onclick={cancelTimeEdit} class="orga-button-ghost py-3 sm:py-1.5 px-3 text-xs" disabled={isTimeLoading}>Abbrechen</button>{/if}
+                                    <button type="button" onclick={saveTime} disabled={isTimeLoading || !timeStart} class="orga-button-primary py-3 sm:py-1.5 px-4 text-xs shadow-indigo-600/20">{isTimeLoading ? 'Speichert...' : (editTimeId ? 'Speichern' : 'Zeit hinzufügen')}</button>
                                 </div>
                             </div>
                             {#if timeRecords.length === 0}<p class="text-center text-xs text-neutral-400 italic py-2">Keine Zeiten erfasst.</p>{:else}
@@ -237,7 +250,7 @@
                                     <button onclick={() => toggleTask(t.id)} class="px-2.5 py-1 rounded-md text-xs font-semibold border transition-all {tasks.some((pt: any) => pt.id === t.id) ? 'bg-amber-100 border-amber-300 text-amber-800 shadow-sm' : 'bg-white border-neutral-200 text-neutral-600 hover:border-amber-200 hover:bg-amber-50'}">{t.title}</button>
                                 {/each}
                             </div>
-                            <div class="flex gap-2"><input type="text" bind:value={newTaskTitle} placeholder="Neue Leistung anlegen..." class="orga-input-clear py-1.5 text-xs flex-1" onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); openTaskModal(); } }} disabled={isTaskLoading} /><button type="button" onclick={openTaskModal} disabled={!newTaskTitle.trim() || isTaskLoading} class="orga-button-primary bg-amber-500 hover:bg-amber-600 shadow-amber-500/20 py-1.5 px-3 text-xs shrink-0">+</button></div>
+                            <div class="flex gap-2"><input type="text" bind:value={newTaskTitle} placeholder="Neue Leistung anlegen..." class="orga-input-clear py-3 sm:py-1.5 text-xs flex-1" onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); openTaskModal(); } }} disabled={isTaskLoading} /><button type="button" onclick={openTaskModal} disabled={!newTaskTitle.trim() || isTaskLoading} class="orga-button-primary bg-amber-500 hover:bg-amber-600 shadow-amber-500/20 py-3 sm:py-1.5 px-3 text-xs shrink-0">+</button></div>
                         </div>
 
                         <div class="orga-card-white p-5">
@@ -264,6 +277,7 @@
     <DriveRecordModal bind:this={driveModal} {appointment} />
     <ExpenditureModal bind:this={expenditureModal} {appointment} />
     <AppointmentModal bind:this={editModal} />
+    <AppointmentReminderModal bind:this={reminderModal} />
     
     <dialog bind:this={taskDialog} class="p-0 bg-transparent backdrop:bg-black/50 backdrop:backdrop-blur-sm w-full max-w-sm mx-auto my-auto rounded-3xl" onclick={(e) => { if (e.target === taskDialog) taskDialog?.close(); }}>
         <div class="bg-white rounded-3xl p-6 w-full relative">
@@ -273,8 +287,8 @@
             <form onsubmit={(e) => { e.preventDefault(); createAndLinkTask(); }} class="space-y-3">
                 <textarea bind:value={newTaskDescription} rows="3" class="orga-input-clear resize-none text-sm" placeholder="Optionale Beschreibung..."></textarea>
                 <div class="flex justify-end gap-2 mt-2">
-                    <button type="button" onclick={() => taskDialog?.close()} class="orga-button-ghost py-1.5 px-3 text-xs" disabled={isTaskLoading}>Abbrechen</button>
-                    <button type="submit" class="orga-button-primary bg-amber-500 hover:bg-amber-600 shadow-amber-500/20 py-1.5 px-4 text-xs" disabled={isTaskLoading}>{isTaskLoading ? "Speichert..." : "Speichern"}</button>
+                    <button type="button" onclick={() => taskDialog?.close()} class="orga-button-ghost py-3 sm:py-1.5 px-3 text-xs" disabled={isTaskLoading}>Abbrechen</button>
+                    <button type="submit" class="orga-button-primary bg-amber-500 hover:bg-amber-600 shadow-amber-500/20 py-3 sm:py-1.5 px-4 text-xs" disabled={isTaskLoading}>{isTaskLoading ? "Speichert..." : "Speichern"}</button>
                 </div>
             </form>
         </div>

@@ -2,6 +2,7 @@
   import { getMailConfigService } from '$lib/services/mailConfigService.svelte';
   import type { SendEmailInput } from '$lib/services/emailService.svelte';
   import { pb } from '$lib/services/pocketbase';
+  import { onMount } from 'svelte';
 
   interface Props {
     initialData?: any;
@@ -23,11 +24,35 @@
   let error = $state<string | null>(null);
   let attachments = $state<File[]>([]);
 
+  let systemContacts = $state<{name: string, email: string}[]>([]);
+  let isSuperAdmin = $derived(pb.authStore.isSuperuser || pb.authStore.model?.role === 'superadmin');
+
   $effect.pre(() => {
     if (initialData) {
       to = initialData.to || '';
       subject = initialData.subject || '';
       body = initialData.body || '';
+    }
+  });
+
+  onMount(async () => {
+    try {
+      const [clients, contacts, users] = await Promise.all([
+        pb.collection('clients').getFullList({ fields: 'name_first,name_last,email', requestKey: null }).catch(()=>[]),
+        pb.collection('contacts').getFullList({ fields: 'name_first,name_last,email', requestKey: null }).catch(()=>[]),
+        pb.collection('users').getFullList({ fields: 'name_first,name_last,email', requestKey: null }).catch(()=>[])
+      ]);
+
+      const all = [...clients, ...contacts, ...users]
+        .filter(record => record.email)
+        .map(record => ({
+          name: `${record.name_first || ''} ${record.name_last || ''}`.trim() || 'Unbekannt',
+          email: record.email
+        }));
+
+      systemContacts = Array.from(new Map(all.map(item => [item.email, item])).values());
+    } catch (err) {
+      console.error(err);
     }
   });
 
@@ -43,10 +68,33 @@
     attachments = attachments.filter((_, i) => i !== index);
   }
 
+  function addRecipient(email: string) {
+    if (to) {
+      const currentEmails = to.split(',').map(e => e.trim());
+      if (!currentEmails.includes(email)) to += `, ${email}`;
+    } else {
+      to = email;
+    }
+  }
+
+  function addAllToBcc() {
+    showCcBcc = true;
+    const allEmails = systemContacts.map(c => c.email).filter(e => e);
+    const currentBcc = bcc ? bcc.split(',').map(e => e.trim()).filter(e => e) : [];
+    const combined = Array.from(new Set([...currentBcc, ...allEmails]));
+    bcc = combined.join(', ');
+    
+    const myEmail = pb.authStore.model?.email || '';
+    if (!to && myEmail) to = myEmail;
+    
+    error = `✅ Erfolgreich ${allEmails.length} Empfänger als BCC (Blindkopie) eingefügt!`;
+    setTimeout(() => { if (error?.includes('Erfolgreich')) error = null; }, 5000);
+  }
+
   async function handleSend() {
     // Validate
-    if (!to.trim()) {
-      error = 'Empfänger ist erforderlich';
+    if (!to.trim() && !cc.trim() && !bcc.trim()) {
+      error = 'Mindestens ein Empfänger (An, CC oder BCC) ist erforderlich';
       return;
     }
     if (!subject.trim()) {
@@ -141,9 +189,9 @@
     <!-- Content -->
     <div class="flex-1 overflow-y-auto p-6">
       {#if error}
-        <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
-          <span class="text-xl shrink-0 mt-0.5">⚠️</span>
-          <p class="text-sm text-red-800">{error}</p>
+        <div class="mb-4 p-4 {error.includes('✅') ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'} border rounded-lg flex gap-3">
+          <span class="text-xl shrink-0 mt-0.5">{error.includes('✅') ? '✅' : '⚠️'}</span>
+          <p class="text-sm font-semibold">{error.replace('✅ ', '')}</p>
         </div>
       {/if}
 
@@ -154,14 +202,41 @@
             <label for="to" class="block text-sm font-medium text-gray-700">An *</label>
             <button type="button" onclick={() => showCcBcc = !showCcBcc} class="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors">{showCcBcc ? '− CC / BCC ausblenden' : '+ CC / BCC hinzufügen'}</button>
           </div>
+        <div class="flex gap-2">
           <input
             id="to"
-            type="email"
+            type="text"
             bind:value={to}
+            list="contact-list"
             placeholder="empfaenger@example.com"
             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
             disabled={isSending}
           />
+          <select 
+              class="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm focus:ring-2 focus:ring-blue-600 cursor-pointer"
+              onchange={(e) => {
+                  const val = (e.currentTarget as HTMLSelectElement).value;
+                  if(val) addRecipient(val);
+                  (e.currentTarget as HTMLSelectElement).value = "";
+              }}
+              disabled={isSending}
+          >
+              <option value="">+ Adressbuch</option>
+              {#each systemContacts as contact}
+                  <option value={contact.email}>{contact.name} ({contact.email})</option>
+              {/each}
+          </select>
+          {#if isSuperAdmin}
+              <button type="button" onclick={addAllToBcc} class="px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-sm font-bold shadow-sm whitespace-nowrap hover:bg-blue-100 transition-colors" disabled={isSending} title="Rundmail an alle (BCC)">
+                  📢 An Alle
+              </button>
+          {/if}
+        </div>
+        <datalist id="contact-list">
+            {#each systemContacts as contact}
+                <option value={contact.email}>{contact.name}</option>
+            {/each}
+        </datalist>
         </div>
 
         {#if showCcBcc}

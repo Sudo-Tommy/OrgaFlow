@@ -1,0 +1,130 @@
+<script lang="ts">
+    import { goto } from "$app/navigation";
+    import { onMount } from "svelte";
+
+    let step = $state<"email" | "otp">("email");
+    let email = $state("");
+    let otp = $state("");
+    let isLoading = $state(false);
+    let errorMsg = $state("");
+    let successMsg = $state("");
+
+    // Dynamischer API-Wächter: Lokal rufen wir direkt die originale /portal Route am Microservice ab. 
+    // Auf dem Live-Server nutzen wir den /api/emails/ Prefix, damit Nginx die Anfrage sicher durchlässt.
+    const apiBaseUrl = (typeof window !== 'undefined' && !window.location.hostname.includes('ihre-seniorenassistenz.com')) ? `http://${window.location.hostname}:3000/portal` : '/api/emails/portal';
+
+    onMount(() => {
+        // Wenn der Nutzer schon einen Token hat, schicken wir ihn direkt zu den Rechnungen
+        if (localStorage.getItem('portal_token')) {
+            goto('/portal/invoices');
+        }
+    });
+
+    async function requestOtp(e: Event) {
+        e.preventDefault();
+        
+        // Letzter Schutz-Wächter: Falls der Browser das "www." verschluckt hat, zwingen wir ihn hier zur sicheren Seite!
+        if (typeof window !== 'undefined' && window.location.hostname === 'ihre-seniorenassistenz.com') {
+            window.location.replace(window.location.href.replace('//ihre-', '//www.ihre-'));
+            return;
+        }
+        
+        isLoading = true; errorMsg = "";
+        try {
+            const res = await fetch(`${apiBaseUrl}/request-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+            if (!res.ok && res.status === 404) throw new Error("Kein Klient mit dieser Email hinterlegt");
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || data.message || "Serverfehler aufgetreten.");
+            if (data.error) throw new Error(data.error);
+            
+            step = "otp";
+            successMsg = "Ein 6-stelliger Code wurde an Ihre E-Mail-Adresse gesendet.";
+        } catch (err: any) {
+            console.error(err);
+            errorMsg = err.message || "Konnte keinen Code anfordern.";
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    async function verifyOtp(e: Event) {
+        e.preventDefault();
+        
+        if (typeof window !== 'undefined' && window.location.hostname === 'ihre-seniorenassistenz.com') {
+            window.location.replace(window.location.href.replace('//ihre-', '//www.ihre-'));
+            return;
+        }
+
+        isLoading = true; errorMsg = "";
+        try {
+            const cleanOtp = otp.replace(/[^0-9]/g, ''); // Letzte Sicherheits-Reinigung
+            const res = await fetch(`${apiBaseUrl}/verify-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, otp: cleanOtp }) });
+            if (!res.ok && res.status === 404) throw new Error("API-Route nicht gefunden.");
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || data.message || "Falscher Code.");
+            if (data.error) throw new Error(data.error);
+            
+            localStorage.setItem('portal_token', data.token);
+            // Erfolgreicher Login -> Ab zu den Rechnungen!
+            goto('/portal/invoices');
+        } catch (err: any) {
+            console.error(err);
+            errorMsg = err.message || "Falscher Code oder abgelaufen.";
+        } finally {
+            isLoading = false;
+        }
+    }
+</script>
+
+<svelte:head><title>Login - Klienten-Portal</title></svelte:head>
+
+<div class="w-full max-w-md mx-auto animate-enter">
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-black text-brand-950 tracking-tight mb-2">Willkommen</h1>
+        <p class="text-neutral-500 font-medium">Loggen Sie sich ein, um Ihre Dokumente und Rechnungen einzusehen.</p>
+    </div>
+
+    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-neutral-200 shadow-xl shadow-neutral-900/5">
+        {#if errorMsg}
+            <div class="bg-rose-50 text-rose-700 p-4 rounded-xl mb-6 text-sm font-bold border border-rose-100 flex items-center gap-2">
+                <span class="text-lg">⚠️</span> {errorMsg}
+            </div>
+        {/if}
+        {#if successMsg && step === "otp"}
+            <div class="bg-emerald-50 text-emerald-800 p-4 rounded-xl mb-6 text-sm font-bold border border-emerald-100 flex items-center gap-2 animate-enter">
+                <span class="text-lg">✉️</span> {successMsg}
+            </div>
+        {/if}
+
+        {#if step === "email"}
+            <form onsubmit={requestOtp} class="space-y-5">
+                <div>
+                    <label for="email" class="block text-sm font-semibold text-neutral-700 mb-1.5">Ihre E-Mail-Adresse</label>
+                    <input id="email" type="email" bind:value={email} required class="orga-input-clear py-3" placeholder="Ihre hinterlegte E-Mail..." disabled={isLoading} style="-webkit-user-select: text !important; user-select: text !important;" />
+                </div>
+                <button type="submit" disabled={isLoading || !email} class="orga-button-primary w-full py-3 shadow-brand-600/20 text-base">{isLoading ? 'Code wird gesendet...' : 'Zugangs-Code anfordern'}</button>
+            </form>
+        {:else}
+            <form onsubmit={verifyOtp} class="space-y-5 animate-enter">
+                <div>
+                    <label for="otp" class="block text-sm font-semibold text-neutral-700 mb-1.5">6-stelliger Code aus der E-Mail</label>
+                    <input 
+                        id="otp" 
+                        type="text" 
+                        bind:value={otp} 
+                        oninput={(e) => otp = e.currentTarget.value.replace(/[^0-9]/g, '').slice(0, 6)}
+                        maxlength="6"
+                        class="orga-input-clear py-3 text-center text-2xl font-mono tracking-widest" placeholder="123456" disabled={isLoading} style="-webkit-user-select: text !important; user-select: text !important;" />
+                </div>
+                <button type="submit" disabled={isLoading || otp.length !== 6} class="orga-button-primary w-full py-3 shadow-brand-600/20 text-base">{isLoading ? 'Wird geprüft...' : 'Anmelden'}</button>
+                <button type="button" onclick={() => { step = "email"; successMsg = ""; errorMsg = ""; otp = ""; }} class="w-full text-center text-sm font-semibold text-neutral-500 hover:text-brand-600 mt-4 transition-colors" disabled={isLoading}>
+                    &larr; Zurück zur E-Mail-Eingabe
+                </button>
+            </form>
+        {/if}
+    </div>
+    
+    <div class="mt-8 text-center">
+        <p class="text-xs text-neutral-400 font-medium">Aus Datenschutzgründen nutzen wir ein sicheres, passwortloses Login-Verfahren. Sie erhalten bei jeder Anmeldung einen einmaligen Code per E-Mail.</p>
+    </div>
+</div>

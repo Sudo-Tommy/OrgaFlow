@@ -57,7 +57,7 @@
         <div><label for="prof-email" class="block text-sm font-semibold text-neutral-700 mb-1.5">E-Mail Adresse</label><input id="prof-email" type="email" bind:value={formData.email} class="orga-input-clear" required disabled={isLoading} /></div>
         
         <div class="pt-4 flex justify-end">
-            <button type="submit" disabled={isLoading} class="orga-button-primary w-full sm:w-auto shadow-indigo-600/20">
+            <button type="submit" disabled={isLoading} class="orga-button-primary w-full sm:w-auto shadow-indigo-600/20 py-3 sm:py-2.5">
                 {isLoading ? 'Speichert...' : 'Profil aktualisieren'}
             </button>
         </div>
